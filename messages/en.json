@@ -1,0 +1,16 @@
+{
+    "Dashboard": {
+        "buildTitle": "BUILD",
+        "buildSubtitle": "GitHub, HF & Dev.to",
+        "marketTitle": "MARKET",
+        "marketSubtitle": "Poly, Dune & Crypto",
+        "newsTitle": "NEWS",
+        "newsSubtitle": "Hacker News & Substack",
+        "launchTitle": "LAUNCH",
+        "launchSubtitle": "Product Hunt"
+    },
+    "Common": {
+        "loading": "Loading...",
+        "noSignals": "No signals yet"
+    }
+}

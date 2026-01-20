@@ -2,12 +2,28 @@ import { prisma } from "../prisma/db";
 import { BaseScraper } from "./base";
 import { HackerNewsScraper } from "./hacker-news";
 import { GitHubTrendingScraper } from "./github-trending";
+import { HuggingFaceScraper } from "./hugging-face";
+import { ProductHuntScraper } from "./product-hunt";
+import { DevToScraper } from "./dev-to";
+import { CryptoPanicScraper } from "./cryptopanic";
+import { PolymarketScraper } from "./polymarket";
+import { DuneScraper } from "./dune";
+import { SubstackScraper } from "./substack";
+import { SignalProcessor } from "../llm/processor";
 
 export class ScraperRunner {
     private scrapers: BaseScraper[] = [
         new HackerNewsScraper(),
         new GitHubTrendingScraper(),
+        new HuggingFaceScraper(),
+        new ProductHuntScraper(),
+        new DevToScraper(),
+        new CryptoPanicScraper(),
+        new PolymarketScraper(),
+        new DuneScraper(),
+        new SubstackScraper(),
     ];
+    private processor = new SignalProcessor();
 
     async runAll() {
         console.log("Starting scraper runner...");
@@ -30,7 +46,14 @@ export class ScraperRunner {
                             where: { url: signal.url },
                             update: {
                                 score: signal.score,
-                                summary: signal.summary,
+                                // Only update summary if it's not null in the new data, 
+                                // or preserve existing if we want to keep LLM generated ones?
+                                // If scraper provides summary, it might overwrite LLM summary.
+                                // For now, let's assume scraper summary is better if present, 
+                                // or maybe we only update if existing is null?
+                                // Let's keep it simple: overwrite.
+                                // But wait, HackerNews scraper usually has no summary.
+                                ...(signal.summary ? { summary: signal.summary } : {}),
                             },
                             create: {
                                 title: signal.title,
@@ -51,6 +74,13 @@ export class ScraperRunner {
                 console.error(`Scraper ${scraper.name} failed:`, error);
                 results.errors++;
             }
+        }
+
+        console.log("Scraping finished. Starting LLM enrichment...");
+        try {
+            await this.processor.processSignals();
+        } catch (error) {
+            console.error("LLM enrichment failed:", error);
         }
 
         console.log("Runner finished:", results);

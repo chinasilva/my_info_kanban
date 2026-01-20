@@ -1,6 +1,3 @@
-"use client";
-
-import { motion } from "framer-motion";
 import { LucideIcon } from "lucide-react";
 import { SignalCard } from "./SignalCard";
 
@@ -12,7 +9,7 @@ interface Signal {
     score: number;
     source: string;
     category?: string | null;
-    createdAt: Date;
+    createdAt: Date | string;
 }
 
 interface SignalColumnProps {
@@ -44,7 +41,14 @@ export function SignalColumn({ title, subtitle, icon: Icon, signals, colorClass 
             <div className="column-scroll-area">
                 {signals.length > 0 ? (
                     signals.map((signal) => (
-                        <SignalCard key={signal.id} signal={signal} variant="compact" />
+                        <SignalCard
+                            key={signal.id}
+                            signal={{
+                                ...signal,
+                                createdAt: new Date(signal.createdAt).toISOString(),
+                            }}
+                            variant="compact"
+                        />
                     ))
                 ) : (
                     <div className="py-20 text-center px-6">

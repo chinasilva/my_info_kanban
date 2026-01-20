@@ -1,0 +1,34 @@
+# 任务清单：精品信息源聚合网站 (High-Signal Aggregator)
+
+- [x] 项目初始化与环境搭建
+    - [x] 设计技术栈选型与架构图
+    - [x] 初始化 Next.js 项目并配置 Tailwind CSS
+    - [x] 配置 Supabase 数据库与 Prisma ORM
+- [/] 核心：数据抓取与处理层 (The Pipeline)
+    - [x] 实现基础抓取框架 (Scraper Framework)
+    - [x] [Source 1-3] Hacker News, GitHub, Product Hunt (API/RSS 方式)
+        - [x] Hacker News API 集成
+        - [x] GitHub Trending Scraper
+        - [x] Product Hunt RSS 集成
+    - [x] [Source 4-7] Hugging Face, Polymarket, CryptoPanic, Dune (混合方式)
+        - [x] Hugging Face Daily Papers API
+        - [x] Polymarket Trending markets (API)
+        - [x] CryptoPanic (RSS)
+        - [x] Dune Analytics (Via Dune Digest RSS)
+    - [x] [Source 8-10] Substack, Dev.to, Podcast Charts (RSS/Scraping)
+        - [x] Dev.to (RSS)
+        - [x] Substack (Aggregated RSS from Top Tech Newsletters)
+    - [x] 集成 LLM 进行自动摘要与分类 (已支持 Gemini/OpenAI/DeepSeek)
+- [ ] 后端架构与任务调度
+    - [x] 设置 Redis 缓存与频率限制 (已实现 Redis/Memory 混合模式)
+    - [x] 配置 GitHub Actions 或内置 Cron 任务进行定时更新 (Vercel Cron + GH Actions)
+- [/] 前端界面开发 (The Signal UI)
+    - [x] 设计并实现响应式 Bento Grid 布局 (已过时)
+    - [x] 设计并实现 Kanban/TweetDeck 多列布局
+    - [x] 开发分类信息列组件 (Column)
+    - [x] 开发详情预览侧边栏 (Slide-over)
+    - [x] 实现跨源筛选与标签系统
+- [x] 测试与部署
+    - [x] 编写数据抓取单元测试 (通过集成 API 验证)
+    - [x] 进行端到端 UI 测试
+    - [ ] 部署至 Vercel 并在生产环境验证任务调度
