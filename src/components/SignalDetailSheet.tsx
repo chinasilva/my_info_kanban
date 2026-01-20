@@ -2,7 +2,7 @@
 
 import { useSignal } from "@/context/SignalContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { ExternalLink, Calendar, Tag, TrendingUp } from "lucide-react";
+import { ExternalLink, Calendar, Tag, TrendingUp, Sparkles } from "lucide-react";
 
 export function SignalDetailSheet() {
     const { selectedSignal, setSelectedSignal } = useSignal();
@@ -15,7 +15,7 @@ export function SignalDetailSheet() {
                         <SheetHeader className="pb-6 border-b border-white/10">
                             <div className="flex gap-2 mb-2">
                                 <span className="glass-pill text-xs uppercase tracking-wider text-accent border border-accent/20 bg-accent/10 px-2 py-0.5 rounded">
-                                    {selectedSignal.source}
+                                    {typeof selectedSignal.source === 'string' ? selectedSignal.source : (selectedSignal.source as any).name}
                                 </span>
                                 {selectedSignal.category && (
                                     <span className="glass-pill text-xs uppercase tracking-wider text-neutral-400 border border-white/10 px-2 py-0.5 rounded">
@@ -27,24 +27,38 @@ export function SignalDetailSheet() {
                                 {selectedSignal.title}
                             </SheetTitle>
                             <SheetDescription className="flex items-center gap-4 text-xs text-neutral-500">
-                                <div className="flex items-center gap-1">
+                                <span className="flex items-center gap-1">
                                     <TrendingUp className="w-3 h-3 text-accent" />
                                     <span>Score: {selectedSignal.score}</span>
-                                </div>
-                                <div className="flex items-center gap-1">
+                                </span>
+                                <span className="flex items-center gap-1">
                                     <Calendar className="w-3 h-3" />
                                     <span>{new Date(selectedSignal.createdAt).toLocaleString()}</span>
-                                </div>
+                                </span>
                             </SheetDescription>
                         </SheetHeader>
 
                         <div className="mt-8 space-y-6">
                             <div>
-                                <h3 className="text-sm font-bold text-neutral-300 uppercase tracking-wider mb-3">
+                                <h3 className="text-sm font-bold text-neutral-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                    {selectedSignal.aiSummary && <Sparkles className="w-4 h-4 text-purple-400" />}
                                     Summary
                                 </h3>
-                                <div className="prose prose-invert prose-sm max-w-none text-neutral-300 leading-relaxed">
-                                    {selectedSignal.summary || "No summary available."}
+                                <div className="prose prose-invert prose-sm max-w-none text-neutral-300 leading-relaxed space-y-4">
+                                    {selectedSignal.aiSummary && (
+                                        <div className="flex gap-2">
+                                            <Sparkles className="w-4 h-4 text-purple-400 mt-0.5 shrink-0" />
+                                            <span>{selectedSignal.aiSummary}</span>
+                                        </div>
+                                    )}
+                                    {selectedSignal.aiSummaryZh && (
+                                        <div className="pl-6 border-l-2 border-white/10 text-neutral-400">
+                                            {selectedSignal.aiSummaryZh}
+                                        </div>
+                                    )}
+                                    {!selectedSignal.aiSummary && !selectedSignal.aiSummaryZh && (
+                                        <p>{selectedSignal.summary || "No summary available."}</p>
+                                    )}
                                 </div>
                             </div>
 

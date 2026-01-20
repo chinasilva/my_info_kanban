@@ -36,7 +36,12 @@ export class SignalProcessor {
                     where: { id: signal.id },
                     data: {
                         summary: finalSummary,
+                        aiSummary: result.summary, // Start saving to specialized field too
                         category: result.category,
+                        tags: result.tags || [],
+                        tagsZh: result.tagsZh || [],
+                        aiSummaryZh: result.aiSummaryZh,
+                        titleTranslated: result.titleTranslated
                     }
                 });
                 console.log(`Enriched signal ${signal.id}`);

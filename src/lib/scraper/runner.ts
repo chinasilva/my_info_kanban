@@ -1,5 +1,5 @@
 import { prisma } from "../prisma/db";
-import { BaseScraper } from "./base";
+import { BaseScraper, ScrapedSignal } from "./base";
 import { HackerNewsScraper } from "./hacker-news";
 import { GitHubTrendingScraper } from "./github-trending";
 import { HuggingFaceScraper } from "./hugging-face";
@@ -9,21 +9,72 @@ import { CryptoPanicScraper } from "./cryptopanic";
 import { PolymarketScraper } from "./polymarket";
 import { DuneScraper } from "./dune";
 import { SubstackScraper } from "./substack";
+import { GenericRssScraper } from "./generic-rss";
 import { SignalProcessor } from "../llm/processor";
+import { Source } from "@prisma/client";
+
+// 内置 Scraper 映射
+const BUILTIN_SCRAPERS: Record<string, () => BaseScraper> = {
+    hackernews: () => new HackerNewsScraper(),
+    github: () => new GitHubTrendingScraper(),
+    huggingface: () => new HuggingFaceScraper(),
+    producthunt: () => new ProductHuntScraper(),
+    devto: () => new DevToScraper(),
+    cryptopanic: () => new CryptoPanicScraper(),
+    polymarket: () => new PolymarketScraper(),
+    dune: () => new DuneScraper(),
+    substack: () => new SubstackScraper(),
+};
+
+interface ScraperWithSource {
+    scraper: BaseScraper;
+    sourceId: string;
+}
 
 export class ScraperRunner {
-    private scrapers: BaseScraper[] = [
-        new HackerNewsScraper(),
-        new GitHubTrendingScraper(),
-        new HuggingFaceScraper(),
-        new ProductHuntScraper(),
-        new DevToScraper(),
-        new CryptoPanicScraper(),
-        new PolymarketScraper(),
-        new DuneScraper(),
-        new SubstackScraper(),
-    ];
     private processor = new SignalProcessor();
+
+    /**
+     * 从数据库动态获取所有活跃的数据源并创建对应的 Scraper
+     */
+    private async getScrapers(): Promise<ScraperWithSource[]> {
+        const sources = await prisma.source.findMany({
+            where: { isActive: true },
+        });
+
+        const scrapers: ScraperWithSource[] = [];
+
+        for (const source of sources) {
+            const scraper = this.createScraperForSource(source);
+            if (scraper) {
+                scrapers.push({
+                    scraper,
+                    sourceId: source.id,
+                });
+            }
+        }
+
+        return scrapers;
+    }
+
+    /**
+     * 根据数据源类型创建对应的 Scraper 实例
+     */
+    private createScraperForSource(source: Source): BaseScraper | null {
+        // 检查是否是内置类型
+        const builtinFactory = BUILTIN_SCRAPERS[source.type];
+        if (builtinFactory) {
+            return builtinFactory();
+        }
+
+        // RSS 类型使用通用 RSS Scraper
+        if (source.type === "rss") {
+            return new GenericRssScraper(source);
+        }
+
+        console.warn(`Unknown source type: ${source.type} for source ${source.name}`);
+        return null;
+    }
 
     async runAll() {
         console.log("Starting scraper runner...");
@@ -34,7 +85,11 @@ export class ScraperRunner {
             errors: 0,
         };
 
-        for (const scraper of this.scrapers) {
+        // 动态获取所有 Scraper
+        const scraperList = await this.getScrapers();
+        console.log(`Found ${scraperList.length} active sources`);
+
+        for (const { scraper, sourceId } of scraperList) {
             try {
                 console.log(`Running scraper: ${scraper.name}`);
                 const signals = await scraper.fetch();
@@ -42,24 +97,17 @@ export class ScraperRunner {
 
                 for (const signal of signals) {
                     try {
-                        const upserted = await prisma.signal.upsert({
+                        await prisma.signal.upsert({
                             where: { url: signal.url },
                             update: {
                                 score: signal.score,
-                                // Only update summary if it's not null in the new data, 
-                                // or preserve existing if we want to keep LLM generated ones?
-                                // If scraper provides summary, it might overwrite LLM summary.
-                                // For now, let's assume scraper summary is better if present, 
-                                // or maybe we only update if existing is null?
-                                // Let's keep it simple: overwrite.
-                                // But wait, HackerNews scraper usually has no summary.
                                 ...(signal.summary ? { summary: signal.summary } : {}),
                             },
                             create: {
                                 title: signal.title,
                                 url: signal.url,
                                 score: signal.score,
-                                source: scraper.source,
+                                sourceId: sourceId, // 使用数据库中的 sourceId
                                 category: signal.category,
                                 externalId: signal.externalId,
                                 summary: signal.summary,
@@ -70,6 +118,13 @@ export class ScraperRunner {
                         console.error(`Error saving signal ${signal.url}:`, e);
                     }
                 }
+
+                // 更新数据源的最后抓取时间
+                await prisma.source.update({
+                    where: { id: sourceId },
+                    data: { lastFetched: new Date() },
+                });
+
             } catch (error) {
                 console.error(`Scraper ${scraper.name} failed:`, error);
                 results.errors++;

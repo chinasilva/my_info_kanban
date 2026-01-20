@@ -1,34 +1,93 @@
-# 任务清单：精品信息源聚合网站 (High-Signal Aggregator)
+# 多用户扩展改造任务
 
-- [x] 项目初始化与环境搭建
-    - [x] 设计技术栈选型与架构图
-    - [x] 初始化 Next.js 项目并配置 Tailwind CSS
-    - [x] 配置 Supabase 数据库与 Prisma ORM
-- [/] 核心：数据抓取与处理层 (The Pipeline)
-    - [x] 实现基础抓取框架 (Scraper Framework)
-    - [x] [Source 1-3] Hacker News, GitHub, Product Hunt (API/RSS 方式)
-        - [x] Hacker News API 集成
-        - [x] GitHub Trending Scraper
-        - [x] Product Hunt RSS 集成
-    - [x] [Source 4-7] Hugging Face, Polymarket, CryptoPanic, Dune (混合方式)
-        - [x] Hugging Face Daily Papers API
-        - [x] Polymarket Trending markets (API)
-        - [x] CryptoPanic (RSS)
-        - [x] Dune Analytics (Via Dune Digest RSS)
-    - [x] [Source 8-10] Substack, Dev.to, Podcast Charts (RSS/Scraping)
-        - [x] Dev.to (RSS)
-        - [x] Substack (Aggregated RSS from Top Tech Newsletters)
-    - [x] 集成 LLM 进行自动摘要与分类 (已支持 Gemini/OpenAI/DeepSeek)
-- [ ] 后端架构与任务调度
-    - [x] 设置 Redis 缓存与频率限制 (已实现 Redis/Memory 混合模式)
-    - [x] 配置 GitHub Actions 或内置 Cron 任务进行定时更新 (Vercel Cron + GH Actions)
-- [/] 前端界面开发 (The Signal UI)
-    - [x] 设计并实现响应式 Bento Grid 布局 (已过时)
-    - [x] 设计并实现 Kanban/TweetDeck 多列布局
-    - [x] 开发分类信息列组件 (Column)
-    - [x] 开发详情预览侧边栏 (Slide-over)
-    - [x] 实现跨源筛选与标签系统
-- [x] 测试与部署
-    - [x] 编写数据抓取单元测试 (通过集成 API 验证)
-    - [x] 进行端到端 UI 测试
-    - [ ] 部署至 Vercel 并在生产环境验证任务调度
+## 阶段一：基础设施 (Core)
+
+- [x] 数据库迁移 SQLite → PostgreSQL (Supabase)
+  - [x] 修改 `schema.prisma` 使用 PostgreSQL
+  - [x] 修复 Prisma 7 连接 Supabase 问题
+    - [x] 配置 `prisma.config.ts`
+    - [x] 解决端口 6543 的连接及 prepared statement 冲突
+    - [x] 成功运行 `db push` 和 `db seed`
+- [x] 初始化内置数据源
+- [x] 排查登录后看板内容为空的问题
+    - [x] 确认数据库中存在信号和订阅记录
+    - [x] 添加调试日志到 `DashboardPage`
+    - [x] 分析日志定位查询或分组逻辑问题 (已确认数据存在，修复序列化问题)
+- [ ] 验证多用户数据隔离
+- [x] 数据模型扩展
+  - [x] User 模型 (NextAuth 需要)
+  - [x] Account 模型 (OAuth)
+  - [x] Session 模型
+  - [x] UserSource 模型 (用户订阅)
+  - [x] UserSignal 模型 (用户状态)
+  - [x] 改造 Source 模型
+  - [x] 改造 Signal 模型 (关联 sourceId)
+
+- [x] NextAuth 集成
+  - [x] 安装 next-auth 依赖
+  - [x] 配置 Credentials Provider (邮箱密码)
+  - [x] 配置 Google Provider
+  - [x] 配置 GitHub Provider
+  - [x] 创建登录/注册页面
+
+- [x] 用户订阅逻辑
+  - [x] API: 获取数据源列表
+  - [x] API: 订阅/取消订阅数据源
+  - [x] 数据源管理 UI
+
+- [x] 看板改造
+  - [x] 按用户订阅过滤
+  - [x] 用户状态隔离 (已读/收藏)
+  - [x] API: 标记已读
+  - [x] API: 收藏
+
+## 阶段二：自定义数据源 (Extensibility)
+
+- [x] RSS 解析器改造
+  - [x] 通用 RSS Scraper 支持动态 URL
+  - [x] 验证 RSS 有效性
+
+- [x] 数据源管理 UI
+  - [x] 添加 RSS 源表单
+  - [x] 源列表展示
+
+- [x] 抓取任务改造
+  - [x] ScraperRunner 从数据库读取活跃源
+  - [x] 支持动态数据源列表
+  - [x] 源共享机制 (用户添加的源对全团队可见)
+
+## 阶段二-扩充：LLM 增强 (AI Enhancement)
+
+- [x] 数据库扩展 (Dual Language)
+  - [x] Schema: 添加 `tags`, `aiSummary`, `titleTranslated`
+  - [x] Schema: 添加 `tagsZh`
+  - [x] Schema: 添加 `aiSummaryZh`
+  - [x] Migration: `db push`
+- [x] LLM 服务改造 (Bilingual)
+  - [x] 类型定义更新 (`ProcessingResult`)
+  - [x] Prompt & Processor: 标签 (Tags/TagsZh)
+  - [x] Prompt & Processor: 摘要 (AI Summary/AI Summary ZH)
+- [x] UI 展示 (Interactive & Bilingual)
+  - [x] SignalCard: 基础 Locale 传递
+  - [x] SignalCard: 双语标题展示 (Original + Translated)
+  - [x] SignalCard: 双语摘要展示 (Original + Translated)
+  - [x] SignalCard: Hover 交互显示完整摘要
+  - [x] SignalCard: 显示标签 (Tags)
+- [x] 功能验证
+  - [x] 运行 `analyze` 任务
+  - [x] 验证 Dashboard 展示
+
+## 阶段三 (未来)
+
+- [ ] Apple 登录
+- [ ] 微信扫码登录
+
+---
+
+## 剩余步骤 (需要用户操作)
+
+1. 安装依赖: `npm install`
+2. 创建 Supabase 项目并配置 `.env`
+3. 推送数据库: `npm run db:push`
+4. 运行种子脚本: `npm run db:seed`
+5. 启动开发服务器: `npm run dev`

@@ -24,7 +24,10 @@ Output JSON format:
 {
     "summary": "A concise summary (max 2 sentences)",
     "category": "One of: AI, Crypto, Tech, Startups, Design, Other",
-    "tags": ["tag1", "tag2"]
+    "tags": ["tag1", "tag2"],
+    "tagsZh": ["标签1", "标签2"],
+    "aiSummaryZh": "Chinese summary",
+    "titleTranslated": "Chinese translation of the title"
 }
 `;
 
@@ -45,7 +48,10 @@ Output JSON format:
             return {
                 summary: 'Summary generation failed.',
                 category: 'Uncategorized',
-                tags: []
+                tags: [],
+                tagsZh: [],
+                aiSummaryZh: '',
+                titleTranslated: ''
             };
         }
     }

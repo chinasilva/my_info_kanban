@@ -1,10 +1,17 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ExternalLink, TrendingUp } from "lucide-react";
+import { ExternalLink, TrendingUp, Star, Sparkles, Languages } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { useSignal } from "@/context/SignalContext";
+
+interface Source {
+    id: string;
+    name: string;
+    type: string;
+    icon?: string | null;
+}
 
 interface Signal {
     id: string;
@@ -12,38 +19,86 @@ interface Signal {
     url: string;
     summary?: string | null;
     score: number;
-    source: string;
+    source: Source | string; // 支持新旧两种格式
     category?: string | null;
     createdAt: Date | string;
+    isRead?: boolean;
+    isFavorited?: boolean;
+    tags?: string[];
+    tagsZh?: string[];
+    aiSummary?: string | null;
+    aiSummaryZh?: string | null;
+    titleTranslated?: string | null;
 }
 
 export function SignalCard({
     signal,
     className,
-    variant = "default"
+    variant = "default",
+    locale
 }: {
     signal: Signal;
     className?: string;
-    variant?: "default" | "compact"
+    variant?: "default" | "compact";
+    locale?: string;
 }) {
     const [mounted, setMounted] = useState(false);
-    const [isRead, setIsRead] = useState(false);
+    const [isRead, setIsRead] = useState(signal.isRead ?? false);
+    const [isSummaryHovered, setIsSummaryHovered] = useState(false); // State for hover effect
+
+    const isZh = locale === 'zh';
+    const displayTitle = signal.title;
+    const displayTags = (isZh && signal.tagsZh && signal.tagsZh.length > 0) ? signal.tagsZh : signal.tags;
+    const [isFavorited, setIsFavorited] = useState(signal.isFavorited ?? false);
     const { setSelectedSignal } = useSignal();
+
+    // 兼容新旧数据格式
+    const sourceName = typeof signal.source === 'string'
+        ? signal.source
+        : signal.source?.name || 'Unknown';
+    const sourceIcon = typeof signal.source === 'string'
+        ? null
+        : signal.source?.icon;
 
     useEffect(() => {
         setMounted(true);
-        const readSignals = JSON.parse(localStorage.getItem("read_signals") || "[]");
-        if (readSignals.includes(signal.id)) {
-            setIsRead(true);
+        // 如果没有从服务器获取状态，从 localStorage 读取
+        if (signal.isRead === undefined) {
+            const readSignals = JSON.parse(localStorage.getItem("read_signals") || "[]");
+            if (readSignals.includes(signal.id)) {
+                setIsRead(true);
+            }
         }
-    }, [signal.id]);
+    }, [signal.id, signal.isRead]);
 
-    const handleRead = () => {
+    const handleRead = async () => {
+        // 本地更新
         const readSignals = JSON.parse(localStorage.getItem("read_signals") || "[]");
         if (!readSignals.includes(signal.id)) {
             readSignals.push(signal.id);
             localStorage.setItem("read_signals", JSON.stringify(readSignals));
             setIsRead(true);
+        }
+
+        // 服务端更新 (fire and forget)
+        try {
+            fetch(`/api/signals/${signal.id}/read`, { method: "POST" });
+        } catch (e) {
+            // Ignore errors
+        }
+    };
+
+    const handleFavorite = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        setIsFavorited(!isFavorited);
+
+        try {
+            await fetch(`/api/signals/${signal.id}/favorite`, { method: "POST" });
+        } catch (e) {
+            // Revert on error
+            setIsFavorited(isFavorited);
         }
     };
 
@@ -60,14 +115,19 @@ export function SignalCard({
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 className={cn(
-                    "kanban-card group transition-all duration-300",
+                    "kanban-card group transition-all duration-300 relative",
                     isRead ? "opacity-60 bg-white/5 grayscale" : "",
                     className
                 )}
                 onClick={handleOpenDetail}
+                onMouseEnter={() => setIsSummaryHovered(true)}
+                onMouseLeave={() => setIsSummaryHovered(false)}
             >
                 <div className="flex justify-between items-start mb-2">
                     <div className="flex items-center gap-2">
+                        {sourceIcon && (
+                            <span className="text-xs">{sourceIcon}</span>
+                        )}
                         <span className={cn(
                             "text-[10px] font-bold uppercase tracking-tighter",
                             isRead ? "text-neutral-500" : "text-accent"
@@ -79,17 +139,30 @@ export function SignalCard({
                             {mounted ? new Date(signal.createdAt).toLocaleString() : ""}
                         </span>
                     </div>
-                    <a
-                        href={signal.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleRead();
-                        }}
-                    >
-                        <ExternalLink className="w-3 h-3 text-neutral-600 hover:text-white transition-colors" />
-                    </a>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={handleFavorite}
+                            className={cn(
+                                "p-1 rounded transition-colors",
+                                isFavorited
+                                    ? "text-yellow-400"
+                                    : "text-neutral-600 hover:text-yellow-400"
+                            )}
+                        >
+                            <Star className={cn("w-3 h-3", isFavorited && "fill-current")} />
+                        </button>
+                        <a
+                            href={signal.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleRead();
+                            }}
+                        >
+                            <ExternalLink className="w-3 h-3 text-neutral-600 hover:text-white transition-colors" />
+                        </a>
+                    </div>
                 </div>
 
                 <h3 className={cn(
@@ -101,8 +174,37 @@ export function SignalCard({
 
                 {signal.summary && (
                     <p className="text-[12px] text-neutral-400 line-clamp-2 leading-normal">
-                        {signal.summary}
+                        {signal.titleTranslated && (
+                            <span className="block text-accent/80 mb-0.5">{signal.titleTranslated}</span>
+                        )}
+                        {signal.aiSummary || signal.summary}
                     </p>
+                )}
+
+                {signal.tags && signal.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                        {signal.tags.slice(0, 3).map(tag => (
+                            <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 text-neutral-400 border border-white/5">
+                                #{tag}
+                            </span>
+                        ))}
+                    </div>
+                )}
+
+                {/* Hover Full View - Triggered on card hover */}
+                {isSummaryHovered && signal.summary && (
+                    <div className="absolute inset-0 bg-[#0f1419] border border-emerald-500/30 rounded-lg p-4 shadow-2xl z-50 overflow-hidden">
+                        <div className="text-[13px] text-white leading-relaxed space-y-2 max-h-full overflow-y-auto">
+                            {/* Title: Chinese if zh and available, else original */}
+                            <h4 className="font-semibold text-emerald-400 text-sm line-clamp-2">
+                                {isZh && signal.titleTranslated ? signal.titleTranslated : signal.title}
+                            </h4>
+                            {/* Summary: Chinese if zh and available, else original */}
+                            <p className="text-gray-200 line-clamp-6">
+                                {isZh && signal.aiSummaryZh ? signal.aiSummaryZh : (signal.aiSummary || signal.summary)}
+                            </p>
+                        </div>
+                    </div>
                 )}
             </motion.div>
         );
@@ -117,8 +219,9 @@ export function SignalCard({
             onClick={handleOpenDetail}
         >
             <div className="flex justify-between items-start mb-4">
-                <span className="glass-pill text-[10px] uppercase tracking-wider text-neutral-400">
-                    {signal.source}
+                <span className="glass-pill text-[10px] uppercase tracking-wider text-neutral-400 flex items-center gap-1">
+                    {sourceIcon && <span>{sourceIcon}</span>}
+                    {sourceName}
                 </span>
                 <div className="flex items-center gap-2">
                     <TrendingUp className={cn("w-3 h-3", isRead ? "text-neutral-500" : "text-accent")} />
@@ -126,33 +229,124 @@ export function SignalCard({
                 </div>
             </div>
 
+            {/* Bilingual Title Logic: Always show original. If Zh, show translated as secondary. */
+                /* User request: "Retain original language and see translation" */
+            }
             <h3 className={cn(
-                "text-lg font-semibold mb-3 leading-snug transition-colors group-hover:underline decoration-white/20 underline-offset-2",
+                "text-lg font-semibold mb-1 leading-snug transition-colors group-hover:underline decoration-white/20 underline-offset-2",
                 isRead ? "text-neutral-500" : "group-hover:text-accent"
             )}>
                 {signal.title}
             </h3>
 
+            {/* Show Translated Title if available (for both locales if desired, or strictly for Zh) */}
+            {/* User requirement: "When selecting Chinese interface... show bilingual version" */}
+            {isZh && signal.titleTranslated && (
+                <div className="mb-3 flex gap-2 items-start opacity-90">
+                    <Languages className="w-3.5 h-3.5 mt-1 text-accent shrink-0" />
+                    <h4 className="text-sm text-neutral-300 leading-snug font-medium">
+                        {signal.titleTranslated}
+                    </h4>
+                </div>
+            )}
+            {/* Fallback for non-Zh locale if we still want to show translated title (e.g. debugging) */}
+            {!isZh && signal.titleTranslated && (
+                <div className="mb-3 flex gap-2 items-start opacity-60">
+                    <Languages className="w-3.5 h-3.5 mt-1 text-neutral-500 shrink-0" />
+                    <h4 className="text-sm text-neutral-300 leading-snug font-medium">
+                        {signal.titleTranslated}
+                    </h4>
+                </div>
+            )}
+
+            {/* Bilingual Summary with Hover Interaction */}
             {signal.summary && (
-                <p className="text-sm text-neutral-400 line-clamp-3 mb-4 flex-grow">
-                    {signal.summary}
-                </p>
+                <div
+                    className="relative mb-4 flex-grow"
+                    onMouseEnter={() => setIsSummaryHovered(true)}
+                    onMouseLeave={() => setIsSummaryHovered(false)}
+                >
+                    {/* Default View (Truncated) */}
+                    <div className="text-sm text-neutral-400 line-clamp-3 leading-relaxed">
+                        {signal.aiSummary ? (
+                            <div className="flex flex-col gap-1.5">
+                                <span className="flex gap-2">
+                                    <Sparkles className="w-3.5 h-3.5 mt-0.5 text-purple-400 shrink-0" />
+                                    <span className="text-neutral-300">{signal.aiSummary}</span>
+                                </span>
+                                {isZh && signal.aiSummaryZh && (
+                                    <span className="block text-neutral-400 text-xs border-l-2 border-white/10 ml-1 pl-2 mt-1">
+                                        {signal.aiSummaryZh}
+                                    </span>
+                                )}
+                            </div>
+                        ) : (
+                            signal.summary
+                        )}
+                    </div>
+
+                    {/* Hover Full View (Absolute Overlay) */}
+                    {isSummaryHovered && (
+                        <div className="absolute -top-2 -left-2 -right-2 bg-[#1b2128] border border-white/20 rounded-lg p-4 shadow-2xl z-50 min-h-[calc(100%+16px)]">
+                            <div className="text-sm text-neutral-300 leading-relaxed space-y-2">
+                                {signal.aiSummary ? (
+                                    <>
+                                        <span className="flex gap-2">
+                                            <Sparkles className="w-3.5 h-3.5 mt-0.5 text-purple-400 shrink-0" />
+                                            <span>{signal.aiSummary}</span>
+                                        </span>
+                                        {isZh && signal.aiSummaryZh && (
+                                            <div className="pt-2 mt-2 border-t border-white/5 text-neutral-400 text-xs">
+                                                {signal.aiSummaryZh}
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    signal.summary
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {displayTags && displayTags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                    {displayTags.map(tag => (
+                        <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-neutral-400 border border-white/5 hover:bg-white/10 transition-colors">
+                            #{tag}
+                        </span>
+                    ))}
+                </div>
             )}
 
             <div className="mt-auto pt-4 flex justify-between items-center text-xs text-neutral-500 border-t border-white/5">
                 <span>{mounted ? new Date(signal.createdAt).toLocaleString() : ""}</span>
-                <a
-                    href={signal.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2 hover:bg-white/5 rounded-full transition-colors"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleRead();
-                    }}
-                >
-                    <ExternalLink className="w-4 h-4" />
-                </a>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleFavorite}
+                        className={cn(
+                            "p-2 rounded-full transition-colors",
+                            isFavorited
+                                ? "text-yellow-400 bg-yellow-400/10"
+                                : "hover:bg-white/5"
+                        )}
+                    >
+                        <Star className={cn("w-4 h-4", isFavorited && "fill-current")} />
+                    </button>
+                    <a
+                        href={signal.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 hover:bg-white/5 rounded-full transition-colors"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleRead();
+                        }}
+                    >
+                        <ExternalLink className="w-4 h-4" />
+                    </a>
+                </div>
             </div>
         </motion.div>
     );

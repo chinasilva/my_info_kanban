@@ -1,32 +1,48 @@
-import { LucideIcon } from "lucide-react";
+"use client";
+
+import { ReactNode } from "react";
 import { SignalCard } from "./SignalCard";
 
-interface Signal {
+export interface Signal {
     id: string;
     title: string;
     url: string;
     summary?: string | null;
     score: number;
-    source: string;
+    source: {
+        id: string;
+        name: string;
+        type: string;
+        icon?: string | null;
+    };
     category?: string | null;
-    createdAt: Date | string;
+    createdAt: string; // 客户端接收到的日期通常是序列化后的字符串
+    isRead?: boolean;
+    isFavorited?: boolean;
+    valuable?: boolean;
+    tags?: string[];
+    tagsZh?: string[];
+    aiSummary?: string | null;
+    aiSummaryZh?: string | null;
+    titleTranslated?: string | null;
 }
 
 interface SignalColumnProps {
     title: string;
     subtitle: string;
-    icon: LucideIcon;
+    icon: ReactNode;
     signals: Signal[];
     colorClass?: string;
+    locale?: string;
 }
 
-export function SignalColumn({ title, subtitle, icon: Icon, signals, colorClass = "text-accent" }: SignalColumnProps) {
+export function SignalColumn({ title, subtitle, icon, signals, colorClass = "text-accent", locale = 'en' }: SignalColumnProps) {
     return (
         <div className="kanban-column border-r border-[#30363d]/70">
             <header className="column-header">
                 <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg bg-white/5 ${colorClass}`}>
-                        <Icon className="w-5 h-5" />
+                        {icon}
                     </div>
                     <div>
                         <h2 className="font-bold text-sm tracking-wide uppercase">{title}</h2>
@@ -48,6 +64,7 @@ export function SignalColumn({ title, subtitle, icon: Icon, signals, colorClass 
                                 createdAt: new Date(signal.createdAt).toISOString(),
                             }}
                             variant="compact"
+                            locale={locale}
                         />
                     ))
                 ) : (

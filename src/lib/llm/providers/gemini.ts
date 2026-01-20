@@ -5,7 +5,7 @@ export class GeminiClient implements LLMClient {
     private genAI: GoogleGenerativeAI;
     private model: any;
 
-    constructor(apiKey: string, modelName: string = 'gemini-1.5-flash') {
+    constructor(apiKey: string, modelName: string = 'gemini-2.5-flash') {
         this.genAI = new GoogleGenerativeAI(apiKey);
         this.model = this.genAI.getGenerativeModel({
             model: modelName,
@@ -24,7 +24,10 @@ Output JSON format:
 {
     "summary": "A concise summary (max 2 sentences)",
     "category": "One of: AI, Crypto, Tech, Startups, Design, Other",
-    "tags": ["tag1", "tag2"]
+    "tags": ["tag1", "tag2"],
+    "tagsZh": ["标签1", "标签2"],
+    "aiSummaryZh": "Chinese summary (max 2 sentences)",
+    "titleTranslated": "Chinese translation of the title"
 }
 `;
 
@@ -40,7 +43,10 @@ Output JSON format:
             return {
                 summary: 'Summary generation failed.',
                 category: 'Uncategorized',
-                tags: []
+                tags: [],
+                tagsZh: [],
+                aiSummaryZh: '',
+                titleTranslated: ''
             };
         }
     }

@@ -9,6 +9,9 @@ export interface ProcessingResult {
     summary: string;
     category: string;
     tags?: string[];
+    tagsZh?: string[];
+    aiSummaryZh?: string;
+    titleTranslated?: string;
 }
 
 export interface LLMClient {
