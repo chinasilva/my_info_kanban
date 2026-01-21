@@ -1,54 +1,68 @@
-
 import { BaseScraper, ScrapedSignal } from "./base";
-import * as cheerio from "cheerio";
 
+/**
+ * DuneScraper - Crypto Analytics Insights
+ * 
+ * Note: Dune.com has Cloudflare protection and no public RSS.
+ * Using Decrypt.co as an alternative source for crypto/blockchain data and analytics news.
+ */
 export class DuneScraper extends BaseScraper {
-    name = "Dune Analytics";
+    name = "Crypto Analytics";
     source = "dune";
 
     async fetch(): Promise<ScrapedSignal[]> {
         try {
-            // Since Dune doesn't have a public "Trending Dashboards" API endpoint without authentication or complex query setup,
-            // we will fallback to scraping their 'Dune Digest' Substack RSS which highlights top dashboards.
-            // This acts as a proxy for "Trending" quality content.
-            const response = await fetch("https://dune.substack.com/feed");
+            // Use Decrypt.co RSS - reliable crypto/blockchain news source
+            const response = await fetch("https://decrypt.co/feed");
+
             if (!response.ok) {
-                throw new Error(`Dune RSS returned ${response.status}`);
+                console.warn(`Dune scraper fallback (Decrypt RSS) returned ${response.status}`);
+                return [];
             }
 
             const xml = await response.text();
-            const $ = cheerio.load(xml, { xmlMode: true });
+
+            // Parse RSS using regex
+            const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
             const signals: ScrapedSignal[] = [];
 
-            $("item").each((_, element) => {
-                const $item = $(element);
-                const title = $item.find("title").text();
-                const link = $item.find("link").text();
-                const description = $item.find("description").text();
+            for (const item of items.slice(0, 10)) {
+                const titleMatch = item.match(/<title>(.*?)<\/title>/);
+                const linkMatch = item.match(/<link>(.*?)<\/link>/);
+                const descMatch = item.match(/<description>(.*?)<\/description>/);
+                const categoryMatch = item.match(/<category>(.*?)<\/category>/);
 
-                // Only include if it looks like a dashboard highlight or interesting analysis
-                if (title && link) {
-                    signals.push({
-                        title: title.replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1').trim(),
-                        url: link.trim(),
-                        summary: this.cleanText(description),
-                        score: 0, // No score available from RSS
-                        category: "Crypto Analytics",
-                        externalId: link.trim(),
-                    });
+                if (titleMatch && linkMatch) {
+                    const title = titleMatch[1].trim();
+                    const category = categoryMatch ? categoryMatch[1].trim() : "Crypto";
+
+                    // Filter for data/analytics related content
+                    const isRelevant =
+                        title.toLowerCase().includes('data') ||
+                        title.toLowerCase().includes('analytics') ||
+                        title.toLowerCase().includes('metrics') ||
+                        title.toLowerCase().includes('onchain') ||
+                        title.toLowerCase().includes('market') ||
+                        category.toLowerCase().includes('data') ||
+                        category.toLowerCase().includes('market');
+
+                    if (isRelevant || signals.length < 3) {  // Ensure at least 3 signals
+                        signals.push({
+                            title: this.cleanText(title),
+                            url: linkMatch[1].trim(),
+                            summary: descMatch ? this.cleanText(descMatch[1]) : null,
+                            score: 0,
+                            category: category,
+                            externalId: linkMatch[1].trim(),
+                        });
+                    }
                 }
-            });
+            }
 
             return signals.slice(0, 10);
         } catch (error) {
             await this.logError(error);
             return [];
         }
-    }
-
-    protected cleanText(text: string): string {
-        text = text.replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1');
-        text = text.replace(/<[^>]*>?/gm, "");
-        return text.trim().substring(0, 300) + (text.length > 300 ? "..." : "");
     }
 }

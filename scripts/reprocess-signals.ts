@@ -19,59 +19,56 @@ async function main() {
     const { prisma } = await import("../src/lib/prisma/db");
     const { SignalProcessor } = await import("../src/lib/llm/processor");
 
-    console.log("🛠️ Starting Option B Data Migration & Reprocessing...\n");
+    console.log("🛠️ Starting Deep Clean & Reprocessing...\n");
 
-    // Phase 1: Data Migration (summary -> metadata)
-    const hnSignals = await prisma.signal.findMany({
+    // 1. 强制清理所有含有 "Comments:" 的摘要
+    const badSignals = await prisma.signal.findMany({
         where: {
-            source: { type: 'hackernews' },
-            summary: { startsWith: 'Comments:' }
+            OR: [
+                { summary: { contains: 'Comments', mode: 'insensitive' } },
+                { summary: { contains: '评论', mode: 'insensitive' } }
+            ]
         }
     });
 
-    console.log(`📦 Found ${hnSignals.length} Hacker News signals to migrate.`);
+    console.log(`🧹 Found ${badSignals.length} signals with comment data in summary field. Cleaning...`);
 
-    for (const signal of hnSignals) {
-        const match = signal.summary?.match(/Comments: (\d+)/);
-        if (match) {
-            const comments = parseInt(match[1]);
-            await prisma.signal.update({
-                where: { id: signal.id },
-                data: {
-                    metadata: { comments },
-                    summary: null,
-                    aiSummary: null // Reset to trigger processor
-                }
-            });
-        }
+    for (const signal of badSignals) {
+        const match = signal.summary?.match(/(?:Comments|评论): (\d+)/);
+        const comments = match ? parseInt(match[1]) : null;
+
+        await prisma.signal.update({
+            where: { id: signal.id },
+            data: {
+                summary: null, // 彻底清除
+                aiSummary: null, // 强制重新处理
+                aiSummaryZh: null,
+                metadata: comments ? { comments } : (signal.metadata || {})
+            }
+        });
     }
-    console.log("✅ Data migration complete.\n");
+    console.log("✅ Cleanup complete.\n");
 
-    // Phase 2: AI Reprocessing
+    // 2. 运行处理器处理所有 aiSummary 为 null 的信号
     const processor = new SignalProcessor();
-    console.log("🤖 Starting AI Reprocessing (batch size 20)...");
+    console.log("🤖 Running LLM enrichment for all empty signals...");
 
     let totalProcessed = 0;
     while (true) {
-        // We use the processor's own logic which now checks aiSummary: null
-        const signalsToProcess = await prisma.signal.count({
-            where: { aiSummary: null }
-        });
+        const count = await prisma.signal.count({ where: { aiSummary: null } });
+        if (count === 0) break;
 
-        if (signalsToProcess === 0) break;
-
-        console.log(`⏳ Remaining: ${signalsToProcess} signals...`);
+        console.log(`⏳ Remaining: ${count} signals. Processing batch...`);
         await processor.processSignals(20);
         totalProcessed += 20;
 
-        // Safety break if needed, but we'll let it run
-        if (totalProcessed > 1000) {
-            console.log("⚠️ Limit reached for this run.");
+        if (totalProcessed > 500) {
+            console.log("⚠️ Limit reached to avoid long wait.");
             break;
         }
     }
 
-    console.log(`\n🎉 All done! Processed ~${totalProcessed} signals.`);
+    console.log(`\n🎉 Processed ~${totalProcessed} signals.`);
     await prisma.$disconnect();
 }
 

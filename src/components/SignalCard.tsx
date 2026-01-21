@@ -183,9 +183,11 @@ export function SignalCard({
 
                 {(signal.summary || signal.aiSummary) && (
                     <p className="text-[12px] text-neutral-400 line-clamp-2 leading-normal">
-                        {signal.titleTranslated && (
+                        {/* Only show translated title in Chinese locale */}
+                        {isZh && signal.titleTranslated && (
                             <span className="block text-accent/80 mb-0.5">{signal.titleTranslated}</span>
                         )}
+                        {/* Chinese: prioritize zh summary | English: use en summary */}
                         {(isZh && signal.aiSummaryZh) ? signal.aiSummaryZh : (signal.aiSummary || signal.summary)}
                     </p>
                 )}
@@ -248,20 +250,10 @@ export function SignalCard({
                 {signal.title}
             </h3>
 
-            {/* Show Translated Title if available (for both locales if desired, or strictly for Zh) */}
-            {/* User requirement: "When selecting Chinese interface... show bilingual version" */}
+            {/* Only show translated title in Chinese locale */}
             {isZh && signal.titleTranslated && (
                 <div className="mb-3 flex gap-2 items-start opacity-90">
                     <Languages className="w-3.5 h-3.5 mt-1 text-accent shrink-0" />
-                    <h4 className="text-sm text-neutral-300 leading-snug font-medium">
-                        {signal.titleTranslated}
-                    </h4>
-                </div>
-            )}
-            {/* Fallback for non-Zh locale if we still want to show translated title (e.g. debugging) */}
-            {!isZh && signal.titleTranslated && (
-                <div className="mb-3 flex gap-2 items-start opacity-60">
-                    <Languages className="w-3.5 h-3.5 mt-1 text-neutral-500 shrink-0" />
                     <h4 className="text-sm text-neutral-300 leading-snug font-medium">
                         {signal.titleTranslated}
                     </h4>
@@ -281,13 +273,11 @@ export function SignalCard({
                             <div className="flex flex-col gap-1.5">
                                 <span className="flex gap-2">
                                     <Sparkles className="w-3.5 h-3.5 mt-0.5 text-purple-400 shrink-0" />
-                                    <span className="text-neutral-300">{signal.aiSummary}</span>
-                                </span>
-                                {isZh && signal.aiSummaryZh && (
-                                    <span className="block text-neutral-400 text-xs border-l-2 border-white/10 ml-1 pl-2 mt-1">
-                                        {signal.aiSummaryZh}
+                                    {/* Chinese locale: prefer zh summary | English: show en summary */}
+                                    <span className="text-neutral-300">
+                                        {isZh && signal.aiSummaryZh ? signal.aiSummaryZh : signal.aiSummary}
                                     </span>
-                                )}
+                                </span>
                             </div>
                         ) : (
                             signal.summary
@@ -299,17 +289,13 @@ export function SignalCard({
                         <div className="absolute -top-2 -left-2 -right-2 bg-[#1b2128] border border-white/20 rounded-lg p-4 shadow-2xl z-50 min-h-[calc(100%+16px)]">
                             <div className="text-sm text-neutral-300 leading-relaxed space-y-2">
                                 {signal.aiSummary ? (
-                                    <>
-                                        <span className="flex gap-2">
-                                            <Sparkles className="w-3.5 h-3.5 mt-0.5 text-purple-400 shrink-0" />
-                                            <span>{signal.aiSummary}</span>
+                                    <span className="flex gap-2">
+                                        <Sparkles className="w-3.5 h-3.5 mt-0.5 text-purple-400 shrink-0" />
+                                        {/* Hover: Chinese locale prioritizes zh summary | English shows en summary */}
+                                        <span>
+                                            {isZh && signal.aiSummaryZh ? signal.aiSummaryZh : signal.aiSummary}
                                         </span>
-                                        {isZh && signal.aiSummaryZh && (
-                                            <div className="pt-2 mt-2 border-t border-white/5 text-neutral-400 text-xs">
-                                                {signal.aiSummaryZh}
-                                            </div>
-                                        )}
-                                    </>
+                                    </span>
                                 ) : (
                                     signal.summary
                                 )}

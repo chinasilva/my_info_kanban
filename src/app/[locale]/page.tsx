@@ -7,6 +7,7 @@ import { authOptions } from "@/lib/auth/options";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { UserMenu } from "@/components/UserMenu";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export const revalidate = 60; // Revalidate every minute
 
@@ -129,6 +130,7 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
           <h1 className="text-lg font-semibold text-white">High-Signal</h1>
         </div>
         <div className="flex items-center gap-3">
+          <LanguageSwitcher />
           <Link
             href="/sources"
             className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-400 

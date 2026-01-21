@@ -101,8 +101,8 @@ export class ScraperRunner {
                             where: { url: signal.url },
                             update: {
                                 score: signal.score,
-                                ...(signal.summary ? { summary: signal.summary } : {}),
-                                ...(signal.metadata ? { metadata: signal.metadata } : {}),
+                                ...(signal.summary !== undefined ? { summary: signal.summary } : {}),
+                                ...(signal.metadata !== undefined ? { metadata: signal.metadata } : {}),
                             },
                             create: {
                                 title: signal.title,
