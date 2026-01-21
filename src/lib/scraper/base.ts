@@ -3,10 +3,11 @@ import { Signal } from "../prisma/client";
 export interface ScrapedSignal {
     title: string;
     url: string;
-    summary?: string;
+    summary?: string | null;
     score: number;
     externalId?: string;
     category?: string;
+    metadata?: any;
 }
 
 export abstract class BaseScraper {

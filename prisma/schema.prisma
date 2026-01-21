@@ -113,6 +113,7 @@ model Signal {
   aiSummaryZh String?
   titleTranslated String?
   externalId  String?
+  metadata    Json?
   
   source      Source       @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   userStates  UserSignal[]

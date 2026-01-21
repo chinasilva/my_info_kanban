@@ -1,7 +1,8 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useRef, useState, useCallback } from "react";
 import { SignalCard } from "./SignalCard";
+import { Loader2 } from "lucide-react";
 
 export interface Signal {
     id: string;
@@ -16,7 +17,7 @@ export interface Signal {
         icon?: string | null;
     };
     category?: string | null;
-    createdAt: string; // 客户端接收到的日期通常是序列化后的字符串
+    createdAt: string;
     isRead?: boolean;
     isFavorited?: boolean;
     valuable?: boolean;
@@ -31,12 +32,89 @@ interface SignalColumnProps {
     title: string;
     subtitle: string;
     icon: ReactNode;
-    signals: Signal[];
+    signals: Signal[]; // Initial signals from SSR
     colorClass?: string;
     locale?: string;
+    sourceType?: string; // For API calls: 'build', 'market', 'news', 'launch'
+    enableInfiniteScroll?: boolean;
 }
 
-export function SignalColumn({ title, subtitle, icon, signals, colorClass = "text-accent", locale = 'en' }: SignalColumnProps) {
+export function SignalColumn({
+    title,
+    subtitle,
+    icon,
+    signals: initialSignals,
+    colorClass = "text-accent",
+    locale = 'en',
+    sourceType,
+    enableInfiniteScroll = true
+}: SignalColumnProps) {
+    const [signals, setSignals] = useState<Signal[]>(initialSignals);
+    const [isLoading, setIsLoading] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const [cursor, setCursor] = useState<string | null>(null);
+    const loaderRef = useRef<HTMLDivElement>(null);
+
+    // Initialize cursor from initial signals
+    useEffect(() => {
+        if (initialSignals.length > 0) {
+            setCursor(initialSignals[initialSignals.length - 1].id);
+        }
+    }, [initialSignals]);
+
+    // Load more signals
+    const loadMore = useCallback(async () => {
+        if (isLoading || !hasMore || !sourceType || !cursor) return;
+
+        setIsLoading(true);
+        try {
+            const params = new URLSearchParams({
+                limit: "30",
+                cursor: cursor,
+                sourceType: sourceType,
+                days: "7"
+            });
+
+            const response = await fetch(`/api/signals?${params}`);
+            if (!response.ok) throw new Error("Failed to load");
+
+            const data = await response.json();
+
+            if (data.signals && data.signals.length > 0) {
+                setSignals(prev => [...prev, ...data.signals]);
+                setCursor(data.nextCursor);
+                setHasMore(data.hasMore);
+            } else {
+                setHasMore(false);
+            }
+        } catch (error) {
+            console.error("Error loading more signals:", error);
+            setHasMore(false);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [isLoading, hasMore, sourceType, cursor]);
+
+    // Intersection Observer for infinite scroll
+    useEffect(() => {
+        if (!enableInfiniteScroll || !sourceType) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasMore && !isLoading) {
+                    loadMore();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (loaderRef.current) {
+            observer.observe(loaderRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, [enableInfiniteScroll, sourceType, hasMore, isLoading, loadMore]);
+
     return (
         <div className="kanban-column border-r border-[#30363d]/70">
             <header className="column-header">
@@ -56,20 +134,38 @@ export function SignalColumn({ title, subtitle, icon, signals, colorClass = "tex
 
             <div className="column-scroll-area">
                 {signals.length > 0 ? (
-                    signals.map((signal) => (
-                        <SignalCard
-                            key={signal.id}
-                            signal={{
-                                ...signal,
-                                createdAt: new Date(signal.createdAt).toISOString(),
-                            }}
-                            variant="compact"
-                            locale={locale}
-                        />
-                    ))
+                    <>
+                        {signals.map((signal) => (
+                            <SignalCard
+                                key={signal.id}
+                                signal={{
+                                    ...signal,
+                                    createdAt: new Date(signal.createdAt).toISOString(),
+                                }}
+                                variant="compact"
+                                locale={locale}
+                            />
+                        ))}
+
+                        {/* Infinite scroll loader */}
+                        {enableInfiniteScroll && sourceType && (
+                            <div ref={loaderRef} className="py-4 flex justify-center">
+                                {isLoading && (
+                                    <Loader2 className="w-5 h-5 text-neutral-500 animate-spin" />
+                                )}
+                                {!hasMore && signals.length > 0 && (
+                                    <span className="text-[10px] text-neutral-600">
+                                        {locale === 'zh' ? '已加载全部' : 'All loaded'}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </>
                 ) : (
                     <div className="py-20 text-center px-6">
-                        <p className="text-xs text-neutral-500 italic">No signals in this stream yet.</p>
+                        <p className="text-xs text-neutral-500 italic">
+                            {locale === 'zh' ? '暂无信号' : 'No signals in this stream yet.'}
+                        </p>
                     </div>
                 )}
             </div>

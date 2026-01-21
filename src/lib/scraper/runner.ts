@@ -102,15 +102,17 @@ export class ScraperRunner {
                             update: {
                                 score: signal.score,
                                 ...(signal.summary ? { summary: signal.summary } : {}),
+                                ...(signal.metadata ? { metadata: signal.metadata } : {}),
                             },
                             create: {
                                 title: signal.title,
                                 url: signal.url,
                                 score: signal.score,
-                                sourceId: sourceId, // 使用数据库中的 sourceId
+                                sourceId: sourceId,
                                 category: signal.category,
                                 externalId: signal.externalId,
                                 summary: signal.summary,
+                                metadata: (signal.metadata as any) || {},
                             },
                         });
                         results.total++;

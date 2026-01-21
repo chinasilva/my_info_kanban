@@ -2,18 +2,18 @@ import { prisma } from "../prisma/db";
 import { LLMFactory } from "./factory";
 
 export class SignalProcessor {
-    async processSignals(batchSize: number = 5) {
+    async processSignals(batchSize: number = 20) {
         const client = LLMFactory.createClient();
         if (!client) {
             console.log("LLM client not configured, skipping enrichment.");
             return;
         }
 
-        // Find signals that need summary
-        // We can prioritize by score or recentness
+        // Find signals that need AI summary (aiSummary is null)
+        // Even if summary exists (e.g., "Comments: 62"), we still need AI processing
         const signals = await prisma.signal.findMany({
             where: {
-                summary: null,
+                aiSummary: null,
             },
             take: batchSize,
             orderBy: {
@@ -35,12 +35,12 @@ export class SignalProcessor {
                 await prisma.signal.update({
                     where: { id: signal.id },
                     data: {
-                        summary: finalSummary,
-                        aiSummary: result.summary, // Start saving to specialized field too
+                        summary: finalSummary, // Displayable summary
+                        aiSummary: finalSummary, // Target field to track completion
+                        aiSummaryZh: result.aiSummaryZh,
                         category: result.category,
                         tags: result.tags || [],
                         tagsZh: result.tagsZh || [],
-                        aiSummaryZh: result.aiSummaryZh,
                         titleTranslated: result.titleTranslated
                     }
                 });

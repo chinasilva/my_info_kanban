@@ -23,7 +23,10 @@ export class HackerNewsScraper extends BaseScraper {
                 url: hit.url || `https://news.ycombinator.com/item?id=${hit.objectID}`,
                 score: hit.points,
                 externalId: hit.objectID,
-                summary: `Comments: ${hit.num_comments}`,
+                summary: null, // Clear summary to trigger AI processing
+                metadata: {
+                    comments: hit.num_comments
+                },
                 category: "Tech",
             }));
         } catch (error) {

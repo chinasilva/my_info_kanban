@@ -19,57 +19,60 @@ async function main() {
     const { prisma } = await import("../src/lib/prisma/db");
     const { SignalProcessor } = await import("../src/lib/llm/processor");
 
-    // Find signals that are missing bilingual data
-    const signalsToUpdate = await prisma.signal.findMany({
+    console.log("🛠️ Starting Option B Data Migration & Reprocessing...\n");
+
+    // Phase 1: Data Migration (summary -> metadata)
+    const hnSignals = await prisma.signal.findMany({
         where: {
-            OR: [
-                { aiSummaryZh: null },
-                { titleTranslated: null }
-            ]
-        },
-        take: 20, // Process 20 at a time to avoid rate limits
-        orderBy: { createdAt: 'desc' }
+            source: { type: 'hackernews' },
+            summary: { startsWith: 'Comments:' }
+        }
     });
 
-    console.log(`Found ${signalsToUpdate.length} signals needing update.`);
+    console.log(`📦 Found ${hnSignals.length} Hacker News signals to migrate.`);
 
-    const processor = new SignalProcessor();
-    const { LLMFactory } = await import("../src/lib/llm/factory");
-    const client = LLMFactory.createClient();
-
-    if (!client) {
-        console.error("No LLM client available.");
-        return;
-    }
-
-    for (const signal of signalsToUpdate) {
-        console.log(`Reprocessing: ${signal.title}`);
-        try {
-            // Use existing summary or title as input
-            const inputContent = signal.summary || signal.title;
-            const result = await client.generateSummaryAndCategory(signal.title, inputContent);
-
+    for (const signal of hnSignals) {
+        const match = signal.summary?.match(/Comments: (\d+)/);
+        if (match) {
+            const comments = parseInt(match[1]);
             await prisma.signal.update({
                 where: { id: signal.id },
                 data: {
-                    // Update ONLY the new fields to avoid overwriting good data if LLM helps, 
-                    // but actually we want to sync everything.
-                    // Important: generateSummaryAndCategory returns inputs for tags/summary too.
-                    aiSummaryZh: result.aiSummaryZh,
-                    titleTranslated: result.titleTranslated,
-                    // Optionally update text and aiSummary if they were missing too
-                    aiSummary: signal.aiSummary || result.summary,
-                    tags: result.tags && result.tags.length > 0 ? result.tags : undefined,
-                    tagsZh: result.tagsZh && result.tagsZh.length > 0 ? result.tagsZh : undefined
+                    metadata: { comments },
+                    summary: null,
+                    aiSummary: null // Reset to trigger processor
                 }
             });
-            console.log(`Updated signal ${signal.id}`);
-            // Sleep slightly (1s) as DeepSeek usually has higher rate limits than Gemini Free
-            await new Promise(r => setTimeout(r, 1000));
-        } catch (e) {
-            console.error(`Failed to update ${signal.id}:`, e);
         }
     }
+    console.log("✅ Data migration complete.\n");
+
+    // Phase 2: AI Reprocessing
+    const processor = new SignalProcessor();
+    console.log("🤖 Starting AI Reprocessing (batch size 20)...");
+
+    let totalProcessed = 0;
+    while (true) {
+        // We use the processor's own logic which now checks aiSummary: null
+        const signalsToProcess = await prisma.signal.count({
+            where: { aiSummary: null }
+        });
+
+        if (signalsToProcess === 0) break;
+
+        console.log(`⏳ Remaining: ${signalsToProcess} signals...`);
+        await processor.processSignals(20);
+        totalProcessed += 20;
+
+        // Safety break if needed, but we'll let it run
+        if (totalProcessed > 1000) {
+            console.log("⚠️ Limit reached for this run.");
+            break;
+        }
+    }
+
+    console.log(`\n🎉 All done! Processed ~${totalProcessed} signals.`);
+    await prisma.$disconnect();
 }
 
 main().catch(console.error);

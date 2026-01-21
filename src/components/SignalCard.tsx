@@ -29,6 +29,7 @@ interface Signal {
     aiSummary?: string | null;
     aiSummaryZh?: string | null;
     titleTranslated?: string | null;
+    metadata?: any;
 }
 
 export function SignalCard({
@@ -138,6 +139,14 @@ export function SignalCard({
                         <span className="text-[10px] text-neutral-500">
                             {mounted ? new Date(signal.createdAt).toLocaleString() : ""}
                         </span>
+                        {(signal.metadata as any)?.comments !== undefined && (
+                            <>
+                                <span className="text-[10px] text-neutral-500">•</span>
+                                <span className="text-[10px] text-neutral-500">
+                                    {isZh ? '评论' : 'Comments'}: {(signal.metadata as any).comments}
+                                </span>
+                            </>
+                        )}
                     </div>
                     <div className="flex items-center gap-1">
                         <button
@@ -172,12 +181,12 @@ export function SignalCard({
                     {signal.title}
                 </h3>
 
-                {signal.summary && (
+                {(signal.summary || signal.aiSummary) && (
                     <p className="text-[12px] text-neutral-400 line-clamp-2 leading-normal">
                         {signal.titleTranslated && (
                             <span className="block text-accent/80 mb-0.5">{signal.titleTranslated}</span>
                         )}
-                        {signal.aiSummary || signal.summary}
+                        {(isZh && signal.aiSummaryZh) ? signal.aiSummaryZh : (signal.aiSummary || signal.summary)}
                     </p>
                 )}
 
@@ -321,7 +330,15 @@ export function SignalCard({
             )}
 
             <div className="mt-auto pt-4 flex justify-between items-center text-xs text-neutral-500 border-t border-white/5">
-                <span>{mounted ? new Date(signal.createdAt).toLocaleString() : ""}</span>
+                <div className="flex items-center gap-3">
+                    <span>{mounted ? new Date(signal.createdAt).toLocaleString() : ""}</span>
+                    {(signal.metadata as any)?.comments !== undefined && (
+                        <span className="flex items-center gap-1 opacity-80">
+                            <span className="w-1 h-1 rounded-full bg-neutral-600" />
+                            {isZh ? '评论' : 'Comments'}: {(signal.metadata as any).comments}
+                        </span>
+                    )}
+                </div>
                 <div className="flex items-center gap-2">
                     <button
                         onClick={handleFavorite}

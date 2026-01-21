@@ -70,13 +70,16 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
     );
   }
 
-  // 获取用户订阅的数据源的信号
+  // 获取用户订阅的数据源的信号（最近7天）
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
   const allSignals = await prisma.signal.findMany({
     where: {
-      sourceId: { in: subscribedSourceIds }
+      sourceId: { in: subscribedSourceIds },
+      createdAt: { gte: sevenDaysAgo }
     },
     orderBy: { createdAt: "desc" },
-    take: 200,
     include: {
       source: true,
       userStates: {
@@ -148,6 +151,7 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
             signals={buildSignals}
             colorClass="text-blue-400"
             locale={locale}
+            sourceType="build"
           />
         )}
         {marketSignals.length > 0 && (
@@ -158,6 +162,7 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
             signals={marketSignals}
             colorClass="text-purple-400"
             locale={locale}
+            sourceType="market"
           />
         )}
         {newsSignals.length > 0 && (
@@ -168,6 +173,7 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
             signals={newsSignals}
             colorClass="text-orange-400"
             locale={locale}
+            sourceType="news"
           />
         )}
         {launchSignals.length > 0 && (
@@ -178,6 +184,7 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
             signals={launchSignals}
             colorClass="text-pink-400"
             locale={locale}
+            sourceType="launch"
           />
         )}
         {customSignals.length > 0 && (
@@ -188,6 +195,7 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
             signals={customSignals}
             colorClass="text-green-400"
             locale={locale}
+            sourceType="custom"
           />
         )}
       </div>
