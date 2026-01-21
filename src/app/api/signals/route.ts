@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
+import { SignalQuerySchema } from "@/schemas/api";
 
 export async function GET(request: NextRequest) {
     const apiKey = request.headers.get("x-api-key");
@@ -26,11 +27,16 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const searchParams = request.nextUrl.searchParams;
-    const cursor = searchParams.get("cursor"); // Signal ID for pagination
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const sourceType = searchParams.get("sourceType"); // e.g., "build", "market", "news", "launch"
-    const days = parseInt(searchParams.get("days") || "7");
+    const searchParams = Object.fromEntries(request.nextUrl.searchParams);
+
+    // Zod Validation & Parsing
+    const query = SignalQuerySchema.safeParse(searchParams);
+
+    if (!query.success) {
+        return NextResponse.json({ error: "Invalid query parameters", details: query.error.format() }, { status: 400 });
+    }
+
+    const { cursor, limit, sourceType, days } = query.data;
 
     // Source type to actual source types mapping
     const SOURCE_GROUPS: Record<string, string[]> = {

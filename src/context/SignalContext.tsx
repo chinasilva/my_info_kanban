@@ -2,27 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from "react";
 
-interface Source {
-    id: string;
-    name: string;
-    type: string;
-    icon?: string | null;
-}
-
-interface Signal {
-    id: string;
-    title: string;
-    url: string;
-    summary?: string | null;
-    score: number;
-    source: Source | string; // 支持新旧两种格式
-    category?: string | null;
-    createdAt: Date | string;
-    isRead?: boolean;
-    isFavorited?: boolean;
-    aiSummary?: string | null;
-    aiSummaryZh?: string | null;
-}
+import { Signal } from "@/schemas/signal";
 
 interface SignalContextType {
     selectedSignal: Signal | null;

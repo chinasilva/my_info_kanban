@@ -4,35 +4,13 @@ import { ReactNode, useEffect, useRef, useState, useCallback } from "react";
 import { SignalCard } from "./SignalCard";
 import { Loader2 } from "lucide-react";
 
-export interface Signal {
-    id: string;
-    title: string;
-    url: string;
-    summary?: string | null;
-    score: number;
-    source: {
-        id: string;
-        name: string;
-        type: string;
-        icon?: string | null;
-    };
-    category?: string | null;
-    createdAt: string;
-    isRead?: boolean;
-    isFavorited?: boolean;
-    valuable?: boolean;
-    tags?: string[];
-    tagsZh?: string[];
-    aiSummary?: string | null;
-    aiSummaryZh?: string | null;
-    titleTranslated?: string | null;
-}
+import { Signal } from "@/schemas/signal";
 
 interface SignalColumnProps {
     title: string;
     subtitle: string;
     icon: ReactNode;
-    signals: Signal[]; // Initial signals from SSR
+    signals: Signal[]; // Use Zod Type
     colorClass?: string;
     locale?: string;
     sourceType?: string; // For API calls: 'build', 'market', 'news', 'launch'

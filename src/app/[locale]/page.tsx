@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma/db";
-import { SignalColumn, Signal } from "@/components/SignalColumn";
+import { SignalColumn } from "@/components/SignalColumn";
+import { Signal } from "@/schemas/signal";
 import { Code2, BarChart3, Newspaper, Rocket, Settings } from "lucide-react";
 import { getTranslations } from 'next-intl/server';
 import { getServerSession } from "next-auth";
@@ -99,27 +100,36 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
     isFavorited: s.userStates[0]?.isFavorited ?? false,
   }));
 
+  // Helper to safely access source type
+  const getSourceType = (s: Signal) => {
+    if (typeof s.source === 'object' && s.source !== null && 'type' in s.source) {
+      return s.source.type;
+    }
+    return '';
+  };
+
   // 按数据源类型分组
   const buildSignals = signalsWithState.filter((s) =>
-    SOURCE_GROUPS.build.includes(s.source.type)
+    SOURCE_GROUPS.build.includes(getSourceType(s))
   );
 
   const marketSignals = signalsWithState.filter((s) =>
-    SOURCE_GROUPS.market.includes(s.source.type)
+    SOURCE_GROUPS.market.includes(getSourceType(s))
   );
 
   const newsSignals = signalsWithState.filter((s) =>
-    SOURCE_GROUPS.news.includes(s.source.type)
+    SOURCE_GROUPS.news.includes(getSourceType(s))
   );
 
   const launchSignals = signalsWithState.filter((s) =>
-    SOURCE_GROUPS.launch.includes(s.source.type)
+    SOURCE_GROUPS.launch.includes(getSourceType(s))
   );
 
   // RSS 和其他自定义源放到单独的列
-  const customSignals = signalsWithState.filter((s) =>
-    s.source.type === "rss" || !Object.values(SOURCE_GROUPS).flat().includes(s.source.type)
-  );
+  const customSignals = signalsWithState.filter((s) => {
+    const type = getSourceType(s);
+    return type === "rss" || (type !== '' && !Object.values(SOURCE_GROUPS).flat().includes(type));
+  });
 
   return (
     <main className="min-h-screen bg-[#0d1117] overflow-hidden">

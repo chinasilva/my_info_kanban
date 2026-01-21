@@ -1,36 +1,9 @@
-"use client";
-
 import { motion } from "framer-motion";
 import { ExternalLink, TrendingUp, Star, Sparkles, Languages } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { useSignal } from "@/context/SignalContext";
-
-interface Source {
-    id: string;
-    name: string;
-    type: string;
-    icon?: string | null;
-}
-
-interface Signal {
-    id: string;
-    title: string;
-    url: string;
-    summary?: string | null;
-    score: number;
-    source: Source | string; // 支持新旧两种格式
-    category?: string | null;
-    createdAt: Date | string;
-    isRead?: boolean;
-    isFavorited?: boolean;
-    tags?: string[];
-    tagsZh?: string[];
-    aiSummary?: string | null;
-    aiSummaryZh?: string | null;
-    titleTranslated?: string | null;
-    metadata?: any;
-}
+import { Signal, SignalSchema } from "@/schemas/signal"; // Import Zod Types
 
 export function SignalCard({
     signal,
@@ -38,7 +11,7 @@ export function SignalCard({
     variant = "default",
     locale
 }: {
-    signal: Signal;
+    signal: Signal; // Use inferred type
     className?: string;
     variant?: "default" | "compact";
     locale?: string;
