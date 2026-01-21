@@ -29,9 +29,9 @@ export function LanguageSwitcher() {
     return (
         <button
             onClick={toggleLanguage}
-            className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white text-xs font-medium transition-all border border-white/5"
+            className="flex items-center gap-2 px-3 py-1.5 bg-[var(--color-card-hover)] hover:bg-[var(--color-card)] rounded-lg text-[var(--color-foreground)] text-xs font-medium transition-all border border-[var(--color-border)]"
         >
-            <Globe className="w-3 h-3" />
+            <Globe className="w-3 h-3 text-[var(--color-accent)]" />
             <span>{currentLang}</span>
         </button>
     );

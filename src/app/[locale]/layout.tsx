@@ -22,12 +22,14 @@ export const metadata: Metadata = {
   description: "Curated high-quality tech and finance signals.",
 };
 
+import { ThemeProvider } from "@/context/ThemeContext";
+
 export default async function RootLayout({
   children,
   params
 }: {
   children: React.ReactNode;
-  params: Promise<{ locale: string }>; // params is a Promise in Next.js 15+? Or strictly typed. Let's assume standard.
+  params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
   const messages = await getMessages({ locale });
@@ -37,13 +39,13 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-
         <NextIntlClientProvider messages={messages}>
-          <SignalProvider>
-            <LanguageSwitcher />
-            <SignalDetailSheet />
-            {children}
-          </SignalProvider>
+          <ThemeProvider>
+            <SignalProvider>
+              <SignalDetailSheet />
+              {children}
+            </SignalProvider>
+          </ThemeProvider>
         </NextIntlClientProvider>
       </body>
     </html>

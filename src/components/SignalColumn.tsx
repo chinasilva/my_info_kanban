@@ -94,18 +94,18 @@ export function SignalColumn({
     }, [enableInfiniteScroll, sourceType, hasMore, isLoading, loadMore]);
 
     return (
-        <div className="kanban-column border-r border-[#30363d]/70">
-            <header className="column-header">
+        <div className="kanban-column border-r border-[var(--color-border)]">
+            <header className="column-header bg-[var(--color-card)] border-b border-[var(--color-border)]">
                 <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg bg-white/5 ${colorClass}`}>
+                    <div className={`p-2 rounded-lg bg-[var(--color-background)]/50 ${colorClass}`}>
                         {icon}
                     </div>
                     <div>
-                        <h2 className="font-bold text-sm tracking-wide uppercase">{title}</h2>
-                        <p className="text-[10px] text-neutral-500 font-medium">{subtitle}</p>
+                        <h2 className="font-bold text-sm tracking-wide uppercase text-[var(--color-foreground)]">{title}</h2>
+                        <p className="text-[10px] text-[var(--color-text-muted)] font-medium">{subtitle}</p>
                     </div>
                 </div>
-                <div className="text-[10px] font-bold text-neutral-500 bg-white/5 px-2 py-1 rounded">
+                <div className="text-[10px] font-bold text-[var(--color-text-muted)] bg-[var(--color-background)]/50 px-2 py-1 rounded border border-[var(--color-border)]">
                     {signals.length}
                 </div>
             </header>

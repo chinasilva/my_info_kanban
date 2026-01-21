@@ -104,7 +104,23 @@
 - [ ] 桌面端回归测试 (确保布局不受影响)
 - [ ] 真机测试 (可选)
 
----
+## 阶段五：多主题切换 (Multi-Theme Support)
+
+- [x] 主题系统基础设施
+  - [x] 创建 `ThemeContext` & `ThemeProvider`
+  - [x] 实现 `localStorage` 持久化
+- [x] 视觉设计
+  - [x] 定义 `Dark`, `Light`, `Navy`, `Sepia` 四套主题色调
+  - [x] 全局 CSS 变量系统迁移
+- [x] 交互组件
+  - [x] 创建 `ThemeSwitcher` 切换开关
+  - [x] 在桌面端 Header 集成
+  - [x] 在移动端 Header 下拉菜单集成
+- [x] 全面适配 & 清理
+  - [x] 适配 `SignalCard`, `SignalColumn`, `SignalDetailSheet` 等所有核心 UI
+  - [x] 清理所有剩余的硬编码背景/文字颜色变量
+- [x] 验证
+  - [x] 回归测试确保样式在所有主题下均正常显示
 
 ## 剩余步骤 (需要用户操作)
 

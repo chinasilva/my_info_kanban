@@ -12,6 +12,7 @@ import { Signal } from "@/schemas/signal";
 import { Code2, BarChart3, Newspaper, Rocket, Settings, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ThemeSwitcher } from "./ThemeSwitcher";
 
 interface SignalGroups {
     build: Signal[];
@@ -89,7 +90,7 @@ export function DashboardShell({
     // Show loading state during hydration to prevent layout mismatch
     if (!mounted) {
         return (
-            <main className="min-h-screen bg-[#0d1117] flex items-center justify-center">
+            <main className="min-h-screen bg-[var(--color-background)] flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-neutral-500 animate-spin" />
             </main>
         );
@@ -98,19 +99,20 @@ export function DashboardShell({
     // Desktop Layout
     if (!isMobile) {
         return (
-            <main className="min-h-screen bg-[#0d1117] overflow-hidden desktop-only">
+            <main className="min-h-screen bg-[var(--color-background)] overflow-hidden desktop-only text-[var(--color-foreground)]">
                 {/* Desktop Header */}
-                <header className="h-14 border-b border-[#21262d] flex items-center justify-between px-4">
+                <header className="h-14 border-b border-[var(--color-border)] flex items-center justify-between px-4">
                     <div className="flex items-center gap-3">
                         <span className="text-xl">📡</span>
-                        <h1 className="text-lg font-semibold text-white">High-Signal</h1>
+                        <h1 className="text-lg font-semibold text-[var(--color-foreground)]">High-Signal</h1>
                     </div>
                     <div className="flex items-center gap-3">
+                        <ThemeSwitcher locale={locale} />
                         <LanguageSwitcher />
                         <Link
                             href="/sources"
-                            className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-400 
-                                       hover:text-white hover:bg-[#21262d] rounded-lg transition"
+                            className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--color-text-muted)]
+                                       hover:text-[var(--color-foreground)] hover:bg-[var(--color-card-hover)] rounded-lg transition"
                         >
                             <Settings className="w-4 h-4" />
                             {locale === "zh" ? "管理数据源" : "Manage Sources"}
@@ -183,7 +185,7 @@ export function DashboardShell({
 
     // Mobile Layout
     return (
-        <main className="mobile-container bg-[#0d1117]">
+        <main className="mobile-container bg-[var(--color-background)] text-[var(--color-foreground)]">
             <MobileHeader user={user} />
 
             <MobileSignalList

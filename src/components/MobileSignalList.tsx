@@ -107,7 +107,7 @@ export function MobileSignalList({
             ) : (
                 <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
                     <span className="text-4xl mb-4">📭</span>
-                    <p className="text-neutral-400 text-sm">
+                    <p className="text-[var(--color-text-muted)] text-sm">
                         {isZh ? "暂无信号" : "No signals in this category"}
                     </p>
                 </div>

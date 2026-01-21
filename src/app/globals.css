@@ -1,17 +1,62 @@
 @import "tailwindcss";
 
-@theme {
+/* ============================================
+   Theme Color Variables
+   ============================================ */
+
+/* Default: Dark Theme */
+:root,
+.theme-dark {
   --color-background: #0d1117;
-  /* Darker GitHub/TweetDeck like */
   --color-foreground: #e6edf3;
   --color-card: #161b22;
   --color-card-hover: #1f2937;
   --color-accent: #238636;
-  /* GitHub Green */
+  --color-accent-hover: #2ea043;
   --color-border: rgba(48, 54, 61, 0.7);
+  --color-text-muted: #8b949e;
+  --background: var(--color-background);
+  --foreground: var(--color-foreground);
 }
 
-:root {
+/* Light Theme */
+.theme-light {
+  --color-background: #ffffff;
+  --color-foreground: #24292f;
+  --color-card: #f6f8fa;
+  --color-card-hover: #eaeef2;
+  --color-accent: #1a7f37;
+  --color-accent-hover: #238636;
+  --color-border: rgba(208, 215, 222, 0.7);
+  --color-text-muted: #656d76;
+  --background: var(--color-background);
+  --foreground: var(--color-foreground);
+}
+
+/* Navy Theme */
+.theme-navy {
+  --color-background: #0f172a;
+  --color-foreground: #e2e8f0;
+  --color-card: #1e293b;
+  --color-card-hover: #334155;
+  --color-accent: #3b82f6;
+  --color-accent-hover: #60a5fa;
+  --color-border: rgba(51, 65, 85, 0.7);
+  --color-text-muted: #94a3b8;
+  --background: var(--color-background);
+  --foreground: var(--color-foreground);
+}
+
+/* Sepia Theme (Eye-friendly warm tone) */
+.theme-sepia {
+  --color-background: #faf8f5;
+  --color-foreground: #433422;
+  --color-card: #f5f0e6;
+  --color-card-hover: #ebe5d6;
+  --color-accent: #b45309;
+  --color-accent-hover: #d97706;
+  --color-border: rgba(180, 162, 136, 0.5);
+  --color-text-muted: #78716c;
   --background: var(--color-background);
   --foreground: var(--color-foreground);
 }
@@ -197,7 +242,7 @@ body {
   align-items: center;
   gap: 2px;
   padding: 0.5rem;
-  color: #6e7681;
+  color: var(--color-text-muted);
   font-size: 0.65rem;
   font-weight: 500;
   transition: color 0.2s ease;
