@@ -37,7 +37,12 @@ body {
 }
 
 .kanban-column {
-  flex: 0 0 320px;
+  flex: 1 1 0;
+  /* Auto-fill available space evenly */
+  min-width: 280px;
+  /* Minimum width per column */
+  max-width: 500px;
+  /* Maximum width to prevent too wide on large screens */
   background: var(--color-background);
   display: flex;
   flex-direction: column;
@@ -46,7 +51,7 @@ body {
 
 @media (min-width: 1024px) {
   .kanban-column {
-    flex: 0 0 380px;
+    min-width: 320px;
   }
 }
 
