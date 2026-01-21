@@ -169,19 +169,23 @@ export function SignalCard({
                     </div>
                 </div>
 
+                {/* 主标题：中文模式显示翻译，英文模式显示原文 */}
                 <h3 className={cn(
-                    "text-sm font-medium leading-snug transition-colors mb-2 group-hover:underline decoration-white/20 underline-offset-2",
+                    "text-sm font-medium leading-snug transition-colors mb-1 group-hover:underline decoration-white/20 underline-offset-2",
                     isRead ? "text-neutral-500" : "group-hover:text-accent"
                 )}>
-                    {signal.title}
+                    {isZh && signal.titleTranslated ? signal.titleTranslated : signal.title}
                 </h3>
+
+                {/* 副标题：中文模式显示原文（小字灰色） */}
+                {isZh && signal.titleTranslated && (
+                    <p className="text-[11px] text-neutral-500 mb-2 line-clamp-1">
+                        {signal.title}
+                    </p>
+                )}
 
                 {(signal.summary || signal.aiSummary) && (
                     <p className="text-[12px] text-neutral-400 line-clamp-2 leading-normal">
-                        {/* Only show translated title in Chinese locale */}
-                        {isZh && signal.titleTranslated && (
-                            <span className="block text-accent/80 mb-0.5">{signal.titleTranslated}</span>
-                        )}
                         {/* Chinese: prioritize zh summary | English: use en summary */}
                         {(isZh && signal.aiSummaryZh) ? signal.aiSummaryZh : (signal.aiSummary || signal.summary)}
                     </p>
@@ -208,11 +212,17 @@ export function SignalCard({
                         }}
                     >
                         <div className="text-[13px] text-white leading-relaxed space-y-2 flex-1 overflow-y-auto">
-                            {/* Title: Chinese if zh and available, else original */}
+                            {/* 主标题：中文模式显示翻译 */}
                             <h4 className="font-semibold text-emerald-400 text-sm line-clamp-2">
                                 {isZh && signal.titleTranslated ? signal.titleTranslated : signal.title}
                             </h4>
-                            {/* Summary: Chinese if zh and available, else original */}
+                            {/* 副标题：中文模式显示原文 */}
+                            {isZh && signal.titleTranslated && (
+                                <p className="text-[11px] text-neutral-500 line-clamp-1">
+                                    {signal.title}
+                                </p>
+                            )}
+                            {/* 摘要：中文模式显示中文摘要 */}
                             <p className="text-gray-200 line-clamp-6">
                                 {isZh && signal.aiSummaryZh ? signal.aiSummaryZh : (signal.aiSummary || signal.summary)}
                             </p>
@@ -266,23 +276,21 @@ export function SignalCard({
                 </div>
             </div>
 
-            {/* Bilingual Title Logic: Always show original. If Zh, show translated as secondary. */
-                /* User request: "Retain original language and see translation" */
-            }
+            {/* 主标题：中文模式显示翻译，英文模式显示原文 */}
             <h3 className={cn(
                 "text-lg font-semibold mb-1 leading-snug transition-colors group-hover:underline decoration-white/20 underline-offset-2",
                 isRead ? "text-neutral-500" : "group-hover:text-accent"
             )}>
-                {signal.title}
+                {isZh && signal.titleTranslated ? signal.titleTranslated : signal.title}
             </h3>
 
-            {/* Only show translated title in Chinese locale */}
+            {/* 副标题：中文模式显示原文（小字灰色） */}
             {isZh && signal.titleTranslated && (
-                <div className="mb-3 flex gap-2 items-start opacity-90">
-                    <Languages className="w-3.5 h-3.5 mt-1 text-accent shrink-0" />
-                    <h4 className="text-sm text-neutral-300 leading-snug font-medium">
-                        {signal.titleTranslated}
-                    </h4>
+                <div className="mb-3 flex gap-2 items-start opacity-70">
+                    <Languages className="w-3.5 h-3.5 mt-0.5 text-neutral-500 shrink-0" />
+                    <p className="text-xs text-neutral-500 leading-snug">
+                        {signal.title}
+                    </p>
                 </div>
             )}
 
