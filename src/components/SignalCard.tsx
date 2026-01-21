@@ -84,6 +84,21 @@ export function SignalCard({
     };
 
     if (variant === "compact") {
+        // 移动端点击处理：第一次点击显示弹窗，第二次点击进入详情
+        const handleCardClick = (e: React.MouseEvent | React.TouchEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // 如果弹窗已显示，点击进入详情
+            if (isSummaryHovered) {
+                handleRead();
+                setSelectedSignal(signal);
+            } else {
+                // 第一次点击显示弹窗
+                setIsSummaryHovered(true);
+            }
+        };
+
         return (
             <motion.div
                 initial={{ opacity: 0, x: -10 }}
@@ -93,7 +108,7 @@ export function SignalCard({
                     isRead ? "opacity-60 bg-white/5 grayscale" : "",
                     className
                 )}
-                onClick={handleOpenDetail}
+                onClick={handleCardClick}
                 onMouseEnter={() => setIsSummaryHovered(true)}
                 onMouseLeave={() => setIsSummaryHovered(false)}
             >
@@ -175,10 +190,17 @@ export function SignalCard({
                     </div>
                 )}
 
-                {/* Hover Full View - Triggered on card hover */}
+                {/* Hover/Click Full View - Triggered on card hover (desktop) or click (mobile) */}
                 {isSummaryHovered && signal.summary && (
-                    <div className="absolute inset-0 bg-[#0f1419] border border-emerald-500/30 rounded-lg p-4 shadow-2xl z-50 overflow-hidden">
-                        <div className="text-[13px] text-white leading-relaxed space-y-2 max-h-full overflow-y-auto">
+                    <div
+                        className="absolute inset-0 bg-[#0f1419] border border-emerald-500/30 rounded-lg p-4 shadow-2xl z-50 overflow-hidden flex flex-col"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleRead();
+                            setSelectedSignal(signal);
+                        }}
+                    >
+                        <div className="text-[13px] text-white leading-relaxed space-y-2 flex-1 overflow-y-auto">
                             {/* Title: Chinese if zh and available, else original */}
                             <h4 className="font-semibold text-emerald-400 text-sm line-clamp-2">
                                 {isZh && signal.titleTranslated ? signal.titleTranslated : signal.title}
@@ -187,6 +209,28 @@ export function SignalCard({
                             <p className="text-gray-200 line-clamp-6">
                                 {isZh && signal.aiSummaryZh ? signal.aiSummaryZh : (signal.aiSummary || signal.summary)}
                             </p>
+                        </div>
+                        {/* Mobile: Tap hint and close button */}
+                        <div className="flex justify-between items-center mt-3 pt-2 border-t border-white/10">
+                            <span className="text-[10px] text-emerald-400/80">
+                                {isZh ? '点击查看详情' : 'Tap to view details'}
+                            </span>
+                            <button
+                                type="button"
+                                onPointerDown={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    e.nativeEvent.stopImmediatePropagation();
+                                    setIsSummaryHovered(false);
+                                }}
+                                className="text-[10px] text-neutral-400 px-3 py-2 rounded bg-white/10 hover:bg-white/20 active:bg-white/30 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                            >
+                                {isZh ? '关闭' : 'Close'}
+                            </button>
                         </div>
                     </div>
                 )}

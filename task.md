@@ -84,6 +84,28 @@
 
 ---
 
+## 阶段四：移动端响应式设计 (Mobile Responsive)
+
+> 参考规格: `.gemini/antigravity/brain/917070b4-821f-436b-b442-9b05cf86c07c/SPEC.md`
+
+### 核心改造
+
+- [x] 创建 `useMediaQuery` Hook (屏幕宽度检测)
+- [x] 添加移动端 CSS 响应式样式 (`globals.css`)
+- [x] 创建 `MobileTabBar` 组件 (底部 Tab 导航)
+- [x] 创建 `MobileHeader` 组件 (简化版 Header)
+- [x] 创建 `MobileSignalList` 组件 (下拉刷新单列列表)
+- [x] 改造 `page.tsx` 条件渲染 (`DashboardShell` 组件)
+- [x] 优化 `SignalCard.tsx` 触摸体验 (CSS touch 优化)
+
+### 验证
+
+- [/] Chrome DevTools 移动端模拟测试
+- [ ] 桌面端回归测试 (确保布局不受影响)
+- [ ] 真机测试 (可选)
+
+---
+
 ## 剩余步骤 (需要用户操作)
 
 1. 安装依赖: `npm install`

@@ -1,14 +1,12 @@
 import { prisma } from "@/lib/prisma/db";
-import { SignalColumn } from "@/components/SignalColumn";
 import { Signal } from "@/schemas/signal";
-import { Code2, BarChart3, Newspaper, Rocket, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { getTranslations } from 'next-intl/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { UserMenu } from "@/components/UserMenu";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { DashboardShell } from "@/components/DashboardShell";
 
 export const revalidate = 60; // Revalidate every minute
 
@@ -45,8 +43,6 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
 
   const subscribedSourceIds = userSources.map((us) => us.sourceId);
 
-  // console.log(`[Dashboard] Locale: ${DashboardPage.name}`); // Just a placeholder to see if it runs
-
   // 如果用户没有订阅任何数据源，显示引导页面
   if (subscribedSourceIds.length === 0) {
     return (
@@ -54,10 +50,12 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
         <div className="text-center max-w-md">
           <div className="text-6xl mb-6">📡</div>
           <h1 className="text-2xl font-bold text-white mb-3">
-            欢迎使用 High-Signal
+            {locale === "zh" ? "欢迎使用 High-Signal" : "Welcome to High-Signal"}
           </h1>
           <p className="text-gray-400 mb-6">
-            你还没有订阅任何数据源。前往数据源管理页面，选择你感兴趣的信息来源。
+            {locale === "zh"
+              ? "你还没有订阅任何数据源。前往数据源管理页面，选择你感兴趣的信息来源。"
+              : "You haven't subscribed to any sources. Go to Sources to select your interests."}
           </p>
           <Link
             href="/sources"
@@ -65,7 +63,7 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
                        hover:bg-blue-700 transition font-medium"
           >
             <Settings className="w-5 h-5" />
-            管理数据源
+            {locale === "zh" ? "管理数据源" : "Manage Sources"}
           </Link>
         </div>
       </main>
@@ -91,8 +89,7 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
     },
   });
 
-  // 合并用户状态到信号，并确保 Date 对象转换为字符串以便序列化传递给客户端组件
-  // 合并用户状态到信号，并确保 Date 对象转换为字符串以便序列化传递给客户端组件
+  // 合并用户状态到信号
   const signalsWithState: Signal[] = allSignals.map((s: any) => ({
     ...s,
     createdAt: s.createdAt.toISOString(),
@@ -109,108 +106,35 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
   };
 
   // 按数据源类型分组
-  const buildSignals = signalsWithState.filter((s) =>
-    SOURCE_GROUPS.build.includes(getSourceType(s))
-  );
+  const signalGroups = {
+    build: signalsWithState.filter((s) => SOURCE_GROUPS.build.includes(getSourceType(s))),
+    market: signalsWithState.filter((s) => SOURCE_GROUPS.market.includes(getSourceType(s))),
+    news: signalsWithState.filter((s) => SOURCE_GROUPS.news.includes(getSourceType(s))),
+    launch: signalsWithState.filter((s) => SOURCE_GROUPS.launch.includes(getSourceType(s))),
+    custom: signalsWithState.filter((s) => {
+      const type = getSourceType(s);
+      return type === "rss" || (type !== '' && !Object.values(SOURCE_GROUPS).flat().includes(type));
+    }),
+  };
 
-  const marketSignals = signalsWithState.filter((s) =>
-    SOURCE_GROUPS.market.includes(getSourceType(s))
-  );
-
-  const newsSignals = signalsWithState.filter((s) =>
-    SOURCE_GROUPS.news.includes(getSourceType(s))
-  );
-
-  const launchSignals = signalsWithState.filter((s) =>
-    SOURCE_GROUPS.launch.includes(getSourceType(s))
-  );
-
-  // RSS 和其他自定义源放到单独的列
-  const customSignals = signalsWithState.filter((s) => {
-    const type = getSourceType(s);
-    return type === "rss" || (type !== '' && !Object.values(SOURCE_GROUPS).flat().includes(type));
-  });
+  const translations = {
+    buildTitle: t('buildTitle'),
+    buildSubtitle: t('buildSubtitle'),
+    marketTitle: t('marketTitle'),
+    marketSubtitle: t('marketSubtitle'),
+    newsTitle: t('newsTitle'),
+    newsSubtitle: t('newsSubtitle'),
+    launchTitle: t('launchTitle'),
+    launchSubtitle: t('launchSubtitle'),
+  };
 
   return (
-    <main className="min-h-screen bg-[#0d1117] overflow-hidden">
-      {/* Header */}
-      <header className="h-14 border-b border-[#21262d] flex items-center justify-between px-4">
-        <div className="flex items-center gap-3">
-          <span className="text-xl">📡</span>
-          <h1 className="text-lg font-semibold text-white">High-Signal</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <LanguageSwitcher />
-          <Link
-            href="/sources"
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-400 
-                       hover:text-white hover:bg-[#21262d] rounded-lg transition"
-          >
-            <Settings className="w-4 h-4" />
-            管理数据源
-          </Link>
-          <UserMenu user={session.user} />
-        </div>
-      </header>
-
-      {/* Kanban Board */}
-      <div className="kanban-container h-[calc(100vh-56px)] flex">
-        {buildSignals.length > 0 && (
-          <SignalColumn
-            title={t('buildTitle')}
-            subtitle={t('buildSubtitle')}
-            icon={<Code2 className="w-5 h-5" />}
-            signals={buildSignals}
-            colorClass="text-blue-400"
-            locale={locale}
-            sourceType="build"
-          />
-        )}
-        {marketSignals.length > 0 && (
-          <SignalColumn
-            title={t('marketTitle')}
-            subtitle={t('marketSubtitle')}
-            icon={<BarChart3 className="w-5 h-5" />}
-            signals={marketSignals}
-            colorClass="text-purple-400"
-            locale={locale}
-            sourceType="market"
-          />
-        )}
-        {newsSignals.length > 0 && (
-          <SignalColumn
-            title={t('newsTitle')}
-            subtitle={t('newsSubtitle')}
-            icon={<Newspaper className="w-5 h-5" />}
-            signals={newsSignals}
-            colorClass="text-orange-400"
-            locale={locale}
-            sourceType="news"
-          />
-        )}
-        {launchSignals.length > 0 && (
-          <SignalColumn
-            title={t('launchTitle')}
-            subtitle={t('launchSubtitle')}
-            icon={<Rocket className="w-5 h-5" />}
-            signals={launchSignals}
-            colorClass="text-pink-400"
-            locale={locale}
-            sourceType="launch"
-          />
-        )}
-        {customSignals.length > 0 && (
-          <SignalColumn
-            title="自定义源"
-            subtitle="RSS & 其他"
-            icon={<Settings className="w-5 h-5" />}
-            signals={customSignals}
-            colorClass="text-green-400"
-            locale={locale}
-            sourceType="custom"
-          />
-        )}
-      </div>
-    </main>
+    <DashboardShell
+      signalGroups={signalGroups}
+      locale={locale}
+      user={session.user}
+      translations={translations}
+    />
   );
 }
+

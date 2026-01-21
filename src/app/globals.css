@@ -113,3 +113,129 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* ============================================
+   Mobile Responsive Styles
+   ============================================ */
+
+/* Mobile body allows vertical scrolling */
+@media (max-width: 767px) {
+  body {
+    overflow-y: auto;
+  }
+}
+
+/* Mobile Layout Container */
+.mobile-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  /* Dynamic viewport height for mobile browsers */
+  overflow: hidden;
+}
+
+/* Mobile Header */
+.mobile-header {
+  height: 56px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background);
+}
+
+/* Mobile Signal List */
+.mobile-signal-list {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  /* Add padding to account for fixed tab bar at bottom */
+  padding-bottom: calc(56px + env(safe-area-inset-bottom));
+}
+
+/* Pull to refresh indicator */
+.pull-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  color: var(--color-foreground);
+  opacity: 0.6;
+}
+
+/* Mobile Tab Bar - Fixed at bottom */
+.mobile-tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: var(--color-card);
+  border-top: 1px solid var(--color-border);
+  padding-bottom: env(safe-area-inset-bottom);
+  /* Safari fix: ensure width is 100% */
+  width: 100%;
+  /* Safari fix: force GPU acceleration and new stacking context */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  /* Safari fix: ensure visibility */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  z-index: 50;
+}
+
+.mobile-tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0.5rem;
+  color: #6e7681;
+  font-size: 0.65rem;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.mobile-tab-item.active {
+  color: var(--color-accent);
+}
+
+.mobile-tab-item .tab-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Mobile card touch optimization */
+@media (max-width: 767px) {
+  .kanban-card {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Larger touch targets for buttons */
+  .kanban-card button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Hide desktop elements on mobile */
+@media (max-width: 767px) {
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+/* Hide mobile elements on desktop */
+@media (min-width: 768px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
