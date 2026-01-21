@@ -135,7 +135,21 @@ export class ScraperRunner {
 
         console.log("Scraping finished. Starting LLM enrichment...");
         try {
-            await this.processor.processSignals();
+            // 增加处理批次，确保更多信号被处理
+            // 每批处理 50 条，最多处理 3 批（150 条）
+            for (let batch = 0; batch < 3; batch++) {
+                const pendingCount = await prisma.signal.count({
+                    where: { aiSummary: null }
+                });
+
+                if (pendingCount === 0) {
+                    console.log("✅ All signals have been processed by LLM.");
+                    break;
+                }
+
+                console.log(`⏳ LLM Batch ${batch + 1}: ${pendingCount} signals pending...`);
+                await this.processor.processSignals(50);
+            }
         } catch (error) {
             console.error("LLM enrichment failed:", error);
         }

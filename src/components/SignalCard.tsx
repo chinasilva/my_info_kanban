@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { ExternalLink, TrendingUp, Star, Sparkles, Languages } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSignal } from "@/context/SignalContext";
 import { Signal, SignalSchema } from "@/schemas/signal"; // Import Zod Types
 
@@ -19,6 +19,7 @@ export function SignalCard({
     const [mounted, setMounted] = useState(false);
     const [isRead, setIsRead] = useState(signal.isRead ?? false);
     const [isSummaryHovered, setIsSummaryHovered] = useState(false); // State for hover effect
+    const closeClickedRef = useRef(false); // 标记关闭按钮是否被点击
 
     const isZh = locale === 'zh';
     const displayTitle = signal.title;
@@ -88,6 +89,12 @@ export function SignalCard({
         const handleCardClick = (e: React.MouseEvent | React.TouchEvent) => {
             e.preventDefault();
             e.stopPropagation();
+
+            // 检查是否是关闭按钮触发的点击，如果是则忽略
+            if (closeClickedRef.current) {
+                closeClickedRef.current = false;
+                return;
+            }
 
             // 如果弹窗已显示，点击进入详情
             if (isSummaryHovered) {
@@ -220,11 +227,13 @@ export function SignalCard({
                                 onPointerDown={(e) => {
                                     e.stopPropagation();
                                     e.preventDefault();
+                                    closeClickedRef.current = true; // 标记关闭按钮被点击
                                 }}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     e.preventDefault();
                                     e.nativeEvent.stopImmediatePropagation();
+                                    closeClickedRef.current = true; // 确保标记设置
                                     setIsSummaryHovered(false);
                                 }}
                                 className="text-[10px] text-neutral-400 px-3 py-2 rounded bg-white/10 hover:bg-white/20 active:bg-white/30 min-w-[44px] min-h-[44px] flex items-center justify-center"
