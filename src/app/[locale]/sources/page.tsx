@@ -21,7 +21,7 @@ export default function SourcesPage() {
     const [sources, setSources] = useState<Source[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
-    const t = useTranslations("Sources");
+    const t = useTranslations("SourcePage");
 
     // RSS 表单
     const [showRssForm, setShowRssForm] = useState(false);
@@ -273,7 +273,7 @@ function SourceCard({
     isLoading: boolean;
     onToggle: () => void;
 }) {
-    const t = useTranslations("Sources");
+    const t = useTranslations("SourcePage");
     return (
         <div className={`
             p-4 rounded-xl border transition

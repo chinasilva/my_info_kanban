@@ -11,6 +11,30 @@
     },
     "Common": {
         "loading": "Loading...",
-        "noSignals": "No signals yet"
+        "noSignals": "No signals yet",
+        "login": "Login",
+        "signIn": "Sign In"
+    },
+    "SourcePage": {
+        "title": "Manage Sources",
+        "subtitle": "Subscribe to sources and customize your dashboard",
+        "addRss": "Add RSS Feed",
+        "builtIn": "Built-in Sources",
+        "custom": "Custom Sources",
+        "rssModal": {
+            "title": "Add RSS Source",
+            "nameLabel": "Name",
+            "namePlaceholder": "e.g. My Blog",
+            "urlLabel": "RSS URL",
+            "iconLabel": "Icon (Emoji)",
+            "cancel": "Cancel",
+            "add": "Add",
+            "verifying": "Verifying...",
+            "error": {
+                "addFailed": "Failed to add",
+                "network": "Network error, please try again"
+            }
+        },
+        "signalCountSuffix": " signals"
     }
 }

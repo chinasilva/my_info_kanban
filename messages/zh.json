@@ -11,6 +11,30 @@
     },
     "Common": {
         "loading": "加载中...",
-        "noSignals": "暂无信号"
+        "noSignals": "暂无信号",
+        "login": "登录",
+        "signIn": "Sign In"
+    },
+    "SourcePage": {
+        "title": "数据源管理",
+        "subtitle": "订阅感兴趣的数据源，自定义你的看板",
+        "addRss": "添加 RSS 源",
+        "builtIn": "内置数据源",
+        "custom": "自定义数据源",
+        "rssModal": {
+            "title": "添加 RSS 数据源",
+            "nameLabel": "名称",
+            "namePlaceholder": "例如：我的博客",
+            "urlLabel": "RSS 地址",
+            "iconLabel": "图标 (Emoji)",
+            "cancel": "取消",
+            "add": "添加",
+            "verifying": "验证中...",
+            "error": {
+                "addFailed": "添加失败",
+                "network": "网络错误，请重试"
+            }
+        },
+        "signalCountSuffix": "条信号"
     }
 }

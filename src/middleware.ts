@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const intlMiddleware = createMiddleware({
     // A list of all locales that are supported
-    locales: ['en', 'zh'],
+    locales: ['en', 'zh', 'tw'],
     // Used when no locale matches
     defaultLocale: 'zh'
 });

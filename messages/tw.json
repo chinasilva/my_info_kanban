@@ -1,0 +1,40 @@
+{
+    "Dashboard": {
+        "buildTitle": "構建",
+        "buildSubtitle": "開源項目與論文",
+        "marketTitle": "市場",
+        "marketSubtitle": "預測市場與數據",
+        "newsTitle": "資訊",
+        "newsSubtitle": "科技新聞與深度閱讀",
+        "launchTitle": "新品",
+        "launchSubtitle": "Product Hunt 新品榜"
+    },
+    "Common": {
+        "loading": "加載中...",
+        "noSignals": "暫無信號",
+        "login": "登錄",
+        "signIn": "Sign In"
+    },
+    "SourcePage": {
+        "title": "數據源管理",
+        "subtitle": "訂閱感興趣的數據源，自定義你的看板",
+        "addRss": "添加 RSS 源",
+        "builtIn": "內置數據源",
+        "custom": "自定義數據源",
+        "rssModal": {
+            "title": "添加 RSS 數據源",
+            "nameLabel": "名稱",
+            "namePlaceholder": "例如：我的博客",
+            "urlLabel": "RSS 地址",
+            "iconLabel": "圖標 (Emoji)",
+            "cancel": "取消",
+            "add": "添加",
+            "verifying": "驗證中...",
+            "error": {
+                "addFailed": "添加失敗",
+                "network": "網絡錯誤，請重試"
+            }
+        },
+        "signalCountSuffix": "條信號"
+    }
+}
