@@ -104,7 +104,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(13, 17, 23, 0.8);
+  background: var(--color-card);
   backdrop-filter: blur(8px);
   z-index: 10;
 }
