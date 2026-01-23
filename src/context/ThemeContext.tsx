@@ -12,7 +12,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-    const [theme, setTheme] = useState<ThemeType>("dark");
+    const [theme, setTheme] = useState<ThemeType>("sepia");
     const [mounted, setMounted] = useState(false);
 
     // 从 localStorage 读取保存的主题

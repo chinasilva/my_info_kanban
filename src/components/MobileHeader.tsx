@@ -94,9 +94,19 @@ export function MobileHeader({ user }: MobileHeaderProps) {
                         </Link>
 
                         {/* User Section */}
-                        {user && (
+                        {user ? (
                             <div className="pt-3 border-t border-[var(--color-border)]">
                                 <UserMenu user={user} />
+                            </div>
+                        ) : (
+                            <div className="pt-3 border-t border-[var(--color-border)]">
+                                <Link
+                                    href="/login"
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/90 transition font-medium"
+                                >
+                                    {isZh ? "登录" : "Sign In"}
+                                </Link>
                             </div>
                         )}
                     </div>
