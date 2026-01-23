@@ -30,7 +30,7 @@ interface DashboardShellProps {
         name?: string | null;
         email?: string | null;
         image?: string | null;
-    };
+    } | null;
     translations: {
         buildTitle: string;
         buildSubtitle: string;
@@ -109,15 +109,26 @@ export function DashboardShell({
                     <div className="flex items-center gap-3">
                         <ThemeSwitcher locale={locale} />
                         <LanguageSwitcher />
-                        <Link
-                            href="/sources"
-                            className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--color-text-muted)]
-                                       hover:text-[var(--color-foreground)] hover:bg-[var(--color-card-hover)] rounded-lg transition"
-                        >
-                            <Settings className="w-4 h-4" />
-                            {locale === "zh" ? "管理数据源" : "Manage Sources"}
-                        </Link>
-                        <UserMenu user={user} />
+                        {user ? (
+                            <>
+                                <Link
+                                    href="/sources"
+                                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--color-text-muted)]
+                                            hover:text-[var(--color-foreground)] hover:bg-[var(--color-card-hover)] rounded-lg transition"
+                                >
+                                    <Settings className="w-4 h-4" />
+                                    {locale === "zh" ? "管理数据源" : "Manage Sources"}
+                                </Link>
+                                <UserMenu user={user} />
+                            </>
+                        ) : (
+                            <Link
+                                href="/login"
+                                className="px-4 py-2 text-sm font-medium bg-[var(--color-accent)] text-white rounded-lg hover:bg-[var(--color-accent)]/80 transition"
+                            >
+                                {locale === "zh" ? "登录" : "Login"}
+                            </Link>
+                        )}
                     </div>
                 </header>
 
@@ -132,6 +143,7 @@ export function DashboardShell({
                             colorClass="text-blue-400"
                             locale={locale}
                             sourceType="build"
+                            isGuest={!user}
                         />
                     )}
                     {signalGroups.market.length > 0 && (
@@ -143,6 +155,7 @@ export function DashboardShell({
                             colorClass="text-purple-400"
                             locale={locale}
                             sourceType="market"
+                            isGuest={!user}
                         />
                     )}
                     {signalGroups.news.length > 0 && (
@@ -154,6 +167,7 @@ export function DashboardShell({
                             colorClass="text-orange-400"
                             locale={locale}
                             sourceType="news"
+                            isGuest={!user}
                         />
                     )}
                     {signalGroups.launch.length > 0 && (
@@ -165,6 +179,7 @@ export function DashboardShell({
                             colorClass="text-pink-400"
                             locale={locale}
                             sourceType="launch"
+                            isGuest={!user}
                         />
                     )}
                     {signalGroups.custom.length > 0 && (
@@ -176,6 +191,7 @@ export function DashboardShell({
                             colorClass="text-green-400"
                             locale={locale}
                             sourceType="custom"
+                            isGuest={!user}
                         />
                     )}
                 </div>
@@ -192,6 +208,7 @@ export function DashboardShell({
                 signals={getActiveSignals()}
                 locale={locale}
                 onRefresh={handleRefresh}
+                isGuest={!user}
             />
 
             <MobileTabBar

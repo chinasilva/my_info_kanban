@@ -24,50 +24,59 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
   const session = await getServerSession(authOptions);
   const t = await getTranslations("Dashboard");
 
-  // 未登录用户重定向到登录页
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
+  // 未登录用户不重定向，允许浏览
+  // if (!session?.user?.id) {
+  //   redirect("/login");
+  // }
 
-  // 获取用户订阅的数据源
-  const userSources = await prisma.userSource.findMany({
-    where: {
-      userId: session.user.id,
-      isEnabled: true
-    },
-    include: {
-      source: true
-    },
-    orderBy: { displayOrder: "asc" },
-  });
+  let subscribedSourceIds: string[] = [];
 
-  const subscribedSourceIds = userSources.map((us) => us.sourceId);
+  if (session?.user?.id) {
+    // 获取用户订阅的数据源
+    const userSources = await prisma.userSource.findMany({
+      where: {
+        userId: session.user.id,
+        isEnabled: true
+      },
+      include: {
+        source: true
+      },
+      orderBy: { displayOrder: "asc" },
+    });
+    subscribedSourceIds = userSources.map((us) => us.sourceId);
 
-  // 如果用户没有订阅任何数据源，显示引导页面
-  if (subscribedSourceIds.length === 0) {
-    return (
-      <main className="min-h-screen bg-[#0d1117] flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <div className="text-6xl mb-6">📡</div>
-          <h1 className="text-2xl font-bold text-white mb-3">
-            {locale === "zh" ? "欢迎使用 High-Signal" : "Welcome to High-Signal"}
-          </h1>
-          <p className="text-gray-400 mb-6">
-            {locale === "zh"
-              ? "你还没有订阅任何数据源。前往数据源管理页面，选择你感兴趣的信息来源。"
-              : "You haven't subscribed to any sources. Go to Sources to select your interests."}
-          </p>
-          <Link
-            href="/sources"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg 
-                       hover:bg-blue-700 transition font-medium"
-          >
-            <Settings className="w-5 h-5" />
-            {locale === "zh" ? "管理数据源" : "Manage Sources"}
-          </Link>
-        </div>
-      </main>
-    );
+    // 如果用户登录了但没有订阅任何数据源，显示引导页面
+    if (subscribedSourceIds.length === 0) {
+      return (
+        <main className="min-h-screen bg-[#0d1117] flex items-center justify-center p-4">
+          <div className="text-center max-w-md">
+            <div className="text-6xl mb-6">📡</div>
+            <h1 className="text-2xl font-bold text-white mb-3">
+              {locale === "zh" ? "欢迎使用 High-Signal" : "Welcome to High-Signal"}
+            </h1>
+            <p className="text-gray-400 mb-6">
+              {locale === "zh"
+                ? "你还没有订阅任何数据源。前往数据源管理页面，选择你感兴趣的信息来源。"
+                : "You haven't subscribed to any sources. Go to Sources to select your interests."}
+            </p>
+            <Link
+              href="/sources"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg 
+                           hover:bg-blue-700 transition font-medium"
+            >
+              <Settings className="w-5 h-5" />
+              {locale === "zh" ? "管理数据源" : "Manage Sources"}
+            </Link>
+          </div>
+        </main>
+      );
+    }
+  } else {
+    // 访客模式：获取系统内置数据源
+    const builtInSources = await prisma.source.findMany({
+      where: { isBuiltIn: true }
+    });
+    subscribedSourceIds = builtInSources.map(s => s.id);
   }
 
   // 获取用户订阅的数据源的信号（最近7天）
@@ -82,10 +91,10 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
     orderBy: { createdAt: "desc" },
     include: {
       source: true,
-      userStates: {
+      userStates: session?.user?.id ? {
         where: { userId: session.user.id },
         select: { isRead: true, isFavorited: true },
-      },
+      } : false, // Guest has no user states
     },
   });
 
@@ -132,7 +141,7 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
     <DashboardShell
       signalGroups={signalGroups}
       locale={locale}
-      user={session.user}
+      user={session?.user || null}
       translations={translations}
     />
   );

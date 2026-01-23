@@ -15,6 +15,7 @@ interface SignalColumnProps {
     locale?: string;
     sourceType?: string; // For API calls: 'build', 'market', 'news', 'launch'
     enableInfiniteScroll?: boolean;
+    isGuest?: boolean;
 }
 
 export function SignalColumn({
@@ -25,7 +26,8 @@ export function SignalColumn({
     colorClass = "text-accent",
     locale = 'en',
     sourceType,
-    enableInfiniteScroll = true
+    enableInfiniteScroll = true,
+    isGuest = false
 }: SignalColumnProps) {
     const [signals, setSignals] = useState<Signal[]>(initialSignals);
     const [isLoading, setIsLoading] = useState(false);
@@ -122,6 +124,7 @@ export function SignalColumn({
                                 }}
                                 variant="compact"
                                 locale={locale}
+                                isGuest={isGuest}
                             />
                         ))}
 

@@ -9,12 +9,14 @@ export function SignalCard({
     signal,
     className,
     variant = "default",
-    locale
+    locale,
+    isGuest = false
 }: {
     signal: Signal; // Use inferred type
     className?: string;
     variant?: "default" | "compact";
     locale?: string;
+    isGuest?: boolean;
 }) {
     const [mounted, setMounted] = useState(false);
     const [isRead, setIsRead] = useState(signal.isRead ?? false);
@@ -47,6 +49,9 @@ export function SignalCard({
     }, [signal.id, signal.isRead]);
 
     const handleRead = async () => {
+        // Guest mode: do nothing
+        if (isGuest) return;
+
         // 本地更新
         const readSignals = JSON.parse(localStorage.getItem("read_signals") || "[]");
         if (!readSignals.includes(signal.id)) {
@@ -145,17 +150,19 @@ export function SignalCard({
                         )}
                     </div>
                     <div className="flex items-center gap-1">
-                        <button
-                            onClick={handleFavorite}
-                            className={cn(
-                                "p-1 rounded transition-colors",
-                                isFavorited
-                                    ? "text-yellow-400"
-                                    : "text-neutral-600 hover:text-yellow-400"
-                            )}
-                        >
-                            <Star className={cn("w-3 h-3", isFavorited && "fill-current")} />
-                        </button>
+                        {!isGuest && (
+                            <button
+                                onClick={handleFavorite}
+                                className={cn(
+                                    "p-1 rounded transition-colors",
+                                    isFavorited
+                                        ? "text-yellow-400"
+                                        : "text-neutral-600 hover:text-yellow-400"
+                                )}
+                            >
+                                <Star className={cn("w-3 h-3", isFavorited && "fill-current")} />
+                            </button>
+                        )}
                         <a
                             href={signal.url}
                             target="_blank"
@@ -361,17 +368,19 @@ export function SignalCard({
                     )}
                 </div>
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={handleFavorite}
-                        className={cn(
-                            "p-2 rounded-full transition-colors",
-                            isFavorited
-                                ? "text-yellow-400 bg-yellow-400/10"
-                                : "hover:bg-[var(--color-card-hover)]"
-                        )}
-                    >
-                        <Star className={cn("w-4 h-4", isFavorited && "fill-current")} />
-                    </button>
+                    {!isGuest && (
+                        <button
+                            onClick={handleFavorite}
+                            className={cn(
+                                "p-2 rounded-full transition-colors",
+                                isFavorited
+                                    ? "text-yellow-400 bg-yellow-400/10"
+                                    : "hover:bg-[var(--color-card-hover)]"
+                            )}
+                        >
+                            <Star className={cn("w-4 h-4", isFavorited && "fill-current")} />
+                        </button>
+                    )}
                     <a
                         href={signal.url}
                         target="_blank"

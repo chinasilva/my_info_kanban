@@ -11,7 +11,7 @@ interface MobileHeaderProps {
         name?: string | null;
         email?: string | null;
         image?: string | null;
-    };
+    } | null;
 }
 
 import { ThemeSwitcher } from "./ThemeSwitcher";

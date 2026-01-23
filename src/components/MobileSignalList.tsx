@@ -9,12 +9,14 @@ interface MobileSignalListProps {
     signals: Signal[];
     locale?: string;
     onRefresh?: () => Promise<void>;
+    isGuest?: boolean;
 }
 
 export function MobileSignalList({
     signals,
     locale = "en",
-    onRefresh
+    onRefresh,
+    isGuest = false
 }: MobileSignalListProps) {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [pullDistance, setPullDistance] = useState(0);
@@ -101,6 +103,7 @@ export function MobileSignalList({
                             }}
                             variant="compact"
                             locale={locale}
+                            isGuest={isGuest}
                         />
                     ))}
                 </div>
