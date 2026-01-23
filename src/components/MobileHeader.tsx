@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, X, Globe, Settings } from "lucide-react";
+import { Menu, X, Globe, Settings, LogIn } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { UserMenu } from "./UserMenu";
@@ -103,9 +103,12 @@ export function MobileHeader({ user }: MobileHeaderProps) {
                                 <Link
                                     href="/login"
                                     onClick={() => setIsMenuOpen(false)}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/90 transition font-medium"
+                                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-[var(--color-card-hover)]/30 border border-[var(--color-border)] hover:bg-[var(--color-card-hover)] transition text-left group"
                                 >
-                                    {isZh ? "登录" : "Sign In"}
+                                    <LogIn className="w-5 h-5 text-[var(--color-accent)] group-hover:text-[var(--color-accent-hover)] transition-colors" />
+                                    <span className="text-[var(--color-foreground)] font-medium">
+                                        {isZh ? "登录" : "Sign In"}
+                                    </span>
                                 </Link>
                             </div>
                         )}
