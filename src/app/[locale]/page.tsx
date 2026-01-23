@@ -102,8 +102,8 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
   const signalsWithState: Signal[] = allSignals.map((s: any) => ({
     ...s,
     createdAt: s.createdAt.toISOString(),
-    isRead: s.userStates[0]?.isRead ?? false,
-    isFavorited: s.userStates[0]?.isFavorited ?? false,
+    isRead: s.userStates?.[0]?.isRead ?? false,
+    isFavorited: s.userStates?.[0]?.isFavorited ?? false,
   }));
 
   // Helper to safely access source type
