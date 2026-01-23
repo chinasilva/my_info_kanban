@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, X, Globe, Settings, LogIn } from "lucide-react";
+import { Menu, X, Globe, Settings, LogIn, Check } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { UserMenu } from "./UserMenu";
@@ -82,21 +82,40 @@ export function MobileHeader({ user }: MobileHeaderProps) {
                             <ThemeSwitcher locale={locale} />
                         </div>
 
-                        {/* Language Toggle */}
-                        <button
-                            onClick={toggleLanguage}
-                            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-[var(--color-card-hover)]/30 border border-[var(--color-border)] hover:bg-[var(--color-card-hover)] transition text-left"
-                        >
-                            <Globe className="w-5 h-5 text-[var(--color-text-muted)]" />
-                            <div>
-                                <span className="text-[var(--color-foreground)]">
-                                    {getLanguageLabel()}
-                                </span>
-                                <span className="block text-xs text-[var(--color-text-muted)]">
-                                    {getLanguageSubLabel()}
+                        {/* Language Selection */}
+                        <div className="w-full rounded-lg bg-[var(--color-card-hover)]/30 border border-[var(--color-border)] overflow-hidden">
+                            <div className="px-4 py-3 border-b border-[var(--color-border)]/50 flex items-center gap-2">
+                                <Globe className="w-4 h-4 text-[var(--color-text-muted)]" />
+                                <span className="text-sm font-medium text-[var(--color-foreground)]">
+                                    {isZh ? "语言" : (isTw ? "語言" : "Language")}
                                 </span>
                             </div>
-                        </button>
+                            <div className="flex flex-col">
+                                {[
+                                    { code: "en", label: "English" },
+                                    { code: "zh", label: "简体中文" },
+                                    { code: "tw", label: "繁體中文" }
+                                ].map((lang) => (
+                                    <button
+                                        key={lang.code}
+                                        onClick={() => {
+                                            const segments = pathname.split("/");
+                                            if (segments.length > 1) segments[1] = lang.code;
+                                            router.push(segments.join("/"));
+                                            setIsMenuOpen(false);
+                                        }}
+                                        className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center justify-between border-b last:border-0 border-[var(--color-border)]/30
+                                            ${locale === lang.code
+                                                ? "bg-[var(--color-card-hover)] text-[var(--color-accent)] font-medium"
+                                                : "text-[var(--color-foreground)] hover:bg-[var(--color-card-hover)]/50"
+                                            }`}
+                                    >
+                                        {lang.label}
+                                        {locale === lang.code && <Check className="w-4 h-4" />}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
 
                         {/* Manage Sources */}
                         <Link
