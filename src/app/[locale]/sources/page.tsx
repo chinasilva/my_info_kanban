@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Rss, Check, Plus, ArrowLeft, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface Source {
     id: string;
@@ -20,6 +21,7 @@ export default function SourcesPage() {
     const [sources, setSources] = useState<Source[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const t = useTranslations("Sources");
 
     // RSS 表单
     const [showRssForm, setShowRssForm] = useState(false);
@@ -82,7 +84,7 @@ export default function SourcesPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setRssError(data.error || "添加失败");
+                setRssError(data.error || t("rssModal.error.addFailed"));
                 return;
             }
 
@@ -93,7 +95,7 @@ export default function SourcesPage() {
             setRssFeedUrl("");
             setRssIcon("📡");
         } catch (error) {
-            setRssError("网络错误，请重试");
+            setRssError(t("rssModal.error.network"));
         } finally {
             setRssLoading(false);
         }
@@ -115,8 +117,8 @@ export default function SourcesPage() {
                             <ArrowLeft className="w-5 h-5" />
                         </button>
                         <div>
-                            <h1 className="text-2xl font-bold text-white">数据源管理</h1>
-                            <p className="text-gray-400 text-sm">订阅感兴趣的数据源，自定义你的看板</p>
+                            <h1 className="text-2xl font-bold text-white">{t("title")}</h1>
+                            <p className="text-gray-400 text-sm">{t("subtitle")}</p>
                         </div>
                     </div>
                     <button
@@ -125,7 +127,7 @@ export default function SourcesPage() {
                                    hover:bg-blue-700 transition font-medium"
                     >
                         <Plus className="w-4 h-4" />
-                        添加 RSS 源
+                        {t("addRss")}
                     </button>
                 </div>
 
@@ -139,7 +141,7 @@ export default function SourcesPage() {
                         <section className="mb-8">
                             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                                 <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                                内置数据源
+                                {t("builtIn")}
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {builtInSources.map((source) => (
@@ -158,7 +160,7 @@ export default function SourcesPage() {
                             <section>
                                 <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                                     <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                    自定义数据源
+                                    {t("custom")}
                                 </h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {customSources.map((source) => (
@@ -181,7 +183,7 @@ export default function SourcesPage() {
                         <div className="bg-[#161b22] rounded-xl border border-[#30363d] w-full max-w-md p-6">
                             <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                                 <Rss className="w-5 h-5 text-orange-400" />
-                                添加 RSS 数据源
+                                {t("rssModal.title")}
                             </h3>
 
                             <form onSubmit={handleAddRss} className="space-y-4">
@@ -192,12 +194,12 @@ export default function SourcesPage() {
                                 )}
 
                                 <div>
-                                    <label className="block text-sm text-gray-400 mb-1">名称</label>
+                                    <label className="block text-sm text-gray-400 mb-1">{t("rssModal.nameLabel")}</label>
                                     <input
                                         type="text"
                                         value={rssName}
                                         onChange={(e) => setRssName(e.target.value)}
-                                        placeholder="例如：我的博客"
+                                        placeholder={t("rssModal.namePlaceholder")}
                                         className="w-full px-4 py-3 bg-[#0d1117] border border-[#30363d] rounded-lg 
                                                    text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
                                         required
@@ -205,7 +207,7 @@ export default function SourcesPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm text-gray-400 mb-1">RSS 地址</label>
+                                    <label className="block text-sm text-gray-400 mb-1">{t("rssModal.urlLabel")}</label>
                                     <input
                                         type="url"
                                         value={rssFeedUrl}
@@ -218,7 +220,7 @@ export default function SourcesPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm text-gray-400 mb-1">图标 (Emoji)</label>
+                                    <label className="block text-sm text-gray-400 mb-1">{t("rssModal.iconLabel")}</label>
                                     <input
                                         type="text"
                                         value={rssIcon}
@@ -236,7 +238,7 @@ export default function SourcesPage() {
                                         className="flex-1 py-3 bg-[#21262d] text-gray-300 rounded-lg 
                                                    hover:bg-[#30363d] transition font-medium"
                                     >
-                                        取消
+                                        {t("rssModal.cancel")}
                                     </button>
                                     <button
                                         type="submit"
@@ -248,9 +250,9 @@ export default function SourcesPage() {
                                         {rssLoading ? (
                                             <>
                                                 <Loader2 className="w-4 h-4 animate-spin" />
-                                                验证中...
+                                                {t("rssModal.verifying")}
                                             </>
-                                        ) : "添加"}
+                                        ) : t("rssModal.add")}
                                     </button>
                                 </div>
                             </form>
@@ -271,6 +273,7 @@ function SourceCard({
     isLoading: boolean;
     onToggle: () => void;
 }) {
+    const t = useTranslations("Sources");
     return (
         <div className={`
             p-4 rounded-xl border transition
@@ -284,7 +287,7 @@ function SourceCard({
                     <span className="text-2xl">{source.icon || "📡"}</span>
                     <div>
                         <h3 className="font-medium text-white">{source.name}</h3>
-                        <p className="text-sm text-gray-500">{source.signalCount} 条信号</p>
+                        <p className="text-sm text-gray-500">{source.signalCount} {t("signalCountSuffix")}</p>
                     </div>
                 </div>
                 <button
