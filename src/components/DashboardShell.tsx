@@ -112,7 +112,7 @@ export function DashboardShell({
                         {user ? (
                             <>
                                 <Link
-                                    href="/sources"
+                                    href={`/${locale}/sources`}
                                     className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--color-text-muted)]
                                             hover:text-[var(--color-foreground)] hover:bg-[var(--color-card-hover)] rounded-lg transition"
                                 >
@@ -123,7 +123,7 @@ export function DashboardShell({
                             </>
                         ) : (
                             <Link
-                                href="/login"
+                                href={`/${locale}/login`}
                                 className="px-4 py-2 text-sm font-medium bg-[var(--color-accent)] text-white rounded-lg hover:bg-[var(--color-accent)]/80 transition"
                             >
                                 {locale === "zh" ? "登录" : "Login"}

@@ -22,10 +22,15 @@ export function MobileHeader({ user }: MobileHeaderProps) {
     const router = useRouter();
 
     const isZh = pathname.startsWith("/zh");
-    const locale = isZh ? "zh" : "en";
+    const isTw = pathname.startsWith("/tw");
+    const locale = isZh ? "zh" : (isTw ? "tw" : "en");
 
     const toggleLanguage = () => {
-        const newLocale = isZh ? "en" : "zh";
+        let newLocale = "en";
+        if (locale === "en") newLocale = "zh";
+        else if (locale === "zh") newLocale = "tw";
+        else if (locale === "tw") newLocale = "en";
+
         const segments = pathname.split("/");
         if (segments.length > 1) {
             segments[1] = newLocale;
@@ -33,6 +38,18 @@ export function MobileHeader({ user }: MobileHeaderProps) {
         router.push(segments.join("/"));
         setIsMenuOpen(false);
     };
+
+    const getLanguageLabel = () => {
+        if (isZh) return "切换到繁体";
+        if (isTw) return "Switch to English";
+        return "切换到简体";
+    }
+
+    const getLanguageSubLabel = () => {
+        if (isZh) return "Traditional";
+        if (isTw) return "English";
+        return "简体中文";
+    }
 
     return (
         <>
@@ -73,23 +90,23 @@ export function MobileHeader({ user }: MobileHeaderProps) {
                             <Globe className="w-5 h-5 text-[var(--color-text-muted)]" />
                             <div>
                                 <span className="text-[var(--color-foreground)]">
-                                    {isZh ? "切换到英文" : "Switch to Chinese"}
+                                    {getLanguageLabel()}
                                 </span>
                                 <span className="block text-xs text-[var(--color-text-muted)]">
-                                    {isZh ? "English" : "中文"}
+                                    {getLanguageSubLabel()}
                                 </span>
                             </div>
                         </button>
 
                         {/* Manage Sources */}
                         <Link
-                            href="/sources"
+                            href={`/${locale}/sources`}
                             onClick={() => setIsMenuOpen(false)}
                             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-[var(--color-card-hover)]/30 border border-[var(--color-border)] hover:bg-[var(--color-card-hover)] transition"
                         >
                             <Settings className="w-5 h-5 text-[var(--color-text-muted)]" />
                             <span className="text-[var(--color-foreground)]">
-                                {isZh ? "管理数据源" : "Manage Sources"}
+                                {isZh ? "管理数据源" : (isTw ? "管理數據源" : "Manage Sources")}
                             </span>
                         </Link>
 
@@ -101,7 +118,7 @@ export function MobileHeader({ user }: MobileHeaderProps) {
                         ) : (
                             <div className="pt-3 border-t border-[var(--color-border)]">
                                 <Link
-                                    href="/login"
+                                    href={`/${locale}/login`}
                                     onClick={() => setIsMenuOpen(false)}
                                     className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-[var(--color-card-hover)]/30 border border-[var(--color-border)] hover:bg-[var(--color-card-hover)] transition text-left group"
                                 >
