@@ -1,9 +1,12 @@
+"use client";
+
 import { motion } from "framer-motion";
 import { ExternalLink, TrendingUp, Star, Sparkles, Languages } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, useRef } from "react";
 import { useSignal } from "@/context/SignalContext";
 import { Signal, SignalSchema } from "@/schemas/signal"; // Import Zod Types
+import { convertToTraditional } from "@/lib/utils/converter";
 
 export function SignalCard({
     signal,
@@ -24,8 +27,22 @@ export function SignalCard({
     const closeClickedRef = useRef(false); // 标记关闭按钮是否被点击
 
     const isZh = locale === 'zh';
-    const displayTitle = signal.title;
-    const displayTags = (isZh && signal.tagsZh && signal.tagsZh.length > 0) ? signal.tagsZh : signal.tags;
+    const isTw = locale === 'tw';
+
+    // State for converted text
+    const [convertedTitle, setConvertedTitle] = useState<string | null>(null);
+    const [convertedSummary, setConvertedSummary] = useState<string | null>(null);
+    const [convertedTags, setConvertedTags] = useState<string[]>([]);
+
+    // Determine content to display
+    const displayTitle = isTw && convertedTitle ? convertedTitle : (isZh && signal.titleTranslated ? signal.titleTranslated : signal.title);
+
+    const rawSummary = (isZh || isTw) && signal.aiSummaryZh ? signal.aiSummaryZh : (signal.aiSummary || signal.summary);
+    const displaySummary = isTw && convertedSummary ? convertedSummary : rawSummary;
+
+    const rawTags = (isZh || isTw) && signal.tagsZh && signal.tagsZh.length > 0 ? signal.tagsZh : signal.tags;
+    const displayTags = isTw && convertedTags.length > 0 ? convertedTags : rawTags;
+
     const [isFavorited, setIsFavorited] = useState(signal.isFavorited ?? false);
     const { setSelectedSignal } = useSignal();
 
@@ -47,6 +64,35 @@ export function SignalCard({
             }
         }
     }, [signal.id, signal.isRead]);
+
+    // Handle Traditional Chinese Conversion
+    useEffect(() => {
+        if (isTw) {
+            const convertContent = async () => {
+                // Determine source for title: use translated if available, otherwise original
+                const titleSrc = signal.titleTranslated || signal.title;
+                if (titleSrc) {
+                    const twTitle = await convertToTraditional(titleSrc);
+                    setConvertedTitle(twTitle);
+                }
+
+                // Determine source for summary
+                const summarySrc = signal.aiSummaryZh || signal.aiSummary || signal.summary;
+                if (summarySrc) {
+                    const twSummary = await convertToTraditional(summarySrc);
+                    setConvertedSummary(twSummary);
+                }
+
+                // Determine source for tags
+                const tagsSrc = (signal.tagsZh && signal.tagsZh.length > 0) ? signal.tagsZh : signal.tags;
+                if (tagsSrc && tagsSrc.length > 0) {
+                    const twTags = await Promise.all(tagsSrc.map(tag => convertToTraditional(tag)));
+                    setConvertedTags(twTags);
+                }
+            };
+            convertContent();
+        }
+    }, [isTw, signal]);
 
     const handleRead = async () => {
         // Guest mode: do nothing
@@ -144,7 +190,7 @@ export function SignalCard({
                             <>
                                 <span className="text-[10px] text-[var(--color-text-muted)]">•</span>
                                 <span className="text-[10px] text-[var(--color-text-muted)]">
-                                    {isZh ? '评论' : 'Comments'}: {(signal.metadata as any).comments}
+                                    {isZh || isTw ? (isTw ? '評論' : '评论') : 'Comments'}: {(signal.metadata as any).comments}
                                 </span>
                             </>
                         )}
@@ -177,32 +223,31 @@ export function SignalCard({
                     </div>
                 </div>
 
-                {/* 主标题：中文模式显示翻译，英文模式显示原文 */}
+                {/* 主标题 */}
                 <h3 className={cn(
                     "text-sm font-medium leading-snug transition-colors mb-1 group-hover:underline decoration-[var(--color-border)] underline-offset-2",
                     isRead ? "text-[var(--color-text-muted)]" : "group-hover:text-[var(--color-accent)] text-[var(--color-foreground)]"
                 )}>
-                    {isZh && signal.titleTranslated ? signal.titleTranslated : signal.title}
+                    {displayTitle}
                 </h3>
 
                 {/* 副标题：中文模式显示原文（小字灰色） */}
-                {isZh && signal.titleTranslated && (
+                {(isZh || isTw) && signal.titleTranslated && (
                     <p className="text-[11px] text-[var(--color-text-muted)] mb-2 line-clamp-1 opacity-80">
                         {signal.title}
                     </p>
                 )}
 
-                {(signal.summary || signal.aiSummary) && (
+                {displaySummary && (
                     <p className="text-[12px] text-[var(--color-text-muted)] line-clamp-2 leading-normal">
-                        {/* Chinese: prioritize zh summary | English: use en summary */}
-                        {(isZh && signal.aiSummaryZh) ? signal.aiSummaryZh : (signal.aiSummary || signal.summary)}
+                        {displaySummary}
                     </p>
                 )}
 
-                {signal.tags && signal.tags.length > 0 && (
+                {displayTags && displayTags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                        {signal.tags.slice(0, 3).map(tag => (
-                            <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--color-background)] text-[var(--color-text-muted)] border border-[var(--color-border)]">
+                        {displayTags.slice(0, 3).map((tag, idx) => (
+                            <span key={idx} className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--color-background)] text-[var(--color-text-muted)] border border-[var(--color-border)]">
                                 #{tag}
                             </span>
                         ))}
@@ -220,25 +265,25 @@ export function SignalCard({
                         }}
                     >
                         <div className="text-[13px] text-[var(--color-foreground)] leading-relaxed space-y-2 flex-1 overflow-y-auto">
-                            {/* 主标题：中文模式显示翻译 */}
+                            {/* 主标题 */}
                             <h4 className="font-semibold text-[var(--color-accent)] text-sm line-clamp-2">
-                                {isZh && signal.titleTranslated ? signal.titleTranslated : signal.title}
+                                {displayTitle}
                             </h4>
-                            {/* 副标题：中文模式显示原文 */}
-                            {isZh && signal.titleTranslated && (
+                            {/* 副标题 */}
+                            {(isZh || isTw) && signal.titleTranslated && (
                                 <p className="text-[11px] text-[var(--color-text-muted)] line-clamp-1 opacity-80">
                                     {signal.title}
                                 </p>
                             )}
-                            {/* 摘要：中文模式显示中文摘要 */}
+                            {/* 摘要 */}
                             <p className="text-[var(--color-text-muted)] line-clamp-6">
-                                {isZh && signal.aiSummaryZh ? signal.aiSummaryZh : (signal.aiSummary || signal.summary)}
+                                {displaySummary}
                             </p>
                         </div>
                         {/* Mobile: Tap hint and close button */}
                         <div className="flex justify-between items-center mt-3 pt-2 border-t border-[var(--color-border)]">
                             <span className="text-[10px] text-[var(--color-accent)] opacity-80">
-                                {isZh ? '点击查看详情' : 'Tap to view details'}
+                                {isZh ? '点击查看详情' : (isTw ? '點擊查看詳情' : 'Tap to view details')}
                             </span>
                             <button
                                 type="button"
@@ -256,7 +301,7 @@ export function SignalCard({
                                 }}
                                 className="text-[10px] text-[var(--color-text-muted)] px-3 py-2 rounded bg-[var(--color-background)] hover:bg-[var(--color-card-hover)] active:bg-[var(--color-card-hover)] border border-[var(--color-border)] min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors"
                             >
-                                {isZh ? '关闭' : 'Close'}
+                                {isZh || isTw ? (isTw ? '關閉' : '关闭') : 'Close'}
                             </button>
                         </div>
                     </div>
@@ -284,16 +329,16 @@ export function SignalCard({
                 </div>
             </div>
 
-            {/* 主标题：中文模式显示翻译，英文模式显示原文 */}
+            {/* 主标题 */}
             <h3 className={cn(
                 "text-lg font-semibold mb-1 leading-snug transition-colors group-hover:underline decoration-[var(--color-border)] underline-offset-2",
                 isRead ? "text-[var(--color-text-muted)]" : "group-hover:text-[var(--color-accent)] text-[var(--color-foreground)]"
             )}>
-                {isZh && signal.titleTranslated ? signal.titleTranslated : signal.title}
+                {displayTitle}
             </h3>
 
-            {/* 副标题：中文模式显示原文（小字灰色） */}
-            {isZh && signal.titleTranslated && (
+            {/* 副标题 */}
+            {(isZh || isTw) && signal.titleTranslated && (
                 <div className="mb-3 flex gap-2 items-start opacity-70">
                     <Languages className="w-3.5 h-3.5 mt-0.5 text-[var(--color-text-muted)] shrink-0" />
                     <p className="text-xs text-[var(--color-text-muted)] leading-snug">
@@ -315,9 +360,9 @@ export function SignalCard({
                             <div className="flex flex-col gap-1.5">
                                 <span className="flex gap-2">
                                     <Sparkles className="w-3.5 h-3.5 mt-0.5 text-purple-400 shrink-0" />
-                                    {/* Chinese locale: prefer zh summary | English: show en summary */}
+                                    {/* Chinese locale: prefer zh/tw summary | English: show en summary */}
                                     <span className="text-[var(--color-text-muted)] opacity-90">
-                                        {isZh && signal.aiSummaryZh ? signal.aiSummaryZh : signal.aiSummary}
+                                        {displaySummary}
                                     </span>
                                 </span>
                             </div>
@@ -333,9 +378,9 @@ export function SignalCard({
                                 {signal.aiSummary ? (
                                     <span className="flex gap-2">
                                         <Sparkles className="w-3.5 h-3.5 mt-0.5 text-purple-400 shrink-0" />
-                                        {/* Hover: Chinese locale prioritizes zh summary | English shows en summary */}
+                                        {/* Hover: Chinese locale prioritizes zh/tw summary | English shows en summary */}
                                         <span className="text-[var(--color-text-muted)]">
-                                            {isZh && signal.aiSummaryZh ? signal.aiSummaryZh : signal.aiSummary}
+                                            {displaySummary}
                                         </span>
                                     </span>
                                 ) : (
@@ -349,8 +394,8 @@ export function SignalCard({
 
             {displayTags && displayTags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-4">
-                    {displayTags.map(tag => (
-                        <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--color-background)]/50 text-[var(--color-text-muted)] border border-[var(--color-border)] hover:bg-[var(--color-card-hover)] transition-colors">
+                    {displayTags.map((tag, idx) => (
+                        <span key={idx} className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--color-background)]/50 text-[var(--color-text-muted)] border border-[var(--color-border)] hover:bg-[var(--color-card-hover)] transition-colors">
                             #{tag}
                         </span>
                     ))}
@@ -363,7 +408,7 @@ export function SignalCard({
                     {(signal.metadata as any)?.comments !== undefined && (
                         <span className="flex items-center gap-1 opacity-80">
                             <span className="w-1 h-1 rounded-full bg-[var(--color-text-muted)]" />
-                            {isZh ? '评论' : 'Comments'}: {(signal.metadata as any).comments}
+                            {isZh || isTw ? (isTw ? '評論' : '评论') : 'Comments'}: {(signal.metadata as any).comments}
                         </span>
                     )}
                 </div>

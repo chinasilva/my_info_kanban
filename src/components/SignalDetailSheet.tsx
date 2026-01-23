@@ -3,13 +3,56 @@
 import { useSignal } from "@/context/SignalContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ExternalLink, Calendar, Tag, TrendingUp, Sparkles } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
+import { convertToTraditional } from "@/lib/utils/converter";
 
 export function SignalDetailSheet() {
     const { selectedSignal, setSelectedSignal } = useSignal();
+    const pathname = usePathname();
+    const isTw = pathname.startsWith("/tw");
+    const isZh = pathname.startsWith("/zh");
+
+    // State for converted text (Detail Sheet specific)
+    const [convertedTitle, setConvertedTitle] = useState<string | null>(null);
+    const [convertedSummary, setConvertedSummary] = useState<string | null>(null);
+
+    // Reset state when signal changes
+    useEffect(() => {
+        setConvertedTitle(null);
+        setConvertedSummary(null);
+    }, [selectedSignal]);
+
+    // Conversion effect
+    useEffect(() => {
+        if (selectedSignal && isTw) {
+            const convertContent = async () => {
+                const titleSrc = selectedSignal.titleTranslated || selectedSignal.title;
+                if (titleSrc) {
+                    const twTitle = await convertToTraditional(titleSrc);
+                    setConvertedTitle(twTitle);
+                }
+
+                const summarySrc = selectedSignal.aiSummaryZh || selectedSignal.aiSummary || selectedSignal.summary;
+                if (summarySrc) {
+                    const twSummary = await convertToTraditional(summarySrc);
+                    setConvertedSummary(twSummary);
+                }
+            };
+            convertContent();
+        }
+    }, [selectedSignal, isTw]);
+
+    // Determine content to display
+    const displayTitle = (selectedSignal && isTw && convertedTitle) ? convertedTitle :
+        (selectedSignal && isZh && selectedSignal.titleTranslated ? selectedSignal.titleTranslated : selectedSignal?.title);
+
+    const rawSummary = selectedSignal && ((isZh || isTw) && selectedSignal.aiSummaryZh ? selectedSignal.aiSummaryZh : (selectedSignal.aiSummary || selectedSignal.summary));
+    const displaySummary = isTw && convertedSummary ? convertedSummary : rawSummary;
 
     return (
         <Sheet open={!!selectedSignal} onOpenChange={(open) => !open && setSelectedSignal(null)}>
-            <SheetContent side="right" className="w-full sm:max-w-xl border-l border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)]">
+            <SheetContent side="right" className="w-full sm:max-w-xl border-l border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] overflow-y-auto">
                 {selectedSignal && (
                     <>
                         <SheetHeader className="pb-6 border-b border-[var(--color-border)]">
@@ -24,7 +67,7 @@ export function SignalDetailSheet() {
                                 )}
                             </div>
                             <SheetTitle className="text-2xl leading-normal font-bold text-[var(--color-foreground)] mb-2">
-                                {selectedSignal.title}
+                                {displayTitle}
                             </SheetTitle>
                             <SheetDescription className="flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
                                 <span className="flex items-center gap-1">
@@ -41,23 +84,19 @@ export function SignalDetailSheet() {
                         <div className="mt-8 space-y-6">
                             <div>
                                 <h3 className="text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-3 flex items-center gap-2">
-                                    {selectedSignal.aiSummary && <Sparkles className="w-4 h-4 text-purple-400" />}
+                                    {(selectedSignal.aiSummary || selectedSignal.aiSummaryZh) && <Sparkles className="w-4 h-4 text-purple-400" />}
                                     Summary
                                 </h3>
                                 <div className="prose prose-sm max-w-none text-[var(--color-foreground)] leading-relaxed space-y-4">
-                                    {selectedSignal.aiSummary && (
+                                    {(selectedSignal.aiSummary || selectedSignal.aiSummaryZh) && (
                                         <div className="flex gap-2">
                                             <Sparkles className="w-4 h-4 text-purple-400 mt-0.5 shrink-0" />
-                                            <span>{selectedSignal.aiSummary}</span>
+                                            <span>{displaySummary}</span>
                                         </div>
                                     )}
-                                    {selectedSignal.aiSummaryZh && (
-                                        <div className="pl-6 border-l-2 border-[var(--color-border)] text-[var(--color-text-muted)]">
-                                            {selectedSignal.aiSummaryZh}
-                                        </div>
-                                    )}
+                                    {/* Fallback if no AI summary */}
                                     {!selectedSignal.aiSummary && !selectedSignal.aiSummaryZh && (
-                                        <p>{selectedSignal.summary || "No summary available."}</p>
+                                        <p>{displaySummary || "No summary available."}</p>
                                     )}
                                 </div>
                             </div>
