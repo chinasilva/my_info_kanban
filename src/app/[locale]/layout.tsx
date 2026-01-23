@@ -6,6 +6,7 @@ import "../globals.css";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { SignalProvider } from "@/context/SignalContext";
 import { SignalDetailSheet } from "@/components/SignalDetailSheet";
+import { Analytics } from "@vercel/analytics/react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,6 +45,7 @@ export default async function RootLayout({
             <SignalProvider>
               <SignalDetailSheet />
               {children}
+              <Analytics />
             </SignalProvider>
           </ThemeProvider>
         </NextIntlClientProvider>
