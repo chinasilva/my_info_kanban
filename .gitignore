@@ -51,3 +51,4 @@ docs
 .agent
 test-openrouter.ts
 memory-bank/
+task.md
