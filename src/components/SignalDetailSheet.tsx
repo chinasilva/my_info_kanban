@@ -2,7 +2,7 @@
 
 import { useSignal } from "@/context/SignalContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { ExternalLink, Calendar, Tag, TrendingUp, Sparkles } from "lucide-react";
+import { ExternalLink, Calendar, Tag, TrendingUp, Sparkles, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { convertToTraditional } from "@/lib/utils/converter";
@@ -52,30 +52,42 @@ export function SignalDetailSheet() {
 
     return (
         <Sheet open={!!selectedSignal} onOpenChange={(open) => !open && setSelectedSignal(null)}>
-            <SheetContent side="right" className="w-full sm:max-w-xl border-l border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] p-0 overflow-hidden flex flex-col">
+            <SheetContent side="right" className="w-full sm:max-w-xl border-l border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] p-0 overflow-hidden flex flex-col [&>button]:hidden">
+                {/* Fixed Close Button - Minimalist & Consistent */}
+                <div className="absolute right-4 top-4 z-50">
+                    <button
+                        onClick={() => setSelectedSignal(null)}
+                        className="p-2 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-foreground)]/5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20"
+                        aria-label="Close detail view"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
                 {selectedSignal && (
-                    <div className="flex-1 overflow-y-auto p-6">
-                        <SheetHeader className="pb-6 border-b border-[var(--color-border)] pr-8">
-                            <div className="flex gap-2 mb-2">
-                                <span className="glass-pill text-xs uppercase tracking-wider text-[var(--color-accent)] border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/10 px-2 py-0.5 rounded">
+                    <div className="flex-1 overflow-y-auto p-6 scrollbar-hide pt-16"> {/* Added top padding to account for close button */}
+                        <SheetHeader className="pb-6 border-b border-[var(--color-border)] pr-2 relative">
+
+                            <div className="flex gap-2 mb-4 pt-0">
+                                <span className="glass-pill text-xs uppercase tracking-wider text-[var(--color-accent)] border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/10 px-2.5 py-1 rounded-md font-medium">
                                     {typeof selectedSignal.source === 'string' ? selectedSignal.source : (selectedSignal.source as any).name}
                                 </span>
                                 {selectedSignal.category && (
-                                    <span className="glass-pill text-xs uppercase tracking-wider text-[var(--color-text-muted)] border border-[var(--color-border)] px-2 py-0.5 rounded">
+                                    <span className="glass-pill text-xs uppercase tracking-wider text-[var(--color-text-muted)] border border-[var(--color-border)] px-2.5 py-1 rounded-md font-medium">
                                         {selectedSignal.category}
                                     </span>
                                 )}
                             </div>
-                            <SheetTitle className="text-2xl leading-normal font-bold text-[var(--color-foreground)] mb-2">
+                            <SheetTitle className="text-2xl leading-snug font-bold text-[var(--color-foreground)] mb-3">
                                 {displayTitle}
                             </SheetTitle>
                             <SheetDescription className="flex items-center gap-4 text-xs text-[var(--color-text-muted)]">
-                                <span className="flex items-center gap-1">
-                                    <TrendingUp className="w-3 h-3 text-[var(--color-accent)]" />
-                                    <span>Score: {selectedSignal.score}</span>
+                                <span className="flex items-center gap-1.5 px-2 py-1 bg-[var(--color-card)] rounded border border-[var(--color-border)]">
+                                    <TrendingUp className="w-3.5 h-3.5 text-[var(--color-accent)]" />
+                                    <span className="font-mono">Score: {selectedSignal.score}</span>
                                 </span>
-                                <span className="flex items-center gap-1">
-                                    <Calendar className="w-3 h-3 text-[var(--color-text-muted)]" />
+                                <span className="flex items-center gap-1.5 px-2 py-1 bg-[var(--color-card)] rounded border border-[var(--color-border)]">
+                                    <Calendar className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
                                     <span>{new Date(selectedSignal.createdAt).toLocaleString()}</span>
                                 </span>
                             </SheetDescription>

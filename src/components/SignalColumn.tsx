@@ -37,9 +37,13 @@ export function SignalColumn({
 
     // Initialize cursor from initial signals
     useEffect(() => {
+        setSignals(initialSignals);
         if (initialSignals.length > 0) {
             setCursor(initialSignals[initialSignals.length - 1].id);
+        } else {
+            setCursor(null);
         }
+        setHasMore(true); // Reset hasMore when source changes
     }, [initialSignals]);
 
     // Load more signals
@@ -61,7 +65,18 @@ export function SignalColumn({
             const data = await response.json();
 
             if (data.signals && data.signals.length > 0) {
-                setSignals(prev => [...prev, ...data.signals]);
+                setSignals(prev => {
+                    const newSignals = data.signals as Signal[];
+                    // Deduplicate against existing signals
+                    const existingIds = new Set(prev.map(s => s.id));
+                    const uniqueNewSignals = newSignals.filter(s => !existingIds.has(s.id));
+
+                    if (uniqueNewSignals.length === 0) {
+                        // If all fetched signals exist, we might be hitting a loop or end, but let's just not append
+                        return prev;
+                    }
+                    return [...prev, ...uniqueNewSignals];
+                });
                 setCursor(data.nextCursor);
                 setHasMore(data.hasMore);
             } else {
@@ -74,6 +89,7 @@ export function SignalColumn({
             setIsLoading(false);
         }
     }, [isLoading, hasMore, sourceType, cursor]);
+
 
     // Intersection Observer for infinite scroll
     useEffect(() => {

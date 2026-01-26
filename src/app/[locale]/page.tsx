@@ -22,11 +22,17 @@ export default async function DashboardPage(props: {
   params: Promise<{ locale: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const params = await props.params;
+  const [params, searchParams] = await Promise.all([
+    props.params,
+    props.searchParams
+  ]);
   const locale = params.locale;
-  const session = await getServerSession(authOptions);
-  const t = await getTranslations("Dashboard");
-  const searchParams = await props.searchParams;
+
+  // Parallelize initial fetches
+  const [session, t] = await Promise.all([
+    getServerSession(authOptions),
+    getTranslations("Dashboard")
+  ]);
 
   // 未登录用户不重定向，允许浏览
   // if (!session?.user?.id) {
@@ -121,67 +127,76 @@ export default async function DashboardPage(props: {
     ];
   }
 
-  const allSignals = await prisma.signal.findMany({
-    where: whereClause,
-    orderBy: { createdAt: "desc" },
-    include: {
-      source: true,
-      userStates: session?.user?.id ? {
-        where: { userId: session.user.id },
-        select: { isRead: true, isFavorited: true },
-      } : false, // Guest has no user states
-    },
-  });
+  const insightDateStart = activeDate ? startDate : new Date(new Date().setDate(new Date().getDate() - 1)); // Default to last 24h/today logic
 
-  // 合并用户状态到信号
-  const signalsWithState: Signal[] = allSignals.map((s: any) => ({
+  const fetchSignals = async (types: string[] | null, isCustom: boolean = false) => {
+    const typeWhere: any = isCustom
+      ? { type: { notIn: Object.values(SOURCE_GROUPS).flat() } } // Exclude known types
+      : { type: { in: types! } };
+
+    return prisma.signal.findMany({
+      where: {
+        ...whereClause,
+        source: {
+          ...typeWhere
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 15, // Load max 15 per category
+      include: {
+        source: true,
+        userStates: session?.user?.id ? {
+          where: { userId: session.user.id },
+          select: { isRead: true, isFavorited: true },
+        } : false,
+      },
+    });
+  };
+
+  const [
+    buildSignals,
+    marketSignals,
+    newsSignals,
+    launchSignals,
+    customSignals,
+    insights
+  ] = await Promise.all([
+    fetchSignals(SOURCE_GROUPS.build),
+    fetchSignals(SOURCE_GROUPS.market),
+    fetchSignals(SOURCE_GROUPS.news),
+    fetchSignals(SOURCE_GROUPS.launch),
+    fetchSignals(null, true), // Custom (everything else)
+    prisma.insight.findMany({
+      where: {
+        createdAt: {
+          gte: insightDateStart
+        }
+      },
+      include: {
+        signals: {
+          include: {
+            source: true
+          }
+        }
+      },
+      orderBy: { score: 'desc' },
+      take: 3
+    })
+  ]);
+
+  const processSignals = (signals: any[]): Signal[] => signals.map(s => ({
     ...s,
     createdAt: s.createdAt.toISOString(),
     isRead: s.userStates?.[0]?.isRead ?? false,
     isFavorited: s.userStates?.[0]?.isFavorited ?? false,
   }));
 
-  // Fetch AI Insights for today (or latest if no date selected)
-  // If activeDate is present, fetch insights for that day?
-  // consistently with signals logic:
-
-  const insightDateStart = activeDate ? startDate : new Date(new Date().setDate(new Date().getDate() - 1)); // Default to last 24h/today logic
-
-  const insights = await prisma.insight.findMany({
-    where: {
-      createdAt: {
-        gte: insightDateStart
-      }
-    },
-    include: {
-      signals: {
-        include: {
-          source: true
-        }
-      }
-    },
-    orderBy: { score: 'desc' },
-    take: 3
-  });
-
-  // Helper to safely access source type
-  const getSourceType = (s: Signal) => {
-    if (typeof s.source === 'object' && s.source !== null && 'type' in s.source) {
-      return s.source.type;
-    }
-    return '';
-  };
-
-  // 按数据源类型分组
   const signalGroups = {
-    build: signalsWithState.filter((s) => SOURCE_GROUPS.build.includes(getSourceType(s))),
-    market: signalsWithState.filter((s) => SOURCE_GROUPS.market.includes(getSourceType(s))),
-    news: signalsWithState.filter((s) => SOURCE_GROUPS.news.includes(getSourceType(s))),
-    launch: signalsWithState.filter((s) => SOURCE_GROUPS.launch.includes(getSourceType(s))),
-    custom: signalsWithState.filter((s) => {
-      const type = getSourceType(s);
-      return type === "rss" || (type !== '' && !Object.values(SOURCE_GROUPS).flat().includes(type));
-    }),
+    build: processSignals(buildSignals),
+    market: processSignals(marketSignals),
+    news: processSignals(newsSignals),
+    launch: processSignals(launchSignals),
+    custom: processSignals(customSignals),
   };
 
   const translations = {

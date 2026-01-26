@@ -1,9 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ExternalLink, TrendingUp, Star, Sparkles, Languages } from "lucide-react";
+import { ExternalLink, TrendingUp, Star, Sparkles, Languages, Share2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, useRef } from "react";
+import { useSnapshot } from "@/hooks/useSnapshot";
 import { useSignal } from "@/context/SignalContext";
 import { Signal, SignalSchema } from "@/schemas/signal"; // Import Zod Types
 import { convertToTraditional } from "@/lib/utils/converter";
@@ -25,6 +26,7 @@ export function SignalCard({
     const [isRead, setIsRead] = useState(signal.isRead ?? false);
     const [isSummaryHovered, setIsSummaryHovered] = useState(false); // State for hover effect
     const closeClickedRef = useRef(false); // 标记关闭按钮是否被点击
+    const { capture, isLoading } = useSnapshot();
 
     const isZh = locale === 'zh';
     const isTw = locale === 'tw';
@@ -360,6 +362,7 @@ export function SignalCard({
                 className
             )}
             onClick={handleOpenDetail}
+            id={`signal-card-${signal.id}`}
         >
             <div className="flex justify-between items-start mb-4">
                 <span className="glass-pill text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] flex items-center gap-1 bg-[var(--color-background)]/50 border border-[var(--color-border)]">
@@ -488,6 +491,20 @@ export function SignalCard({
                     )}
                 </div>
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            capture(`signal-card-${signal.id}`, {
+                                fileName: `signal-${signal.id}.png`,
+                                addBranding: true
+                            }).catch(() => { });
+                        }}
+                        className="p-2 hover:bg-[var(--color-card-hover)] rounded-full transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-foreground)]"
+                        title={isZh ? "分享卡片" : "Share Card"}
+                    >
+                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
+                    </button>
                     {!isGuest && (
                         <button
                             onClick={handleFavorite}
