@@ -19,8 +19,30 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "High-Signal Aggregator",
-  description: "Curated high-quality tech and finance signals.",
+  metadataBase: new URL("https://signal.binaryworks.app"),
+  title: {
+    default: "High-Signal Aggregator",
+    template: "%s | High-Signal",
+  },
+  description: "Curated high-quality tech and finance signals from HackerNews, GitHub, and more.",
+  openGraph: {
+    title: "High-Signal Aggregator",
+    description: "Curated high-quality tech and finance signals.",
+    url: "https://signal.binaryworks.app",
+    siteName: "High-Signal Aggregator",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "High-Signal Aggregator",
+    description: "Curated high-quality tech and finance signals.",
+    creator: "@BinaryWorks",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 import { ThemeProvider } from "@/context/ThemeContext";

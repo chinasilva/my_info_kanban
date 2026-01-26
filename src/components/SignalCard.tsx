@@ -247,9 +247,18 @@ export function SignalCard({
                 {displayTags && displayTags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                         {displayTags.slice(0, 3).map((tag, idx) => (
-                            <span key={idx} className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--color-background)] text-[var(--color-text-muted)] border border-[var(--color-border)]">
+                            <button
+                                key={idx}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const url = new URL(window.location.href);
+                                    url.searchParams.set('tag', tag);
+                                    window.location.href = url.toString();
+                                }}
+                                className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--color-background)] text-[var(--color-text-muted)] border border-[var(--color-border)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/30 transition-colors cursor-pointer"
+                            >
                                 #{tag}
-                            </span>
+                            </button>
                         ))}
                     </div>
                 )}
@@ -257,14 +266,14 @@ export function SignalCard({
                 {/* Hover/Click Full View - Triggered on card hover (desktop) or click (mobile) */}
                 {isSummaryHovered && signal.summary && (
                     <div
-                        className="absolute inset-0 bg-[var(--color-card)] border border-[var(--color-accent)]/50 rounded-lg p-4 shadow-2xl z-50 overflow-hidden flex flex-col"
+                        className="absolute -top-2 -left-2 -right-2 bg-[var(--color-card)] border border-[var(--color-accent)]/50 rounded-lg p-4 shadow-2xl z-50 h-auto min-h-[calc(100%+16px)] flex flex-col"
                         onClick={(e) => {
                             e.stopPropagation();
                             handleRead();
                             setSelectedSignal(signal);
                         }}
                     >
-                        <div className="text-[13px] text-[var(--color-foreground)] leading-relaxed space-y-2 flex-1 overflow-y-auto">
+                        <div className="text-[13px] text-[var(--color-foreground)] leading-relaxed space-y-2 mb-4">
                             {/* 主标题 */}
                             <h4 className="font-semibold text-[var(--color-accent)] text-sm line-clamp-2">
                                 {displayTitle}
@@ -276,12 +285,33 @@ export function SignalCard({
                                 </p>
                             )}
                             {/* 摘要 */}
-                            <p className="text-[var(--color-text-muted)] line-clamp-6">
+                            <p className="text-[var(--color-text-muted)]">
                                 {displaySummary}
                             </p>
                         </div>
+
+                        {/* Tags in Overlay */}
+                        {displayTags && displayTags.length > 0 && (
+                            <div className="mt-auto flex flex-wrap gap-1.5 pt-2 border-t border-[var(--color-border)]/50 mb-3">
+                                {displayTags.map((tag, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const url = new URL(window.location.href);
+                                            url.searchParams.set('tag', tag);
+                                            window.location.href = url.toString();
+                                        }}
+                                        className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--color-background)]/50 text-[var(--color-text-muted)] border border-[var(--color-border)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/30 transition-colors cursor-pointer"
+                                    >
+                                        #{tag}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
                         {/* Mobile: Tap hint and close button */}
-                        <div className="flex justify-between items-center mt-3 pt-2 border-t border-[var(--color-border)]">
+                        <div className="flex justify-between items-center pt-2 border-t border-[var(--color-border)]">
                             <span className="text-[10px] text-[var(--color-accent)] opacity-80">
                                 {isZh ? '点击查看详情' : (isTw ? '點擊查看詳情' : 'Tap to view details')}
                             </span>
@@ -311,11 +341,24 @@ export function SignalCard({
     }
 
     // Fallback for default variant
+    // Heatmap Logic
+    const getHeatmapClass = (score: number) => {
+        if (score >= 80) return "shadow-[0_0_15px_-3px_rgba(249,115,22,0.6)] border-orange-500/50 dark:shadow-[0_0_20px_-5px_rgba(249,115,22,0.5)]"; // High heat (Orange/Red)
+        if (score >= 60) return "shadow-[0_0_10px_-3px_rgba(234,179,8,0.4)] border-yellow-500/30 dark:shadow-[0_0_15px_-5px_rgba(234,179,8,0.3)]"; // Medium heat (Yellow)
+        return "hover:shadow-md"; // Low heat (Default)
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={cn("bento-card group", "bg-[var(--color-card)] border border-[var(--color-border)]", isRead ? "opacity-60 grayscale" : "", className)}
+            className={cn(
+                "bento-card group relative hover:z-30 transition-all duration-300",
+                "bg-[var(--color-card)] border border-[var(--color-border)]",
+                getHeatmapClass(signal.score),
+                isRead ? "opacity-60 grayscale shadow-none" : "",
+                className
+            )}
             onClick={handleOpenDetail}
         >
             <div className="flex justify-between items-start mb-4">
@@ -372,9 +415,10 @@ export function SignalCard({
                     </div>
 
                     {/* Hover Full View (Absolute Overlay) */}
+                    {/* Hover Full View (Absolute Overlay) */}
                     {isSummaryHovered && (
-                        <div className="absolute -top-2 -left-2 -right-2 bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg p-4 shadow-2xl z-50 min-h-[calc(100%+16px)]">
-                            <div className="text-sm text-[var(--color-foreground)] leading-relaxed space-y-2">
+                        <div className="absolute -top-2 -left-2 -right-2 bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg p-4 shadow-2xl z-50 h-auto min-h-[calc(100%+16px)] flex flex-col">
+                            <div className="text-sm text-[var(--color-foreground)] leading-relaxed space-y-2 mb-4">
                                 {signal.aiSummary ? (
                                     <span className="flex gap-2">
                                         <Sparkles className="w-3.5 h-3.5 mt-0.5 text-purple-400 shrink-0" />
@@ -387,6 +431,26 @@ export function SignalCard({
                                     signal.summary
                                 )}
                             </div>
+
+                            {/* Tags in Overlay */}
+                            {displayTags && displayTags.length > 0 && (
+                                <div className="mt-auto flex flex-wrap gap-1.5 pt-2 border-t border-[var(--color-border)]/50">
+                                    {displayTags.map((tag, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const url = new URL(window.location.href);
+                                                url.searchParams.set('tag', tag);
+                                                window.location.href = url.toString();
+                                            }}
+                                            className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--color-background)]/50 text-[var(--color-text-muted)] border border-[var(--color-border)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/30 transition-colors cursor-pointer"
+                                        >
+                                            #{tag}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -395,9 +459,20 @@ export function SignalCard({
             {displayTags && displayTags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-4">
                     {displayTags.map((tag, idx) => (
-                        <span key={idx} className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--color-background)]/50 text-[var(--color-text-muted)] border border-[var(--color-border)] hover:bg-[var(--color-card-hover)] transition-colors">
+                        <button
+                            key={idx}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                // Use window.location to preserve search params if needed, or just router.push
+                                // But since we want to toggle/set tag, simplistic approach:
+                                const url = new URL(window.location.href);
+                                url.searchParams.set('tag', tag);
+                                window.location.href = url.toString();
+                            }}
+                            className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--color-background)]/50 text-[var(--color-text-muted)] border border-[var(--color-border)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/30 transition-colors cursor-pointer"
+                        >
                             #{tag}
-                        </span>
+                        </button>
                     ))}
                 </div>
             )}

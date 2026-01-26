@@ -10,6 +10,14 @@ datasource db {
   // URL is configured in prisma.config.ts for Prisma 7
 }
 
+
+
+enum InsightType {
+  TREND
+  CAUSALITY
+  CONTRAST
+}
+
 // ============ 认证相关 (NextAuth 需要) ============
 model User {
   id            String       @id @default(cuid())
@@ -117,7 +125,8 @@ model Signal {
   
   source      Source       @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   userStates  UserSignal[]
-  
+  insights    Insight[]    // Implicit many-to-many relation
+    
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
@@ -140,4 +149,23 @@ model UserSignal {
   
   @@unique([userId, signalId])
   @@index([userId])
+}
+
+// ============ 洞察相关 ============
+model Insight {
+  id        String      @id @default(cuid())
+  title     String
+  titleZh   String
+  content   String      // 英文深度分析
+  contentZh String      // 中文深度分析
+  type      InsightType
+  score     Int         @default(0)
+  date      DateTime    @default(now()) // 洞察所属日期
+  
+  signals   Signal[]    // Implicit many-to-many relation
+  
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([date])
 }

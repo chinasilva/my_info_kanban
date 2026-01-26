@@ -79,4 +79,16 @@ Output JSON format:
             titleTranslated: ''
         };
     }
+    async generate(prompt: string): Promise<string> {
+        try {
+            const completion = await this.client.chat.completions.create({
+                messages: [{ role: 'user', content: prompt }],
+                model: this.model,
+            });
+            return completion.choices[0].message.content || '';
+        } catch (error) {
+            console.error('OpenAI Generate Error:', error);
+            throw error;
+        }
+    }
 }

@@ -13,7 +13,9 @@ import { Code2, BarChart3, Newspaper, Rocket, Settings, Loader2 } from "lucide-r
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ThemeSwitcher } from "./ThemeSwitcher";
-
+import { DatePicker } from "./DatePicker";
+import { DailyInsights } from "./DailyInsights";
+import { ShareButton } from "./ShareButton";
 interface SignalGroups {
     build: Signal[];
     market: Signal[];
@@ -41,13 +43,19 @@ interface DashboardShellProps {
         launchTitle: string;
         launchSubtitle: string;
     };
+    activeTag?: string;
+    activeDate?: string;
+    insights?: any[]; // Simplified type for prop passing, strict type in component
 }
 
 export function DashboardShell({
     signalGroups,
     locale,
     user,
-    translations: t
+    translations: t,
+    activeTag,
+    activeDate,
+    insights = []
 }: DashboardShellProps) {
     const [mounted, setMounted] = useState(false);
     const isMobile = useIsMobile();
@@ -87,6 +95,10 @@ export function DashboardShell({
         router.refresh();
     }, [router]);
 
+    const handleClearTag = () => {
+        router.push(`/${locale}`);
+    };
+
     // Show loading state during hydration to prevent layout mismatch
     if (!mounted) {
         return (
@@ -105,9 +117,23 @@ export function DashboardShell({
                     <div className="flex items-center gap-3">
                         <span className="text-xl">📡</span>
                         <h1 className="text-lg font-semibold text-[var(--color-foreground)]">High-Signal</h1>
+                        {activeTag && (
+                            <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20 text-sm">
+                                <span>#{activeTag}</span>
+                                <button
+                                    onClick={handleClearTag}
+                                    className="hover:text-white transition-colors"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        )}
                     </div>
                     <div className="flex items-center gap-3">
+
+                        <DatePicker currentDate={activeDate} locale={locale} />
                         <ThemeSwitcher locale={locale} />
+                        <ShareButton targetId="dashboard-content" locale={locale} />
                         <LanguageSwitcher />
                         {user ? (
                             <>
@@ -132,68 +158,77 @@ export function DashboardShell({
                     </div>
                 </header>
 
-                {/* Kanban Board */}
-                <div className="kanban-container h-[calc(100vh-56px)] flex">
-                    {signalGroups.build.length > 0 && (
-                        <SignalColumn
-                            title={t.buildTitle}
-                            subtitle={t.buildSubtitle}
-                            icon={<Code2 className="w-5 h-5" />}
-                            signals={signalGroups.build}
-                            colorClass="text-blue-400"
-                            locale={locale}
-                            sourceType="build"
-                            isGuest={!user}
-                        />
-                    )}
-                    {signalGroups.market.length > 0 && (
-                        <SignalColumn
-                            title={t.marketTitle}
-                            subtitle={t.marketSubtitle}
-                            icon={<BarChart3 className="w-5 h-5" />}
-                            signals={signalGroups.market}
-                            colorClass="text-purple-400"
-                            locale={locale}
-                            sourceType="market"
-                            isGuest={!user}
-                        />
-                    )}
-                    {signalGroups.news.length > 0 && (
-                        <SignalColumn
-                            title={t.newsTitle}
-                            subtitle={t.newsSubtitle}
-                            icon={<Newspaper className="w-5 h-5" />}
-                            signals={signalGroups.news}
-                            colorClass="text-orange-400"
-                            locale={locale}
-                            sourceType="news"
-                            isGuest={!user}
-                        />
-                    )}
-                    {signalGroups.launch.length > 0 && (
-                        <SignalColumn
-                            title={t.launchTitle}
-                            subtitle={t.launchSubtitle}
-                            icon={<Rocket className="w-5 h-5" />}
-                            signals={signalGroups.launch}
-                            colorClass="text-pink-400"
-                            locale={locale}
-                            sourceType="launch"
-                            isGuest={!user}
-                        />
-                    )}
-                    {signalGroups.custom.length > 0 && (
-                        <SignalColumn
-                            title={locale === "zh" ? "自定义源" : "Custom"}
-                            subtitle="RSS & Others"
-                            icon={<Settings className="w-5 h-5" />}
-                            signals={signalGroups.custom}
-                            colorClass="text-green-400"
-                            locale={locale}
-                            sourceType="custom"
-                            isGuest={!user}
-                        />
-                    )}
+                {/* Content Container */}
+                <div id="dashboard-content" className="h-[calc(100vh-56px)] flex flex-col bg-[var(--color-background)]">
+
+                    {/* Insights Banner */}
+                    <div className="px-4 pt-4 shrink-0">
+                        <DailyInsights insights={insights} locale={locale} />
+                    </div>
+
+                    {/* Kanban Board Container */}
+                    <div className="kanban-container flex-1 overflow-x-auto px-4 pb-4 gap-4 flex min-w-0">
+                        {signalGroups.build.length > 0 && (
+                            <SignalColumn
+                                title={t.buildTitle}
+                                subtitle={t.buildSubtitle}
+                                icon={<Code2 className="w-5 h-5" />}
+                                signals={signalGroups.build}
+                                colorClass="text-blue-400"
+                                locale={locale}
+                                sourceType="build"
+                                isGuest={!user}
+                            />
+                        )}
+                        {signalGroups.market.length > 0 && (
+                            <SignalColumn
+                                title={t.marketTitle}
+                                subtitle={t.marketSubtitle}
+                                icon={<BarChart3 className="w-5 h-5" />}
+                                signals={signalGroups.market}
+                                colorClass="text-purple-400"
+                                locale={locale}
+                                sourceType="market"
+                                isGuest={!user}
+                            />
+                        )}
+                        {signalGroups.news.length > 0 && (
+                            <SignalColumn
+                                title={t.newsTitle}
+                                subtitle={t.newsSubtitle}
+                                icon={<Newspaper className="w-5 h-5" />}
+                                signals={signalGroups.news}
+                                colorClass="text-orange-400"
+                                locale={locale}
+                                sourceType="news"
+                                isGuest={!user}
+                            />
+                        )}
+                        {signalGroups.launch.length > 0 && (
+                            <SignalColumn
+                                title={t.launchTitle}
+                                subtitle={t.launchSubtitle}
+                                icon={<Rocket className="w-5 h-5" />}
+                                signals={signalGroups.launch}
+                                colorClass="text-pink-400"
+                                locale={locale}
+                                sourceType="launch"
+                                isGuest={!user}
+                            />
+                        )}
+                        {signalGroups.custom.length > 0 && (
+                            <SignalColumn
+                                title={locale === "zh" ? "自定义源" : "Custom"}
+                                subtitle="RSS & Others"
+                                icon={<Settings className="w-5 h-5" />}
+                                signals={signalGroups.custom}
+                                colorClass="text-green-400"
+                                locale={locale}
+                                sourceType="custom"
+                                isGuest={!user}
+                            />
+                        )}
+                    </div>
                 </div>
             </main>
         );
@@ -202,7 +237,23 @@ export function DashboardShell({
     // Mobile Layout
     return (
         <main className="mobile-container bg-[var(--color-background)] text-[var(--color-foreground)]">
-            <MobileHeader user={user} />
+            <MobileHeader
+                user={user}
+                activeTag={activeTag}
+                onClearTag={handleClearTag}
+                activeDate={activeDate}
+                locale={locale}
+            />
+
+            {/* Mobile Insights (Optional - maybe inside header or above list?) 
+                For now, let's keep it simple and maybe add it if requested. 
+                Or simply add it here above the list.
+            */}
+            {insights.length > 0 && (
+                <div className="px-4 py-2">
+                    <DailyInsights insights={insights} locale={locale} />
+                </div>
+            )}
 
             <MobileSignalList
                 signals={getActiveSignals()}

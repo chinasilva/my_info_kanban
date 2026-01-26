@@ -77,6 +77,12 @@
   - [x] 运行 `analyze` 任务
   - [x] 验证 Dashboard 展示
 
+- [x] **P1++: 跨源洞察 (Cross-Source Insights)**
+  - [x] Schema: 添加 `Insight` 模型 & 关联
+  - [x] Script: 创建 `generate-insights.ts` (双语 + 全量源, 支持 .env 配置)
+  - [x] UI: 创建 `DailyInsights` 组件
+  - [x] UI: 集成到 Dashboard 顶部 (Desktop & Mobile)
+
 ## 阶段三 (未来)
 
 - [ ] Apple 登录

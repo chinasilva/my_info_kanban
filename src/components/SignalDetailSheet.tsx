@@ -52,10 +52,10 @@ export function SignalDetailSheet() {
 
     return (
         <Sheet open={!!selectedSignal} onOpenChange={(open) => !open && setSelectedSignal(null)}>
-            <SheetContent side="right" className="w-full sm:max-w-xl border-l border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] overflow-y-auto">
+            <SheetContent side="right" className="w-full sm:max-w-xl border-l border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] p-0 overflow-hidden flex flex-col">
                 {selectedSignal && (
-                    <>
-                        <SheetHeader className="pb-6 border-b border-[var(--color-border)]">
+                    <div className="flex-1 overflow-y-auto p-6">
+                        <SheetHeader className="pb-6 border-b border-[var(--color-border)] pr-8">
                             <div className="flex gap-2 mb-2">
                                 <span className="glass-pill text-xs uppercase tracking-wider text-[var(--color-accent)] border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/10 px-2 py-0.5 rounded">
                                     {typeof selectedSignal.source === 'string' ? selectedSignal.source : (selectedSignal.source as any).name}
@@ -113,7 +113,7 @@ export function SignalDetailSheet() {
                                 </a>
                             </div>
                         </div>
-                    </>
+                    </div>
                 )}
             </SheetContent>
         </Sheet>

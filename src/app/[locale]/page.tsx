@@ -18,11 +18,15 @@ const SOURCE_GROUPS: Record<string, string[]> = {
   launch: ["producthunt"],
 };
 
-export default async function DashboardPage(props: { params: Promise<{ locale: string }> }) {
+export default async function DashboardPage(props: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const params = await props.params;
   const locale = params.locale;
   const session = await getServerSession(authOptions);
   const t = await getTranslations("Dashboard");
+  const searchParams = await props.searchParams;
 
   // 未登录用户不重定向，允许浏览
   // if (!session?.user?.id) {
@@ -79,15 +83,46 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
     subscribedSourceIds = builtInSources.map(s => s.id);
   }
 
-  // 获取用户订阅的数据源的信号（最近7天）
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  // 获取用户订阅的数据源的信号
+  // 默认显示过去 24 小时 (或 7 天，视需求而定)，如果有 activeDate 则显示当天
+
+  let startDate: Date;
+  let endDate: Date;
+
+  const activeDate = searchParams?.date;
+  const activeTag = searchParams?.tag;
+
+  if (activeDate && typeof activeDate === 'string') {
+    // Time Machine Logic: Specific Date (00:00 - 23:59)
+    startDate = new Date(activeDate);
+    startDate.setHours(0, 0, 0, 0);
+
+    endDate = new Date(activeDate);
+    endDate.setHours(23, 59, 59, 999);
+  } else {
+    // Default: Past 7 days
+    startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+    endDate = new Date(); // now
+  }
+
+  const whereClause: any = {
+    sourceId: { in: subscribedSourceIds },
+    createdAt: {
+      gte: startDate,
+      lte: endDate
+    }
+  };
+
+  if (activeTag) {
+    whereClause.OR = [
+      { tags: { has: activeTag } },
+      { tagsZh: { has: activeTag } }
+    ];
+  }
 
   const allSignals = await prisma.signal.findMany({
-    where: {
-      sourceId: { in: subscribedSourceIds },
-      createdAt: { gte: sevenDaysAgo }
-    },
+    where: whereClause,
     orderBy: { createdAt: "desc" },
     include: {
       source: true,
@@ -105,6 +140,29 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
     isRead: s.userStates?.[0]?.isRead ?? false,
     isFavorited: s.userStates?.[0]?.isFavorited ?? false,
   }));
+
+  // Fetch AI Insights for today (or latest if no date selected)
+  // If activeDate is present, fetch insights for that day?
+  // consistently with signals logic:
+
+  const insightDateStart = activeDate ? startDate : new Date(new Date().setDate(new Date().getDate() - 1)); // Default to last 24h/today logic
+
+  const insights = await prisma.insight.findMany({
+    where: {
+      createdAt: {
+        gte: insightDateStart
+      }
+    },
+    include: {
+      signals: {
+        include: {
+          source: true
+        }
+      }
+    },
+    orderBy: { score: 'desc' },
+    take: 3
+  });
 
   // Helper to safely access source type
   const getSourceType = (s: Signal) => {
@@ -143,6 +201,9 @@ export default async function DashboardPage(props: { params: Promise<{ locale: s
       locale={locale}
       user={session?.user || null}
       translations={translations}
+      activeTag={Array.isArray(activeTag) ? activeTag[0] : activeTag}
+      activeDate={Array.isArray(activeDate) ? activeDate[0] : activeDate}
+      insights={insights}
     />
   );
 }
