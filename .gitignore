@@ -45,7 +45,9 @@ next-env.d.ts
 
 /src/generated/prisma
 .env
+.env.example
 node_modules
 docs
 .agent
 test-openrouter.ts
+memory-bank/
