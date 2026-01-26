@@ -15,7 +15,9 @@ function createPrismaClient() {
     // 创建 PostgreSQL 连接池
     const pool = new Pool({
         connectionString,
-        max: 10,
+        max: process.env.DB_POOL_SIZE ? parseInt(process.env.DB_POOL_SIZE) : (process.env.NODE_ENV === 'production' ? 1 : 10), // Vercel/Serverless: Use 1 to force queuing and reuse, avoid "MaxClients"
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000, // Fail fast if execution takes too long
     });
 
     // 使用 Prisma PostgreSQL adapter
