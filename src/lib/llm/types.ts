@@ -1,5 +1,5 @@
 export interface LLMConfig {
-    provider: 'gemini' | 'deepseek' | 'openai';
+    provider: 'gemini' | 'deepseek' | 'openai' | 'openrouter';
     apiKey: string;
     baseUrl?: string;
     model?: string;

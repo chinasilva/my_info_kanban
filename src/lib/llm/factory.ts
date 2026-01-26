@@ -8,7 +8,8 @@ export class LLMFactory {
         const apiKey = process.env[
             provider === 'gemini' ? 'GEMINI_API_KEY' :
                 provider === 'deepseek' ? 'DEEPSEEK_API_KEY' :
-                    'OPENAI_API_KEY'
+                    provider === 'openrouter' ? 'OPENROUTER_API_KEY' :
+                        'OPENAI_API_KEY'
         ];
 
         if (!apiKey) {
@@ -24,6 +25,12 @@ export class LLMFactory {
                     apiKey,
                     process.env.LLM_BASE_URL || 'https://api.deepseek.com/v1',
                     process.env.LLM_MODEL || 'deepseek-chat'
+                );
+            case 'openrouter':
+                return new OpenAIClient(
+                    apiKey,
+                    process.env.LLM_BASE_URL || 'https://openrouter.ai/api/v1',
+                    process.env.LLM_MODEL || 'google/gemini-2.5-pro-exp-03-25:free'
                 );
             case 'openai':
                 return new OpenAIClient(

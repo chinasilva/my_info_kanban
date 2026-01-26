@@ -31,28 +31,52 @@ Output JSON format:
 }
 `;
 
-        try {
-            const completion = await this.client.chat.completions.create({
-                messages: [{ role: 'user', content: prompt }],
-                model: this.model,
-                response_format: { type: 'json_object' },
-            });
+        let retries = 0;
+        const maxRetries = 5;
+        const baseDelay = 1000; // 1 second
 
-            const contentStr = completion.choices[0].message.content;
-            if (!contentStr) throw new Error('No content from LLM');
+        while (retries <= maxRetries) {
+            try {
+                const completion = await this.client.chat.completions.create({
+                    messages: [{ role: 'user', content: prompt }],
+                    model: this.model,
+                    response_format: { type: 'json_object' },
+                });
 
-            return JSON.parse(contentStr) as ProcessingResult;
-        } catch (error) {
-            console.error('OpenAI LLM Error:', error);
-            // Fallback
-            return {
-                summary: 'Summary generation failed.',
-                category: 'Uncategorized',
-                tags: [],
-                tagsZh: [],
-                aiSummaryZh: '',
-                titleTranslated: ''
-            };
+                const contentStr = completion.choices[0].message.content;
+                if (!contentStr) throw new Error('No content from LLM');
+
+                return JSON.parse(contentStr) as ProcessingResult;
+            } catch (error: any) {
+                // Check for rate limit error (429)
+                if (error?.status === 429 || error?.code === 'rate_limit_exceeded') {
+                    console.warn(`Rate limit exceeded. Retrying attempt ${retries + 1}/${maxRetries}...`);
+                    if (retries === maxRetries) {
+                        console.error('Max retries reached for rate limiting.');
+                        break; // Fall through to fallback
+                    }
+
+                    // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+                    const delay = baseDelay * Math.pow(2, retries);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    retries++;
+                    continue;
+                }
+
+                console.error('OpenAI LLM Error:', error);
+                // For non-rate-limit errors, break immediately and return fallback
+                break;
+            }
         }
+
+        // Fallback
+        return {
+            summary: 'Summary generation failed.',
+            category: 'Uncategorized',
+            tags: [],
+            tagsZh: [],
+            aiSummaryZh: '',
+            titleTranslated: ''
+        };
     }
 }
