@@ -106,7 +106,7 @@ export function DailyInsights({ insights, locale }: DailyInsightsProps) {
                                     {selectedInsight.signals.map(signal => (
                                         <SignalCard
                                             key={signal.id}
-                                            signal={signal}
+                                            signal={signal as any}
                                             locale={locale}
                                             isGuest={true} // Insights are public for now
                                         />
