@@ -27,8 +27,8 @@ export function useSnapshot() {
             const dataUrl = await toPng(element, {
                 cacheBust: true,
                 backgroundColor: bgColor, // Use actual background color
-                filter: (node) => !node.classList?.contains("no-capture"),
-                onClone: (clonedNode) => {
+                filter: (node: HTMLElement) => !node.classList?.contains("no-capture"),
+                onClone: (clonedNode: HTMLElement) => {
                     if (addBranding) {
                         const footer = document.createElement("div");
                         footer.style.padding = "16px";
@@ -55,7 +55,7 @@ export function useSnapshot() {
                         clonedNode.appendChild(footer);
                     }
                 }
-            });
+            } as any);
 
             // Handle Sharing
             try {
