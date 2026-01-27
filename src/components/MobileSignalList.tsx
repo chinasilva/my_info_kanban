@@ -13,6 +13,7 @@ interface MobileSignalListProps {
     sourceType?: string; // Add source type for API fetching
     activeTag?: string; // For filtering API calls
     activeDate?: string; // For filtering API calls
+    onCountChange?: (count: number) => void;
 }
 
 export function MobileSignalList({
@@ -22,7 +23,8 @@ export function MobileSignalList({
     isGuest = false,
     sourceType,
     activeTag,
-    activeDate
+    activeDate,
+    onCountChange
 }: MobileSignalListProps) {
     // State for pull-to-refresh
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -40,6 +42,13 @@ export function MobileSignalList({
     const loaderRef = useRef<HTMLDivElement>(null);
 
     const isZh = locale === "zh";
+
+    // Notify parent when signal count changes
+    useEffect(() => {
+        if (onCountChange) {
+            onCountChange(localSignals.length);
+        }
+    }, [localSignals.length, onCountChange]);
 
     // Update local signals when props change (e.g. tab switch or refresh)
     useEffect(() => {

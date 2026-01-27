@@ -78,13 +78,31 @@ export function DashboardShell({
 
     const [activeTab, setActiveTab] = useState<SourceType>(getInitialTab);
 
-    const counts = {
+    const [tabCounts, setTabCounts] = useState({
         build: signalGroups.build.length,
         market: signalGroups.market.length,
         news: signalGroups.news.length,
         launch: signalGroups.launch.length,
         custom: signalGroups.custom.length,
-    };
+    });
+
+    // Sync state if signalGroups update (e.g. date filter change from server)
+    useEffect(() => {
+        setTabCounts({
+            build: signalGroups.build.length,
+            market: signalGroups.market.length,
+            news: signalGroups.news.length,
+            launch: signalGroups.launch.length,
+            custom: signalGroups.custom.length,
+        });
+    }, [signalGroups]);
+
+    const handleCountChange = useCallback((count: number) => {
+        setTabCounts(prev => ({
+            ...prev,
+            [activeTab]: count
+        }));
+    }, [activeTab]);
 
     const getActiveSignals = (): Signal[] => {
         return signalGroups[activeTab] || [];
@@ -264,12 +282,13 @@ export function DashboardShell({
                 sourceType={activeTab}
                 activeTag={activeTag}
                 activeDate={activeDate}
+                onCountChange={handleCountChange}
             />
 
             <MobileTabBar
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
-                counts={counts}
+                counts={tabCounts}
                 locale={locale}
             />
         </main>
