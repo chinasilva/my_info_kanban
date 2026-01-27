@@ -60,14 +60,22 @@ export function MobileHeader({ user, activeTag, onClearTag, activeDate, locale =
                 </div>
 
                 {activeTag && (
-                    <div className="w-full px-3 pb-2 flex items-center">
-                        <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20 text-xs w-full justify-between">
-                            <span className="truncate">#{activeTag}</span>
+                    <div className="w-full px-4 pb-3 animate-in slide-in-from-top-1 duration-200">
+                        <div className="flex items-center justify-between bg-[var(--color-card-hover)]/50 border border-[var(--color-border)] rounded-lg px-3 py-2">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                                <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
+                                    {isZh ? "当前标签" : "Active Tag"}
+                                </span>
+                                <div className="h-4 w-[1px] bg-[var(--color-border)]"></div>
+                                <span className="text-sm font-semibold text-[var(--color-accent)] truncate">
+                                    #{activeTag}
+                                </span>
+                            </div>
                             <button
                                 onClick={onClearTag}
-                                className="hover:text-white transition-colors p-1"
+                                className="p-1.5 -mr-1 rounded-md hover:bg-[var(--color-border)]/50 text-[var(--color-text-muted)] hover:text-[var(--color-foreground)] transition-colors"
                             >
-                                <X className="w-3 h-3" />
+                                <X className="w-4 h-4" />
                             </button>
                         </div>
                     </div>

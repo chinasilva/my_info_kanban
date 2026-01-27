@@ -249,7 +249,7 @@ export function DashboardShell({
                 For now, let's keep it simple and maybe add it if requested. 
                 Or simply add it here above the list.
             */}
-            {insights.length > 0 && (
+            {insights.length > 0 && !activeTag && (
                 <div className="px-4 py-2">
                     <DailyInsights insights={insights} locale={locale} />
                 </div>
