@@ -48,7 +48,7 @@ export function DailyInsights({ insights, locale }: DailyInsightsProps) {
 
             {/* Content Body */}
             {isExpanded && (
-                <div className="p-4 space-y-4">
+                <div className="p-4 space-y-4 relative">
                     <div className="grid gap-4 md:grid-cols-3">
                         {insights.map((insight) => (
                             <div
@@ -84,9 +84,9 @@ export function DailyInsights({ insights, locale }: DailyInsightsProps) {
                                     {locale === "zh" ? insight.contentZh : insight.content}
                                 </p>
 
-                                {/* Active Indicator Arrow */}
+                                {/* Active Indicator Arrow - Mobile compatible */}
                                 {selectedInsightId === insight.id && (
-                                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45 bg-[var(--color-card-background)] border-b border-r border-amber-500 z-10"></div>
+                                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45 bg-[var(--color-card-background)] border-b border-r border-amber-500 z-10 hidden md:block"></div>
                                 )}
                             </div>
                         ))}
@@ -98,7 +98,7 @@ export function DailyInsights({ insights, locale }: DailyInsightsProps) {
                         if (!selectedInsight) return null;
 
                         return (
-                            <div className="mt-6 pt-4 border-t border-[var(--color-border)] animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="mt-6 pt-4 border-t border-[var(--color-border)] animate-in fade-in slide-in-from-top-2 duration-300 relative z-10">
                                 <h4 className="text-sm font-medium text-[var(--color-text-muted)] mb-3 uppercase tracking-wider flex items-center gap-2">
                                     <span>🔍 {locale === "zh" ? "证据链 (相关信号)" : "Evidence Chain (Related Signals)"}</span>
                                 </h4>
