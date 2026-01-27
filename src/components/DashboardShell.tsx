@@ -122,7 +122,7 @@ export function DashboardShell({
                                 <span>#{activeTag}</span>
                                 <button
                                     onClick={handleClearTag}
-                                    className="hover:text-white transition-colors"
+                                    className="hover:text-white transition-colors cursor-pointer relative z-10 px-1"
                                 >
                                     ×
                                 </button>

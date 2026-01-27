@@ -60,7 +60,7 @@ export function MobileHeader({ user, activeTag, onClearTag, activeDate, locale =
                 </div>
 
                 {activeTag && (
-                    <div className="w-full px-4 pb-3 animate-in slide-in-from-top-1 duration-200">
+                    <div className="w-full px-4 pb-3">
                         <div className="flex items-center justify-between bg-[var(--color-card-hover)]/50 border border-[var(--color-border)] rounded-lg px-3 py-2">
                             <div className="flex items-center gap-2 overflow-hidden">
                                 <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
