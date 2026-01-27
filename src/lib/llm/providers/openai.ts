@@ -71,7 +71,7 @@ Output JSON format:
 
         // Fallback
         return {
-            summary: 'Summary generation failed.',
+            summary: null,
             category: 'Uncategorized',
             tags: [],
             tagsZh: [],

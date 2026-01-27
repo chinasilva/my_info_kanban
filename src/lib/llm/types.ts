@@ -6,7 +6,7 @@ export interface LLMConfig {
 }
 
 export interface ProcessingResult {
-    summary: string;
+    summary: string | null;
     category: string;
     tags?: string[];
     tagsZh?: string[];

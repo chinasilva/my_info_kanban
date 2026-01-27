@@ -41,7 +41,7 @@ Output JSON format:
             console.error('Gemini LLM Error:', error);
             // Fallback
             return {
-                summary: 'Summary generation failed.',
+                summary: null,
                 category: 'Uncategorized',
                 tags: [],
                 tagsZh: [],

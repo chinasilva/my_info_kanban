@@ -28,15 +28,16 @@ export class SignalProcessor {
                 console.log(`Processing signal: ${signal.title}`);
                 const result = await client.generateSummaryAndCategory(signal.title, signal.summary || "");
 
-                // If summary is still empty after LLM, use a placeholder to prevent infinite retries
-                // This saves tokens by ensuring we don't process the same 'unsummarizable' content forever.
-                const finalSummary = result.summary || "No summary available.";
+                if (!result.summary || result.summary === 'Summary generation failed.') {
+                    console.warn(`Skipping update for signal ${signal.id} due to failed generation.`);
+                    continue;
+                }
 
                 await prisma.signal.update({
                     where: { id: signal.id },
                     data: {
-                        summary: finalSummary, // Displayable summary
-                        aiSummary: finalSummary, // Target field to track completion
+                        summary: result.summary, // Displayable summary
+                        aiSummary: result.summary, // Target field to track completion
                         aiSummaryZh: result.aiSummaryZh,
                         category: result.category,
                         tags: result.tags || [],
