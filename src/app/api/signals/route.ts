@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Invalid query parameters", details: query.error.format() }, { status: 400 });
     }
 
-    const { cursor, limit, sourceType, days } = query.data;
+    const { cursor, limit, sourceType, days, tag, date } = query.data;
 
     // Source type to actual source types mapping
     const SOURCE_GROUPS: Record<string, string[]> = {
@@ -65,24 +65,50 @@ export async function GET(request: NextRequest) {
             .filter(us => allowedTypes.includes(us.source.type))
             .map(us => us.sourceId);
     } else if (sourceType === 'custom') {
-        // Custom sources: RSS and types not in any group
         const allGroupTypes = Object.values(SOURCE_GROUPS).flat();
         filteredSourceIds = userSources
             .filter(us => us.source.type === 'rss' || !allGroupTypes.includes(us.source.type))
             .map(us => us.sourceId);
     }
 
-    // Calculate date filter
-    const dateFilter = new Date();
-    dateFilter.setDate(dateFilter.getDate() - days);
+    // Build base where clause
+    const whereClause: any = {
+        sourceId: { in: filteredSourceIds },
+        ...(cursor ? { id: { lt: cursor } } : {})
+    };
+
+    // Date Filtering Logic
+    if (date) {
+        // Specific Date Logic (Time Machine)
+        const startDate = new Date(date);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(date);
+        endDate.setHours(23, 59, 59, 999);
+
+        whereClause.createdAt = {
+            gte: startDate,
+            lte: endDate
+        };
+    } else {
+        // Default: Past N days
+        const dateFilter = new Date();
+        dateFilter.setDate(dateFilter.getDate() - days);
+        whereClause.createdAt = {
+            gte: dateFilter
+        };
+    }
+
+    // Tag Filtering Logic
+    if (tag) {
+        whereClause.OR = [
+            { tags: { has: tag } },
+            { tagsZh: { has: tag } }
+        ];
+    }
 
     // Build query
     const signals = await prisma.signal.findMany({
-        where: {
-            sourceId: { in: filteredSourceIds },
-            createdAt: { gte: dateFilter },
-            ...(cursor ? { id: { lt: cursor } } : {})
-        },
+        where: whereClause,
         orderBy: { createdAt: "desc" },
         take: limit + 1, // Fetch one extra to check if there's more
         include: {
