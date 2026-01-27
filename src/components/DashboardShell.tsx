@@ -261,6 +261,9 @@ export function DashboardShell({
                 locale={locale}
                 onRefresh={handleRefresh}
                 isGuest={!user}
+                sourceType={activeTab}
+                activeTag={activeTag}
+                activeDate={activeDate}
             />
 
             <MobileTabBar
