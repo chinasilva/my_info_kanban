@@ -41,7 +41,7 @@ export function MobileHeader({ user, activeTag, onClearTag, activeDate, locale =
 
     return (
         <>
-            <header className="mobile-header bg-[var(--color-card)] border-b border-[var(--color-border)] flex flex-col">
+            <header className="mobile-header sticky top-0 z-40 w-full bg-[var(--color-card)] border-b border-[var(--color-border)] flex flex-col">
                 <div className="w-full flex items-center justify-between p-3">
                     <div className="flex items-center gap-2">
                         <span className="text-xl">📡</span>
