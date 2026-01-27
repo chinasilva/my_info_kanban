@@ -60,4 +60,18 @@ Output JSON format:
             throw error;
         }
     }
-}
+
+    async *stream(prompt: string): AsyncIterable<string> {
+        try {
+            const result = await this.model.generateContentStream(prompt);
+            for await (const chunk of result.stream) {
+                const chunkText = chunk.text();
+                if (chunkText) {
+                    yield chunkText;
+                }
+            }
+        } catch (error) {
+            console.error('Gemini Stream Error:', error);
+            throw error;
+        }
+    }
