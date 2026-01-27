@@ -12,7 +12,7 @@ interface DailyInsightsProps {
 }
 
 export function DailyInsights({ insights, locale }: DailyInsightsProps) {
-    const [isExpanded, setIsExpanded] = useState(true);
+    const [isExpanded, setIsExpanded] = useState(false);
     const [selectedInsightId, setSelectedInsightId] = useState<string | null>(null);
 
     // Filter insights for "today" or just show the passed list (assuming generic "latest")
