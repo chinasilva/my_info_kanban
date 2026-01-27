@@ -23,13 +23,9 @@ export async function GET(request: NextRequest) {
         }
     }
 
-    if (!userId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Remove strict 401 check. Proceed as guest if no userId.
 
     const searchParams = Object.fromEntries(request.nextUrl.searchParams);
-
-    // Zod Validation & Parsing
     const query = SignalQuerySchema.safeParse(searchParams);
 
     if (!query.success) {
@@ -46,16 +42,29 @@ export async function GET(request: NextRequest) {
         launch: ["producthunt"],
     };
 
-    // Get user's subscribed sources
-    const userSources = await prisma.userSource.findMany({
-        where: {
-            userId: userId,
-            isEnabled: true
-        },
-        include: { source: true }
-    });
+    let subscribedSourceIds: string[] = [];
+    let userSources: any[] = []; // Only populated if user is logged in
 
-    const subscribedSourceIds = userSources.map(us => us.sourceId);
+    if (userId) {
+        // Logged-in user: Get subscribed sources
+        userSources = await prisma.userSource.findMany({
+            where: {
+                userId: userId,
+                isEnabled: true
+            },
+            include: { source: true }
+        });
+        subscribedSourceIds = userSources.map(us => us.sourceId);
+    } else {
+        // Guest: Get built-in sources
+        const builtInSources = await prisma.source.findMany({
+            where: { isBuiltIn: true }
+        });
+        subscribedSourceIds = builtInSources.map(s => s.id);
+
+        // Mock userSources structure for filtering logic below
+        userSources = builtInSources.map(s => ({ source: s, sourceId: s.id }));
+    }
 
     // Filter by source type if provided
     let filteredSourceIds = subscribedSourceIds;
@@ -113,10 +122,12 @@ export async function GET(request: NextRequest) {
         take: limit + 1, // Fetch one extra to check if there's more
         include: {
             source: true,
-            userStates: {
-                where: { userId: userId },
-                select: { isRead: true, isFavorited: true }
-            }
+            ...(userId ? {
+                userStates: {
+                    where: { userId: userId },
+                    select: { isRead: true, isFavorited: true }
+                }
+            } : {})
         }
     });
 
@@ -128,8 +139,8 @@ export async function GET(request: NextRequest) {
     const transformedData = data.map(s => ({
         ...s,
         createdAt: s.createdAt.toISOString(),
-        isRead: s.userStates[0]?.isRead ?? false,
-        isFavorited: s.userStates[0]?.isFavorited ?? false,
+        isRead: userId ? (s.userStates?.[0]?.isRead ?? false) : false,
+        isFavorited: userId ? (s.userStates?.[0]?.isFavorited ?? false) : false,
     }));
 
     return NextResponse.json({
