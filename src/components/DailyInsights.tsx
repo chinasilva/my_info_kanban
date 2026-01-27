@@ -48,7 +48,7 @@ export function DailyInsights({ insights, locale }: DailyInsightsProps) {
 
             {/* Content Body */}
             {isExpanded && (
-                <div className="p-4 space-y-4 relative">
+                <div className="p-4 space-y-4 relative max-h-[50vh] overflow-y-auto overscroll-contain">
                     <div className="grid gap-4 md:grid-cols-3">
                         {insights.map((insight) => (
                             <div
