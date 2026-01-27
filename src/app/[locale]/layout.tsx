@@ -8,7 +8,7 @@ import { SignalProvider } from "@/context/SignalContext";
 import { SignalDetailSheet } from "@/components/SignalDetailSheet";
 import { Analytics } from "@vercel/analytics/react";
 import { ReadingProvider } from "@/context/ReadingContext";
-import { ReadingResultModal } from "@/components/ReadingResultModal";
+
 import { GlobalReadingIndicator } from "@/components/GlobalReadingIndicator";
 
 const geistSans = Geist({
