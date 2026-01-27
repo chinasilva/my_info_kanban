@@ -96,7 +96,8 @@ export function DashboardShell({
     }, [router]);
 
     const handleClearTag = () => {
-        router.push(`/${locale}`);
+        // Use hard navigation to ensure full state reset
+        window.location.href = `/${locale}`;
     };
 
     // Show loading state during hydration to prevent layout mismatch

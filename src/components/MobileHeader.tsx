@@ -60,22 +60,22 @@ export function MobileHeader({ user, activeTag, onClearTag, activeDate, locale =
                 </div>
 
                 {activeTag && (
-                    <div className="w-full px-4 pb-3">
-                        <div className="flex items-center justify-between bg-[var(--color-card-hover)]/50 border border-[var(--color-border)] rounded-lg px-3 py-2">
+                    <div className="w-full px-4 pb-3 min-h-[50px] block relative z-10">
+                        <div className="flex items-center justify-between bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-2 shadow-sm">
                             <div className="flex items-center gap-2 overflow-hidden">
-                                <span className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-                                    {isZh ? "当前标签" : "Active Tag"}
+                                <span className="text-xs font-medium text-neutral-500 uppercase tracking-wider whitespace-nowrap">
+                                    {activeTag ? 'ACTIVE TAG' : ''}
                                 </span>
-                                <div className="h-4 w-[1px] bg-[var(--color-border)]"></div>
-                                <span className="text-sm font-semibold text-[var(--color-accent)] truncate">
+                                <div className="h-4 w-[1px] bg-neutral-300 dark:bg-neutral-600"></div>
+                                <span className="text-sm font-semibold text-blue-500 truncate">
                                     #{activeTag}
                                 </span>
                             </div>
                             <button
                                 onClick={onClearTag}
-                                className="p-1.5 -mr-1 rounded-md hover:bg-[var(--color-border)]/50 text-[var(--color-text-muted)] hover:text-[var(--color-foreground)] transition-colors"
+                                className="p-2 -mr-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 transition-colors"
                             >
-                                <X className="w-4 h-4" />
+                                <X className="w-5 h-5" />
                             </button>
                         </div>
                     </div>
