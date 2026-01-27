@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { ExternalLink, TrendingUp, Star, Sparkles, Languages, Share2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import { useSnapshot } from "@/hooks/useSnapshot";
 import { useSignal } from "@/context/SignalContext";
@@ -42,8 +43,20 @@ export function SignalCard({
     const rawSummary = (isZh || isTw) && signal.aiSummaryZh ? signal.aiSummaryZh : (signal.aiSummary || signal.summary);
     const displaySummary = isTw && convertedSummary ? convertedSummary : rawSummary;
 
+    const searchParams = useSearchParams();
+    const activeTag = searchParams.get('tag');
+
     const rawTags = (isZh || isTw) && signal.tagsZh && signal.tagsZh.length > 0 ? signal.tagsZh : signal.tags;
-    const displayTags = isTw && convertedTags.length > 0 ? convertedTags : rawTags;
+    let displayTags = isTw && convertedTags.length > 0 ? convertedTags : rawTags;
+
+    // Ensure activeTag is displayed if it matched (addressing the "ghost match" issue)
+    if (activeTag && displayTags && !displayTags.includes(activeTag)) {
+        // Check if it exists in the OTHER tag list (e.g. matched tagsZh while viewing in EN)
+        const hiddenTags = (isZh || isTw) ? signal.tags : signal.tagsZh;
+        if (hiddenTags?.includes(activeTag) || signal.tags?.includes(activeTag) || signal.tagsZh?.includes(activeTag)) {
+            displayTags = [activeTag, ...displayTags];
+        }
+    }
 
     const [isFavorited, setIsFavorited] = useState(signal.isFavorited ?? false);
     const { setSelectedSignal } = useSignal();
