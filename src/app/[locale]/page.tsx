@@ -191,11 +191,7 @@ export default async function DashboardPage(props: {
     fetchSignals(SOURCE_GROUPS.launch),
     fetchSignals(null, true), // Custom (everything else)
     prisma.insight.findMany({
-      where: {
-        createdAt: {
-          gte: insightDateStart
-        }
-      },
+      where: {},
       include: {
         signals: {
           include: {

@@ -9,6 +9,8 @@ import { useSnapshot } from "@/hooks/useSnapshot";
 import { useSignal } from "@/context/SignalContext";
 import { Signal, SignalSchema } from "@/schemas/signal"; // Import Zod Types
 import { convertToTraditional } from "@/lib/utils/converter";
+import { useReading } from "@/context/ReadingContext";
+import { BookOpen } from "lucide-react";
 
 export function SignalCard({
     signal,
@@ -59,6 +61,7 @@ export function SignalCard({
     }
 
     const [isFavorited, setIsFavorited] = useState(signal.isFavorited ?? false);
+    const { startReading } = useReading();
     const { setSelectedSignal } = useSignal();
 
     // 兼容新旧数据格式
@@ -504,6 +507,44 @@ export function SignalCard({
                     )}
                 </div>
                 <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-0.5 mr-1 group/read relative">
+                        <button
+                            className="p-2 hover:bg-[var(--color-card-hover)] rounded-full transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
+                            title={isZh ? "AI 深度阅读" : "AI Deep Read"}
+                        >
+                            <BookOpen className="w-4 h-4" />
+                        </button>
+                        {/* Dropdown for Reading Modes */}
+                        <div className="absolute bottom-full right-0 mb-2 w-32 bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg shadow-xl opacity-0 invisible group-hover/read:opacity-100 group-hover/read:visible transition-all z-[60] overflow-hidden flex flex-col">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    startReading(signal.url, 'short');
+                                }}
+                                className="px-3 py-2 text-xs text-left text-[var(--color-foreground)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] transition-colors border-b border-[var(--color-border)]/50"
+                            >
+                                {isZh ? "⚡️ 短总结" : "Short Summary"}
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    startReading(signal.url, 'long');
+                                }}
+                                className="px-3 py-2 text-xs text-left text-[var(--color-foreground)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] transition-colors border-b border-[var(--color-border)]/50"
+                            >
+                                {isZh ? "📝 长总结" : "Long Summary"}
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    startReading(signal.url, 'translate');
+                                }}
+                                className="px-3 py-2 text-xs text-left text-[var(--color-foreground)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] transition-colors"
+                            >
+                                {isZh ? "🌐 逐字翻译" : "Translate"}
+                            </button>
+                        </div>
+                    </div>
                     <button
                         onClick={(e) => {
                             e.preventDefault();

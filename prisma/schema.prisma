@@ -167,5 +167,29 @@ model Insight {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
+
+
   @@index([date])
 }
+
+// ============ AI 阅读缓存 ============
+model AICache {
+  id           String   @id @default(cuid())
+  url          String   @unique
+  title        String?  // Articles title for history display
+  
+  // 存储不同模式的结果
+  summaryShort String?  // Mode 1: 短总结
+  summaryLong  String?  // Mode 2: 长总结
+  translation  String?  // Mode 3: 逐字翻译 (完整结果)
+  
+  // 元数据
+  provider     String?  // e.g. "openai", "anthropic"
+  model        String?  // e.g. "gpt-4o"
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([url])
+}
+

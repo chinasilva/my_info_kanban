@@ -91,4 +91,24 @@ Output JSON format:
             throw error;
         }
     }
+
+    async *stream(prompt: string): AsyncIterable<string> {
+        try {
+            const stream = await this.client.chat.completions.create({
+                messages: [{ role: 'user', content: prompt }],
+                model: this.model,
+                stream: true,
+            });
+
+            for await (const chunk of stream) {
+                const content = chunk.choices[0]?.delta?.content || '';
+                if (content) {
+                    yield content;
+                }
+            }
+        } catch (error) {
+            console.error('OpenAI Stream Error:', error);
+            throw error;
+        }
+    }
 }

@@ -52,3 +52,7 @@ docs
 test-openrouter.ts
 memory-bank/
 task.md
+manual_db_setup.js
+check_db.js
+scripts/*.js
+scripts/*.ts

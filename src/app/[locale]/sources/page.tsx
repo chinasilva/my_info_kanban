@@ -4,6 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Rss, Check, Plus, ArrowLeft, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { AIReadInput } from "@/components/AIReadInput";
+import { AIReadHistory } from "@/components/AIReadHistory";
+import { useReading } from "@/context/ReadingContext";
 
 interface Source {
     id: string;
@@ -21,6 +24,7 @@ export default function SourcesPage() {
     const [sources, setSources] = useState<Source[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const [refreshTrigger, setRefreshTrigger] = useState(0); // Trigger history refresh
     const t = useTranslations("SourcePage");
 
     // RSS 表单
@@ -31,9 +35,18 @@ export default function SourcesPage() {
     const [rssLoading, setRssLoading] = useState(false);
     const [rssError, setRssError] = useState("");
 
+    const { activeTask } = useReading();
+
     useEffect(() => {
         fetchSources();
     }, []);
+
+    // Auto-refresh history when reading task completes
+    useEffect(() => {
+        if (activeTask?.status === 'completed' || activeTask?.status === 'error') {
+            setRefreshTrigger(prev => prev + 1);
+        }
+    }, [activeTask?.status]);
 
     const fetchSources = async () => {
         try {
@@ -105,7 +118,7 @@ export default function SourcesPage() {
     const customSources = sources.filter(s => !s.isBuiltIn);
 
     return (
-        <div className="min-h-screen bg-[#0d1117] p-6">
+        <div className="h-screen overflow-y-auto bg-[#0d1117] p-6">
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">
@@ -137,6 +150,12 @@ export default function SourcesPage() {
                     </div>
                 ) : (
                     <>
+                        {/* New AI Reader Section */}
+                        <section className="mb-10">
+                            <AIReadInput onStart={() => setRefreshTrigger(prev => prev + 1)} />
+                            <AIReadHistory refreshTrigger={refreshTrigger} />
+                        </section>
+
                         {/* Built-in Sources */}
                         <section className="mb-8">
                             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">

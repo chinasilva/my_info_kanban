@@ -17,4 +17,5 @@ export interface ProcessingResult {
 export interface LLMClient {
     generateSummaryAndCategory(title: string, content: string): Promise<ProcessingResult>;
     generate(prompt: string): Promise<string>;
+    stream(prompt: string): AsyncIterable<string>;
 }
