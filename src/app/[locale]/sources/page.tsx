@@ -118,26 +118,26 @@ export default function SourcesPage() {
     const customSources = sources.filter(s => !s.isBuiltIn);
 
     return (
-        <div className="h-screen overflow-y-auto bg-[#0d1117] p-6">
+        <div className="h-screen overflow-y-auto bg-[var(--color-background)] p-6">
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => router.push("/")}
-                            className="p-2 rounded-lg bg-[#21262d] text-gray-400 hover:text-white hover:bg-[#30363d] transition"
+                            className="p-2 rounded-lg bg-[var(--color-card)] text-[var(--color-text-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-card-hover)] transition"
                         >
                             <ArrowLeft className="w-5 h-5" />
                         </button>
                         <div>
-                            <h1 className="text-2xl font-bold text-white">{t("title")}</h1>
-                            <p className="text-gray-400 text-sm">{t("subtitle")}</p>
+                            <h1 className="text-2xl font-bold text-[var(--color-foreground)]">{t("title")}</h1>
+                            <p className="text-[var(--color-text-muted)] text-sm">{t("subtitle")}</p>
                         </div>
                     </div>
                     <button
                         onClick={() => setShowRssForm(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg 
-                                   hover:bg-blue-700 transition font-medium"
+                        className="flex items-center gap-2 px-4 py-2 bg-[var(--color-accent)] text-white rounded-lg 
+                                   hover:bg-[var(--color-accent-hover)] transition font-medium"
                     >
                         <Plus className="w-4 h-4" />
                         {t("addRss")}
@@ -158,7 +158,7 @@ export default function SourcesPage() {
 
                         {/* Built-in Sources */}
                         <section className="mb-8">
-                            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                            <h2 className="text-lg font-semibold text-[var(--color-foreground)] mb-4 flex items-center gap-2">
                                 <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
                                 {t("builtIn")}
                             </h2>
@@ -177,7 +177,7 @@ export default function SourcesPage() {
                         {/* Custom Sources */}
                         {customSources.length > 0 && (
                             <section>
-                                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                                <h2 className="text-lg font-semibold text-[var(--color-foreground)] mb-4 flex items-center gap-2">
                                     <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                                     {t("custom")}
                                 </h2>
@@ -297,16 +297,16 @@ function SourceCard({
         <div className={`
             p-4 rounded-xl border transition
             ${source.isSubscribed
-                ? "bg-[#161b22] border-blue-500/50"
-                : "bg-[#0d1117] border-[#30363d] hover:border-[#484f58]"
+                ? "bg-[var(--color-card)] border-blue-500/50"
+                : "bg-[var(--color-background)] border-[var(--color-border)] hover:border-[var(--color-foreground)]"
             }
         `}>
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                     <span className="text-2xl">{source.icon || "📡"}</span>
                     <div>
-                        <h3 className="font-medium text-white">{source.name}</h3>
-                        <p className="text-sm text-gray-500">{source.signalCount} {t("signalCountSuffix")}</p>
+                        <h3 className="font-medium text-[var(--color-foreground)]">{source.name}</h3>
+                        <p className="text-sm text-[var(--color-text-muted)]">{source.signalCount} {t("signalCountSuffix")}</p>
                     </div>
                 </div>
                 <button
