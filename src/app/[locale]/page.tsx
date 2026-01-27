@@ -8,7 +8,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { DashboardShell } from "@/components/DashboardShell";
 
-export const revalidate = 60; // Revalidate every minute
+// export const revalidate = 60; // Revalidate every minute
+export const revalidate = 300; // Revalidate every minute
 
 // 数据源类型到分组的映射
 const SOURCE_GROUPS: Record<string, string[]> = {
@@ -143,12 +144,35 @@ export default async function DashboardPage(props: {
       },
       orderBy: { createdAt: "desc" },
       take: 15, // Load max 15 per category
-      include: {
-        source: true,
-        userStates: session?.user?.id ? {
-          where: { userId: session.user.id },
-          select: { isRead: true, isFavorited: true },
-        } : false,
+
+      select: {
+        id: true,
+        title: true,
+        titleTranslated: true,
+        url: true,
+        summary: true,
+        aiSummary: true,
+        aiSummaryZh: true,
+        score: true,
+        category: true,
+        tags: true,
+        tagsZh: true,
+        createdAt: true,
+        source: {
+          select: {
+            id: true,
+            name: true,
+            icon: true,
+            type: true
+          }
+        },
+        // Conditional selection if user is logged in
+        ...(session?.user?.id ? {
+          userStates: {
+            where: { userId: session.user.id },
+            select: { isRead: true, isFavorited: true },
+          }
+        } : {})
       },
     });
   };
