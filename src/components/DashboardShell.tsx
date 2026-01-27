@@ -147,9 +147,10 @@ export function DashboardShell({
                                 <span>#{activeTag}</span>
                                 <button
                                     onClick={handleClearTag}
-                                    className="hover:text-white transition-colors cursor-pointer relative z-10 px-1"
+                                    disabled={isPending}
+                                    className="hover:text-white transition-colors cursor-pointer relative z-10 px-1 disabled:opacity-50"
                                 >
-                                    ×
+                                    {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : '×'}
                                 </button>
                             </div>
                         )}
@@ -268,6 +269,7 @@ export function DashboardShell({
                 onClearTag={handleClearTag}
                 activeDate={activeDate}
                 locale={locale}
+                isClearing={isPending}
             />
 
             {/* Mobile Insights (Optional - maybe inside header or above list?) 

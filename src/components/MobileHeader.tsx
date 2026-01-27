@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, X, Globe, Settings, LogIn, Check } from "lucide-react";
+import { Menu, X, Globe, Settings, LogIn, Check, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { UserMenu } from "./UserMenu";
@@ -16,12 +16,13 @@ interface MobileHeaderProps {
     onClearTag?: () => void;
     activeDate?: string;
     locale?: string;
+    isClearing?: boolean;
 }
 
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import { DatePicker } from "./DatePicker";
 
-export function MobileHeader({ user, activeTag, onClearTag, activeDate, locale = "en" }: MobileHeaderProps) {
+export function MobileHeader({ user, activeTag, onClearTag, activeDate, locale = "en", isClearing = false }: MobileHeaderProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
@@ -73,9 +74,14 @@ export function MobileHeader({ user, activeTag, onClearTag, activeDate, locale =
                             </div>
                             <button
                                 onClick={onClearTag}
-                                className="p-2 -mr-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 transition-colors"
+                                disabled={isClearing}
+                                className="p-2 -mr-2 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 transition-colors disabled:opacity-50"
                             >
-                                <X className="w-5 h-5" />
+                                {isClearing ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <X className="w-5 h-5" />
+                                )}
                             </button>
                         </div>
                     </div>
