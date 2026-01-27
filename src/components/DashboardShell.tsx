@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useTransition } from "react";
 import { useIsMobile } from "@/lib/hooks/useMediaQuery";
 import { SignalColumn } from "./SignalColumn";
 import { MobileHeader } from "./MobileHeader";
@@ -113,9 +113,15 @@ export function DashboardShell({
         router.refresh();
     }, [router]);
 
+    const [isPending, startTransition] = useTransition();
+
     const handleClearTag = () => {
-        // Use hard navigation to ensure full state reset
-        window.location.href = `/${locale}`;
+        startTransition(() => {
+            // Use soft navigation for better UX (no full page reload)
+            // Push to the base locale path, effectively removing all query params including tag
+            // but preserving the locale.
+            router.push(`/${locale}`);
+        });
     };
 
     // Show loading state during hydration to prevent layout mismatch
