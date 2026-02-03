@@ -210,7 +210,7 @@ export function DashboardShell({
                 </header>
 
                 {/* Content Container */}
-                <div id="dashboard-content" className="flex-1 flex flex-col bg-[var(--color-background)] relative">
+                <div id="dashboard-content" className="flex-1 flex flex-col bg-[var(--color-background)] relative min-h-0 overflow-hidden">
 
                     {/* Insights Banner */}
                     <div className="px-4 pt-4 shrink-0">
@@ -240,7 +240,7 @@ export function DashboardShell({
                         </div>
                     ) : (
                         /* Kanban Board Mode (Default) */
-                        <div className="kanban-container flex-1 overflow-x-auto px-4 pb-4 gap-4 flex min-w-0">
+                        <div className="kanban-container flex-1 overflow-x-auto px-4 pb-4 gap-4 flex min-w-0 min-h-0">
                             {(() => {
                                 const columns: ColumnConfig[] = [
                                     { key: 'build', length: filteredSignalGroups.build.length, props: { title: t.buildTitle, subtitle: t.buildSubtitle, icon: <Code2 className="w-5 h-5" />, signals: filteredSignalGroups.build, colorClass: "text-blue-400", sourceType: "build" } },

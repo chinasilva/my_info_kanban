@@ -80,6 +80,10 @@ body {
   background: var(--color-border);
   /* Allow child overlays to extend beyond container horizontally */
   position: relative;
+  /* Critical: Break flex child min-height: auto default for proper scrolling */
+  min-height: 0;
+  -webkit-min-height: 0;
+  /* Safari compatibility */
 }
 
 .kanban-column {
@@ -90,6 +94,11 @@ body {
   background: var(--color-background);
   display: flex;
   flex-direction: column;
+  /* Use flex instead of height: 100% for better flex chain support */
+  min-height: 0;
+  -webkit-min-height: 0;
+  /* Safari compatibility */
+  /* Fallback height for non-flex contexts */
   height: 100%;
   position: relative;
 }
@@ -112,8 +121,16 @@ body {
 }
 
 .column-scroll-area {
-  flex: 1;
+  flex: 1 1 0;
+  /* Critical: Allow shrinking below content size for scrolling */
+  min-height: 0;
+  -webkit-min-height: 0;
+  /* Safari compatibility */
   overflow-y: auto;
+  /* Safari smooth scrolling */
+  -webkit-overflow-scrolling: touch;
+  /* Contain scroll to prevent parent scroll interference */
+  overscroll-behavior-y: contain;
   padding: 0.5rem;
   scrollbar-width: thin;
   scrollbar-color: var(--color-border) transparent;

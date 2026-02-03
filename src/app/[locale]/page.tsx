@@ -53,36 +53,10 @@ export default async function DashboardPage(props: {
       orderBy: { displayOrder: "asc" },
     });
     subscribedSourceIds = userSources.map((us) => us.sourceId);
+  }
 
-    // Empty state logic ... (keep existing)
-    if (subscribedSourceIds.length === 0) {
-      // ... (return Empty State UI)
-      return (
-        <main className="min-h-screen bg-[#0d1117] flex items-center justify-center p-4">
-          <div className="text-center max-w-md">
-            <div className="text-6xl mb-6">📡</div>
-            <h1 className="text-2xl font-bold text-white mb-3">
-              {locale === "zh" ? "欢迎使用 High-Signal" : "Welcome to High-Signal"}
-            </h1>
-            <p className="text-gray-400 mb-6">
-              {locale === "zh"
-                ? "你还没有订阅任何数据源。前往数据源管理页面，选择你感兴趣的信息来源。"
-                : "You haven't subscribed to any sources. Go to Sources to select your interests."}
-            </p>
-            <Link
-              href="/sources"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg 
-                               hover:bg-blue-700 transition font-medium"
-            >
-              <Settings className="w-5 h-5" />
-              {locale === "zh" ? "管理数据源" : "Manage Sources"}
-            </Link>
-          </div>
-        </main>
-      );
-    }
-  } else {
-    // Guest
+  // Fallback: For guests OR logged-in users with no subscriptions, show built-in sources
+  if (subscribedSourceIds.length === 0) {
     const builtInSources = await prisma.source.findMany({
       where: { isBuiltIn: true },
       select: { id: true }
