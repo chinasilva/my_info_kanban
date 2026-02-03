@@ -43,6 +43,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+
+docker-compose.test.yml
+
 /src/generated/prisma
 .env
 .env.example
@@ -56,3 +59,4 @@ manual_db_setup.js
 check_db.js
 scripts/*.js
 scripts/*.ts
+scripts/*.sh

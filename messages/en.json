@@ -16,9 +16,10 @@
         "signIn": "Sign In"
     },
     "SourcePage": {
-        "title": "Manage Sources",
-        "subtitle": "Subscribe to sources and customize your dashboard",
-        "addRss": "Add RSS Feed",
+        "title": "Sources Management",
+        "description": "Subscription sources you are interested in, verify your dashboard",
+        "add": "Add RSS Source",
+        "importOpml": "Import OPML",
         "builtIn": "Built-in Sources",
         "custom": "Custom Sources",
         "rssModal": {
@@ -35,6 +36,32 @@
                 "network": "Network error, please try again"
             }
         },
-        "signalCountSuffix": " signals"
+        "signalCountSuffix": " signals",
+        "confirmDelete": {
+            "title": "Delete RSS Source",
+            "message": "This will permanently delete this source and all its signals. This action cannot be undone.",
+            "confirm": "Delete",
+            "cancel": "Cancel"
+        },
+        "deleteError": "Failed to delete source",
+        "followAll": "Follow All",
+        "unfollowAll": "Unfollow All",
+        "opmlModal": {
+            "title": "Import OPML",
+            "dropzoneTitle": "Click to select OPML file",
+            "dropzoneHint": "Supports .opml or .xml files",
+            "importFailed": "Import Failed",
+            "cancel": "Cancel",
+            "import": "Import Feeds",
+            "importing": "Importing...",
+            "successTitle": "Import Successful!",
+            "successMessage": "Added {count} of {total} feeds found.",
+            "skippedItems": "Skipped {count} items:",
+            "done": "Done",
+            "networkError": "Network error occurred"
+        }
+    },
+    "ConfirmDialog": {
+        "loading": "Loading..."
     }
 }

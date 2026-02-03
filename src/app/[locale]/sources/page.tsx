@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Rss, Check, Plus, ArrowLeft, Loader2 } from "lucide-react";
+import { Rss, Check, Plus, ArrowLeft, Loader2, Trash2, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AIReadInput } from "@/components/AIReadInput";
 import { AIReadHistory } from "@/components/AIReadHistory";
 import { useReading } from "@/context/ReadingContext";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { OpmlImportDialog } from "@/components/OpmlImportDialog";
 
 interface Source {
     id: string;
@@ -34,6 +36,16 @@ export default function SourcesPage() {
     const [rssIcon, setRssIcon] = useState("📡");
     const [rssLoading, setRssLoading] = useState(false);
     const [rssError, setRssError] = useState("");
+
+    // 删除确认对话框
+    const [deleteTarget, setDeleteTarget] = useState<Source | null>(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+
+    // OPML Import
+    const [showOpmlImport, setShowOpmlImport] = useState(false);
+
+    // Bulk action loading states
+    const [bulkLoading, setBulkLoading] = useState(false);
 
     const { activeTask } = useReading();
 
@@ -78,6 +90,56 @@ export default function SourcesPage() {
         }
     };
 
+    // Bulk subscribe/unsubscribe for custom sources
+    const bulkSubscribe = async (subscribe: boolean) => {
+        const customSourcesToUpdate = sources.filter(s => !s.isBuiltIn && s.isSubscribed !== subscribe);
+        if (customSourcesToUpdate.length === 0) return;
+
+        setBulkLoading(true);
+        try {
+            await Promise.all(
+                customSourcesToUpdate.map(s =>
+                    fetch(`/api/sources/${s.id}/subscribe`, {
+                        method: subscribe ? "POST" : "DELETE"
+                    })
+                )
+            );
+            // Update local state
+            setSources(sources.map(s =>
+                !s.isBuiltIn ? { ...s, isSubscribed: subscribe } : s
+            ));
+        } catch (error) {
+            console.error("Bulk action failed:", error);
+        } finally {
+            setBulkLoading(false);
+        }
+    };
+
+    const deleteSource = async () => {
+        if (!deleteTarget) return;
+
+        setDeleteLoading(true);
+        try {
+            const res = await fetch(`/api/sources/rss/${deleteTarget.id}`, {
+                method: "DELETE",
+            });
+
+            if (res.ok) {
+                setSources(sources.filter(s => s.id !== deleteTarget.id));
+                setDeleteTarget(null);
+            } else {
+                const data = await res.json();
+                console.error("Delete failed:", data.error);
+                alert(t("deleteError"));
+            }
+        } catch (error) {
+            console.error("Failed to delete source:", error);
+            alert(t("deleteError"));
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
     const handleAddRss = async (e: React.FormEvent) => {
         e.preventDefault();
         setRssLoading(true);
@@ -118,35 +180,49 @@ export default function SourcesPage() {
     const customSources = sources.filter(s => !s.isBuiltIn);
 
     return (
-        <div className="h-screen overflow-y-auto bg-[var(--color-background)] p-6">
-            <div className="max-w-4xl mx-auto">
+        <div className="h-[100dvh] overflow-y-auto bg-[var(--color-background)] text-[var(--color-foreground)] pb-20 md:pb-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => router.push("/")}
-                            className="p-2 rounded-lg bg-[var(--color-card)] text-[var(--color-text-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-card-hover)] transition"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                        </button>
-                        <div>
-                            <h1 className="text-2xl font-bold text-[var(--color-foreground)]">{t("title")}</h1>
-                            <p className="text-[var(--color-text-muted)] text-sm">{t("subtitle")}</p>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <div className="flex items-center gap-3 mb-2">
+                            <button
+                                onClick={() => router.back()}
+                                className="p-2 -ml-2 rounded-lg hover:bg-[var(--color-page-background)] transition text-[var(--color-text-muted)] hover:text-[var(--color-foreground)]"
+                            >
+                                <ArrowLeft className="w-5 h-5" />
+                            </button>
+                            <h1 className="text-2xl font-bold flex items-center gap-2">
+                                <Rss className="w-6 h-6 text-orange-500" />
+                                {t("title")}
+                            </h1>
                         </div>
+                        <p className="text-[var(--color-text-muted)]">
+                            {t("description")}
+                        </p>
                     </div>
-                    <button
-                        onClick={() => setShowRssForm(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-[var(--color-accent)] text-white rounded-lg 
-                                   hover:bg-[var(--color-accent-hover)] transition font-medium"
-                    >
-                        <Plus className="w-4 h-4" />
-                        {t("addRss")}
-                    </button>
+
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setShowOpmlImport(true)}
+                            className="bg-[#21262d] hover:bg-[#30363d] text-white px-4 py-2 rounded-lg flex items-center gap-2 transition border border-gray-700"
+                        >
+                            <Upload className="w-4 h-4" />
+                            {t("importOpml", { fallback: "Import OPML" })}
+                        </button>
+                        <button
+                            onClick={() => setShowRssForm(true)}
+                            className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition shadow-lg shadow-orange-900/20"
+                        >
+                            <Plus className="w-4 h-4" />
+                            {t("add")}
+                        </button>
+                    </div>
                 </div>
 
                 {isLoading ? (
                     <div className="flex items-center justify-center py-20">
-                        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                        <Loader2 className="w-8 h-8 animate-spin text-gray-500" />
                     </div>
                 ) : (
                     <>
@@ -174,13 +250,32 @@ export default function SourcesPage() {
                             </div>
                         </section>
 
-                        {/* Custom Sources */}
                         {customSources.length > 0 && (
                             <section>
-                                <h2 className="text-lg font-semibold text-[var(--color-foreground)] mb-4 flex items-center gap-2">
-                                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                    {t("custom")}
-                                </h2>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-lg font-semibold text-[var(--color-foreground)] flex items-center gap-2">
+                                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                        {t("custom")}
+                                    </h2>
+                                    {/* Bulk Action Buttons */}
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => bulkSubscribe(true)}
+                                            disabled={bulkLoading}
+                                            className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:opacity-50 flex items-center gap-1.5"
+                                        >
+                                            {bulkLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                                            {t("followAll", { fallback: "Follow All" })}
+                                        </button>
+                                        <button
+                                            onClick={() => bulkSubscribe(false)}
+                                            disabled={bulkLoading}
+                                            className="px-3 py-1.5 text-sm bg-[#21262d] hover:bg-[#30363d] text-gray-300 rounded-lg transition border border-gray-700 disabled:opacity-50"
+                                        >
+                                            {t("unfollowAll", { fallback: "Unfollow All" })}
+                                        </button>
+                                    </div>
+                                </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {customSources.map((source) => (
                                         <SourceCard
@@ -188,6 +283,7 @@ export default function SourcesPage() {
                                             source={source}
                                             isLoading={actionLoading === source.id}
                                             onToggle={() => toggleSubscription(source.id, source.isSubscribed)}
+                                            onDelete={() => setDeleteTarget(source)}
                                         />
                                     ))}
                                 </div>
@@ -278,6 +374,29 @@ export default function SourcesPage() {
                         </div>
                     </div>
                 )}
+
+                {/* Delete Confirm Dialog */}
+                <ConfirmDialog
+                    isOpen={!!deleteTarget}
+                    title={t("confirmDelete.title")}
+                    message={t("confirmDelete.message")}
+                    confirmLabel={t("confirmDelete.confirm")}
+                    cancelLabel={t("confirmDelete.cancel")}
+                    variant="danger"
+                    isLoading={deleteLoading}
+                    onConfirm={deleteSource}
+                    onCancel={() => setDeleteTarget(null)}
+                />
+
+                {/* OPML Import Dialog */}
+                <OpmlImportDialog
+                    isOpen={showOpmlImport}
+                    onClose={() => setShowOpmlImport(false)}
+                    onSuccess={() => {
+                        fetchSources(); // Refresh list
+                        // setShowOpmlImport(false); // Handled by component Done button or onClose
+                    }}
+                />
             </div>
         </div>
     );
@@ -286,11 +405,13 @@ export default function SourcesPage() {
 function SourceCard({
     source,
     isLoading,
-    onToggle
+    onToggle,
+    onDelete
 }: {
     source: Source;
     isLoading: boolean;
     onToggle: () => void;
+    onDelete?: () => void;
 }) {
     const t = useTranslations("SourcePage");
     return (
@@ -309,26 +430,40 @@ function SourceCard({
                         <p className="text-sm text-[var(--color-text-muted)]">{source.signalCount} {t("signalCountSuffix")}</p>
                     </div>
                 </div>
-                <button
-                    onClick={onToggle}
-                    disabled={isLoading}
-                    className={`
-                        p-2 rounded-lg transition
-                        ${source.isSubscribed
-                            ? "bg-blue-500/20 text-blue-400"
-                            : "bg-[#21262d] text-gray-400 hover:text-white hover:bg-[#30363d]"
-                        }
-                        disabled:opacity-50
-                    `}
-                >
-                    {isLoading ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : source.isSubscribed ? (
-                        <Check className="w-5 h-5" />
-                    ) : (
-                        <Plus className="w-5 h-5" />
+                <div className="flex items-center gap-2">
+                    {/* 自定义源显示删除按钮 */}
+                    {!source.isBuiltIn && onDelete && (
+                        <button
+                            onClick={onDelete}
+                            className="p-2 rounded-lg transition bg-[#21262d] text-gray-400 
+                                       hover:text-red-400 hover:bg-red-500/10"
+                            title="Delete source"
+                        >
+                            <Trash2 className="w-5 h-5" />
+                        </button>
                     )}
-                </button>
+                    {/* 订阅/取消订阅按钮 */}
+                    <button
+                        onClick={onToggle}
+                        disabled={isLoading}
+                        className={`
+                            p-2 rounded-lg transition
+                            ${source.isSubscribed
+                                ? "bg-blue-500/20 text-blue-400"
+                                : "bg-[#21262d] text-gray-400 hover:text-white hover:bg-[#30363d]"
+                            }
+                            disabled:opacity-50
+                        `}
+                    >
+                        {isLoading ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : source.isSubscribed ? (
+                            <Check className="w-5 h-5" />
+                        ) : (
+                            <Plus className="w-5 h-5" />
+                        )}
+                    </button>
+                </div>
             </div>
         </div>
     );

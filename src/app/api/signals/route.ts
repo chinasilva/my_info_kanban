@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Invalid query parameters", details: query.error.format() }, { status: 400 });
     }
 
-    const { cursor, limit, sourceType, days, tag, date } = query.data;
+    const { cursor, limit, sourceType, days, tag, date, sourceId } = query.data;
 
     // Source type to actual source types mapping
     const SOURCE_GROUPS: Record<string, string[]> = {
@@ -68,7 +68,16 @@ export async function GET(request: NextRequest) {
 
     // Filter by source type if provided
     let filteredSourceIds = subscribedSourceIds;
-    if (sourceType && SOURCE_GROUPS[sourceType]) {
+
+    // [NEW] If specific sourceId is requested, filter strictly by it (if subscribed)
+    if (sourceId) {
+        if (subscribedSourceIds.includes(sourceId)) {
+            filteredSourceIds = [sourceId];
+        } else {
+            // Requested source not subscribed or invalid -> return empty
+            filteredSourceIds = [];
+        }
+    } else if (sourceType && SOURCE_GROUPS[sourceType]) {
         const allowedTypes = SOURCE_GROUPS[sourceType];
         filteredSourceIds = userSources
             .filter(us => allowedTypes.includes(us.source.type))
@@ -108,7 +117,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Tag Filtering Logic
-    if (tag) {
+    // Only apply tag filter if NOT filtering by specific sourceId (according to "pure timeline" spec)
+    // Or allow both? Spec said: "点击 Source Tab -> 仅显示来自该源的内容（纯时间线模式，不包含 AI 筛选）"
+    // So we ignore tag if sourceId is present.
+    if (tag && !sourceId) {
         whereClause.OR = [
             { tags: { has: tag } },
             { tagsZh: { has: tag } }

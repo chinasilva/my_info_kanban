@@ -17,8 +17,9 @@
     },
     "SourcePage": {
         "title": "数据源管理",
-        "subtitle": "订阅感兴趣的数据源，自定义你的看板",
-        "addRss": "添加 RSS 源",
+        "description": "订阅感兴趣的数据源，自定义你的看板",
+        "add": "添加 RSS 源",
+        "importOpml": "导入 OPML",
         "builtIn": "内置数据源",
         "custom": "自定义数据源",
         "rssModal": {
@@ -35,6 +36,32 @@
                 "network": "网络错误，请重试"
             }
         },
-        "signalCountSuffix": "条信号"
+        "signalCountSuffix": "条信号",
+        "confirmDelete": {
+            "title": "删除 RSS 源",
+            "message": "这将永久删除此数据源及其所有信号。此操作无法撤销。",
+            "confirm": "删除",
+            "cancel": "取消"
+        },
+        "deleteError": "删除数据源失败",
+        "followAll": "全部关注",
+        "unfollowAll": "全部取消关注",
+        "opmlModal": {
+            "title": "导入 OPML",
+            "dropzoneTitle": "点击选择 OPML 文件",
+            "dropzoneHint": "支持 .opml 或 .xml 文件",
+            "importFailed": "导入失败",
+            "cancel": "取消",
+            "import": "导入订阅",
+            "importing": "导入中...",
+            "successTitle": "导入成功！",
+            "successMessage": "成功导入 {count} / {total} 个订阅源。",
+            "skippedItems": "跳过 {count} 项：",
+            "done": "完成",
+            "networkError": "网络错误"
+        }
+    },
+    "ConfirmDialog": {
+        "loading": "处理中..."
     }
 }
