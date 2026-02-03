@@ -36,5 +36,9 @@
             }
         },
         "signalCountSuffix": "條信號"
+    },
+    "SignalCard": {
+        "viewDetails": "查看詳情 →",
+        "share": "分享卡片"
     }
 }

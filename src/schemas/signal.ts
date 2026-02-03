@@ -28,7 +28,16 @@ export const SignalSchema = z.object({
     updatedAt: z.union([z.date(), z.string()]).optional(),
 
     // Relations (Optional/Partial for list views)
-    source: z.union([SourceSchema, z.string()]).optional(), // Supports expanded object or just name/ID in some legacy cases
+    source: z.union([
+        SourceSchema,
+        z.string(),
+        z.object({
+            id: z.string(),
+            name: z.string(),
+            icon: z.string().nullable().optional(),
+            isBuiltIn: z.boolean().optional()
+        })
+    ]).optional(),
 
     // Computed/User specific fields (Joined at runtime)
     isRead: z.boolean().optional(),

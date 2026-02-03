@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Rss, Check, Plus, ArrowLeft, Loader2, Trash2, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useSession } from "next-auth/react";
 import { AIReadInput } from "@/components/AIReadInput";
 import { AIReadHistory } from "@/components/AIReadHistory";
 import { useReading } from "@/context/ReadingContext";
@@ -21,12 +22,35 @@ interface Source {
     isSubscribed: boolean;
 }
 
+
+// Helper for safe localStorage access
+const safeLocalStorage = {
+    getItem: (key: string): string | null => {
+        try {
+            return localStorage.getItem(key);
+        } catch (e) {
+            return null;
+        }
+    },
+    setItem: (key: string, value: string) => {
+        try {
+            localStorage.setItem(key, value);
+        } catch (e) {
+            // Ignore error
+        }
+    }
+};
+
 export default function SourcesPage() {
     const router = useRouter();
+    const params = useParams();
+    const locale = params.locale as string;
     const [sources, setSources] = useState<Source[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0); // Trigger history refresh
+    const { data: session, status: sessionStatus } = useSession();
+    const isGuest = sessionStatus === "unauthenticated";
     const t = useTranslations("SourcePage");
 
     // RSS 表单
@@ -64,7 +88,19 @@ export default function SourcesPage() {
         try {
             const res = await fetch("/api/sources");
             if (res.ok) {
-                const data = await res.json();
+                let data = await res.json();
+
+                // If guest, overlay LocalStorage subscriptions
+                if (isGuest) {
+                    const stored = safeLocalStorage.getItem('guest_subscribed_sources');
+                    const guestIds = stored ? JSON.parse(stored) : null;
+
+                    data = data.map((s: Source) => ({
+                        ...s,
+                        isSubscribed: guestIds ? guestIds.includes(s.id) : true // Default to all subscribed if never set
+                    }));
+                }
+
                 setSources(data);
             }
         } catch (error) {
@@ -75,6 +111,23 @@ export default function SourcesPage() {
     };
 
     const toggleSubscription = async (sourceId: string, isSubscribed: boolean) => {
+        if (isGuest) {
+            const stored = safeLocalStorage.getItem('guest_subscribed_sources');
+            let guestIds: string[] = stored ? JSON.parse(stored) : sources.filter(s => s.isBuiltIn).map(s => s.id);
+
+            if (isSubscribed) {
+                guestIds = guestIds.filter(id => id !== sourceId);
+            } else {
+                guestIds = [...guestIds, sourceId];
+            }
+
+            safeLocalStorage.setItem('guest_subscribed_sources', JSON.stringify(guestIds));
+            setSources(sources.map(s =>
+                s.id === sourceId ? { ...s, isSubscribed: !isSubscribed } : s
+            ));
+            return;
+        }
+
         setActionLoading(sourceId);
         try {
             const method = isSubscribed ? "DELETE" : "POST";
@@ -187,7 +240,7 @@ export default function SourcesPage() {
                     <div>
                         <div className="flex items-center gap-3 mb-2">
                             <button
-                                onClick={() => router.back()}
+                                onClick={() => router.push(`/${locale}`)}
                                 className="p-2 -ml-2 rounded-lg hover:bg-[var(--color-page-background)] transition text-[var(--color-text-muted)] hover:text-[var(--color-foreground)]"
                             >
                                 <ArrowLeft className="w-5 h-5" />
@@ -203,20 +256,24 @@ export default function SourcesPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => setShowOpmlImport(true)}
-                            className="bg-[#21262d] hover:bg-[#30363d] text-white px-4 py-2 rounded-lg flex items-center gap-2 transition border border-gray-700"
-                        >
-                            <Upload className="w-4 h-4" />
-                            {t("importOpml", { fallback: "Import OPML" })}
-                        </button>
-                        <button
-                            onClick={() => setShowRssForm(true)}
-                            className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition shadow-lg shadow-orange-900/20"
-                        >
-                            <Plus className="w-4 h-4" />
-                            {t("add")}
-                        </button>
+                        {!isGuest && (
+                            <>
+                                <button
+                                    onClick={() => setShowOpmlImport(true)}
+                                    className="bg-[#21262d] hover:bg-[#30363d] text-white px-4 py-2 rounded-lg flex items-center gap-2 transition border border-gray-700"
+                                >
+                                    <Upload className="w-4 h-4" />
+                                    {t("importOpml", { fallback: "Import OPML" })}
+                                </button>
+                                <button
+                                    onClick={() => setShowRssForm(true)}
+                                    className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition shadow-lg shadow-orange-900/20"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    {t("add")}
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -258,23 +315,25 @@ export default function SourcesPage() {
                                         {t("custom")}
                                     </h2>
                                     {/* Bulk Action Buttons */}
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => bulkSubscribe(true)}
-                                            disabled={bulkLoading}
-                                            className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:opacity-50 flex items-center gap-1.5"
-                                        >
-                                            {bulkLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                                            {t("followAll", { fallback: "Follow All" })}
-                                        </button>
-                                        <button
-                                            onClick={() => bulkSubscribe(false)}
-                                            disabled={bulkLoading}
-                                            className="px-3 py-1.5 text-sm bg-[#21262d] hover:bg-[#30363d] text-gray-300 rounded-lg transition border border-gray-700 disabled:opacity-50"
-                                        >
-                                            {t("unfollowAll", { fallback: "Unfollow All" })}
-                                        </button>
-                                    </div>
+                                    {!isGuest && (
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => bulkSubscribe(true)}
+                                                disabled={bulkLoading}
+                                                className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:opacity-50 flex items-center gap-1.5"
+                                            >
+                                                {bulkLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                                                {t("followAll", { fallback: "Follow All" })}
+                                            </button>
+                                            <button
+                                                onClick={() => bulkSubscribe(false)}
+                                                disabled={bulkLoading}
+                                                className="px-3 py-1.5 text-sm bg-[#21262d] hover:bg-[#30363d] text-gray-300 rounded-lg transition border border-gray-700 disabled:opacity-50"
+                                            >
+                                                {t("unfollowAll", { fallback: "Unfollow All" })}
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {customSources.map((source) => (
@@ -401,6 +460,7 @@ export default function SourcesPage() {
         </div>
     );
 }
+
 
 function SourceCard({
     source,

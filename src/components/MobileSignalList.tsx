@@ -11,6 +11,7 @@ interface MobileSignalListProps {
     onRefresh?: () => Promise<void>;
     isGuest?: boolean;
     sourceType?: string; // Add source type for API fetching
+    sourceId?: string | null;
     activeTag?: string; // For filtering API calls
     activeDate?: string; // For filtering API calls
     onCountChange?: (count: number) => void;
@@ -22,6 +23,7 @@ export function MobileSignalList({
     onRefresh,
     isGuest = false,
     sourceType,
+    sourceId,
     activeTag,
     activeDate,
     onCountChange
@@ -101,7 +103,8 @@ export function MobileSignalList({
                 limit: "15",
                 cursor: cursor,
                 sourceType: sourceType,
-                days: "7" // Default to same logic as PC
+                days: "7", // Default to same logic as PC
+                ...(sourceId ? { sourceId } : {})
             });
 
             if (activeTag) params.append("tag", activeTag);
@@ -198,6 +201,7 @@ export function MobileSignalList({
                             variant="compact"
                             locale={locale}
                             isGuest={isGuest}
+                            columnPosition="single"
                         />
                     ))}
 

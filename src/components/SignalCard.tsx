@@ -5,6 +5,7 @@ import { ExternalLink, TrendingUp, Star, Sparkles, Languages, Share2, Loader2 } 
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { useSnapshot } from "@/hooks/useSnapshot";
 import { useSignal } from "@/context/SignalContext";
 import { Signal, SignalSchema } from "@/schemas/signal"; // Import Zod Types
@@ -12,24 +13,31 @@ import { convertToTraditional } from "@/lib/utils/converter";
 import { useReading } from "@/context/ReadingContext";
 import { BookOpen } from "lucide-react";
 
+export type ColumnPosition = 'first' | 'middle' | 'last' | 'single';
+
+interface SignalCardProps {
+    signal: Signal;
+    variant?: "default" | "compact";
+    className?: string;
+    locale?: string;
+    isGuest?: boolean;
+    columnPosition?: ColumnPosition;
+}
+
 export function SignalCard({
     signal,
     className,
     variant = "default",
-    locale,
-    isGuest = false
-}: {
-    signal: Signal; // Use inferred type
-    className?: string;
-    variant?: "default" | "compact";
-    locale?: string;
-    isGuest?: boolean;
-}) {
+    locale = "en",
+    isGuest = false,
+    columnPosition = 'middle'
+}: SignalCardProps) {
     const [mounted, setMounted] = useState(false);
     const [isRead, setIsRead] = useState(signal.isRead ?? false);
     const [isSummaryHovered, setIsSummaryHovered] = useState(false); // State for hover effect
     const closeClickedRef = useRef(false); // 标记关闭按钮是否被点击
     const { capture, isLoading } = useSnapshot();
+    const t = useTranslations("SignalCard");
 
     const isZh = locale === 'zh';
     const isTw = locale === 'tw';
@@ -57,6 +65,17 @@ export function SignalCard({
         const hiddenTags = (isZh || isTw) ? signal.tags : signal.tagsZh;
         if (hiddenTags?.includes(activeTag) || signal.tags?.includes(activeTag) || signal.tagsZh?.includes(activeTag)) {
             displayTags = [activeTag, ...displayTags];
+        }
+    }
+
+    // [RSS Logic] If custom RSS source, prepend source name as the first tag
+    if (typeof signal.source !== 'string' && !signal.source?.isBuiltIn) {
+        const sourceName = signal.source?.name;
+        if (sourceName) {
+            // Avoid duplicate if source name is already a tag
+            if (!displayTags?.includes(sourceName)) {
+                displayTags = displayTags ? [sourceName, ...displayTags] : [sourceName];
+            }
         }
     }
 
@@ -264,96 +283,110 @@ export function SignalCard({
 
                 {displayTags && displayTags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                        {displayTags.slice(0, 3).map((tag, idx) => (
-                            <button
-                                key={idx}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    const url = new URL(window.location.href);
-                                    url.searchParams.set('tag', tag);
-                                    window.location.href = url.toString();
-                                }}
-                                className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--color-background)] text-[var(--color-text-muted)] border border-[var(--color-border)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/30 transition-colors cursor-pointer"
-                            >
-                                #{tag}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
-                {/* Hover/Click Full View - Triggered on card hover (desktop) or click (mobile) */}
-                {isSummaryHovered && signal.summary && (
-                    <div
-                        className="absolute -top-2 -left-2 -right-2 bg-[var(--color-card)] border border-[var(--color-accent)]/50 rounded-lg p-4 shadow-2xl z-50 h-auto min-h-[calc(100%+16px)] flex flex-col"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handleRead();
-                            setSelectedSignal(signal);
-                        }}
-                    >
-                        <div className="text-[13px] text-[var(--color-foreground)] leading-relaxed space-y-2 mb-4">
-                            {/* 主标题 */}
-                            <h4 className="font-semibold text-[var(--color-accent)] text-sm line-clamp-2">
-                                {displayTitle}
-                            </h4>
-                            {/* 副标题 */}
-                            {(isZh || isTw) && signal.titleTranslated && (
-                                <p className="text-[11px] text-[var(--color-text-muted)] line-clamp-1 opacity-80">
-                                    {signal.title}
-                                </p>
-                            )}
-                            {/* 摘要 */}
-                            <p className="text-[var(--color-text-muted)]">
-                                {displaySummary}
-                            </p>
-                        </div>
-
-                        {/* Tags in Overlay */}
-                        {displayTags && displayTags.length > 0 && (
-                            <div className="mt-auto flex flex-wrap gap-1.5 pt-2 border-t border-[var(--color-border)]/50 mb-3">
-                                {displayTags.map((tag, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            const url = new URL(window.location.href);
+                        {displayTags.slice(0, 3).map((tag, idx) => {
+                            const isSourceTag = typeof signal.source !== 'string' && !signal.source?.isBuiltIn && tag === signal.source?.name;
+                            return (
+                                <button
+                                    key={idx}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        const url = new URL(window.location.href);
+                                        if (isSourceTag && typeof signal.source !== 'string' && signal.source?.id) {
+                                            url.searchParams.set('sourceId', signal.source.id);
+                                            url.searchParams.delete('tag');
+                                        } else {
                                             url.searchParams.set('tag', tag);
-                                            window.location.href = url.toString();
-                                        }}
-                                        className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--color-background)]/50 text-[var(--color-text-muted)] border border-[var(--color-border)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/30 transition-colors cursor-pointer"
-                                    >
-                                        #{tag}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Mobile: Tap hint and close button */}
-                        <div className="flex justify-between items-center pt-2 border-t border-[var(--color-border)]">
-                            <span className="text-[10px] text-[var(--color-accent)] opacity-80">
-                                {isZh ? '点击查看详情' : (isTw ? '點擊查看詳情' : 'Tap to view details')}
-                            </span>
-                            <button
-                                type="button"
-                                onPointerDown={(e) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    closeClickedRef.current = true; // 标记关闭按钮被点击
-                                }}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    e.nativeEvent.stopImmediatePropagation();
-                                    closeClickedRef.current = true; // 确保标记设置
-                                    setIsSummaryHovered(false);
-                                }}
-                                className="text-[10px] text-[var(--color-text-muted)] px-3 py-2 rounded bg-[var(--color-background)] hover:bg-[var(--color-card-hover)] active:bg-[var(--color-card-hover)] border border-[var(--color-border)] min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors"
-                            >
-                                {isZh || isTw ? (isTw ? '關閉' : '关闭') : 'Close'}
-                            </button>
-                        </div>
+                                            url.searchParams.delete('sourceId');
+                                        }
+                                        window.location.href = url.toString();
+                                    }}
+                                    className={cn(
+                                        "text-[9px] px-1.5 py-0.5 rounded-full border transition-colors cursor-pointer",
+                                        isSourceTag
+                                            ? "bg-orange-500/10 text-orange-500 border-orange-500/30 hover:bg-orange-500/20"
+                                            : "bg-[var(--color-background)] text-[var(--color-text-muted)] border-[var(--color-border)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/30"
+                                    )}
+                                >
+                                    {isSourceTag && <span className="mr-1">📡</span>}
+                                    #{tag}
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
+
+
+                {/* Accordion-style expansion: uses CSS Grid for smooth GPU-accelerated animation */}
+                <div
+                    className="grid transition-[grid-template-rows,opacity] duration-200 ease-out"
+                    style={{ gridTemplateRows: isSummaryHovered ? '1fr' : '0fr' }}
+                >
+                    <div className={cn(
+                        "overflow-hidden transition-opacity duration-200",
+                        isSummaryHovered ? "opacity-100" : "opacity-0"
+                    )}>
+                        <div className={cn(
+                            "pt-3 mt-3 border-t border-[var(--color-border)]/50",
+                            !isSummaryHovered && "invisible"
+                        )}>
+                            {/* Full Summary */}
+                            {signal.summary && (
+                                <div className="text-[12px] text-[var(--color-text-muted)] leading-relaxed mb-3">
+                                    {displaySummary}
+                                </div>
+                            )}
+
+                            {/* All Tags */}
+                            {displayTags && displayTags.length > 3 && (
+                                <div className="flex flex-wrap gap-1.5 mb-3">
+                                    {displayTags.slice(3).map((tag, idx) => {
+                                        const isSourceTag = typeof signal.source !== 'string' && !signal.source?.isBuiltIn && tag === signal.source?.name;
+                                        return (
+                                            <button
+                                                key={idx}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const url = new URL(window.location.href);
+                                                    if (isSourceTag && typeof signal.source !== 'string' && signal.source?.id) {
+                                                        url.searchParams.set('sourceId', signal.source.id);
+                                                        url.searchParams.delete('tag');
+                                                    } else {
+                                                        url.searchParams.set('tag', tag);
+                                                        url.searchParams.delete('sourceId');
+                                                    }
+                                                    window.location.href = url.toString();
+                                                }}
+                                                className={cn(
+                                                    "text-[9px] px-1.5 py-0.5 rounded-full border transition-colors cursor-pointer",
+                                                    isSourceTag
+                                                        ? "bg-orange-500/10 text-orange-500 border-orange-500/30 hover:bg-orange-500/20"
+                                                        : "bg-[var(--color-background)] text-[var(--color-text-muted)] border-[var(--color-border)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/30"
+                                                )}
+                                            >
+                                                {isSourceTag && <span className="mr-1">📡</span>}
+                                                #{tag}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {/* Action hint */}
+                            <div className="flex justify-end">
+                                <span
+                                    className="text-[10px] text-[var(--color-accent)] cursor-pointer hover:underline"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRead();
+                                        setSelectedSignal(signal);
+                                    }}
+                                >
+                                    {t('viewDetails', { fallback: isZh ? '查看详情 →' : (isTw ? '查看詳情 →' : 'View details →') })}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </motion.div>
         );
     }
@@ -409,7 +442,7 @@ export function SignalCard({
                 </div>
             )}
 
-            {/* Bilingual Summary with Hover Interaction */}
+            {/* Bilingual Summary with Accordion Expansion */}
             {signal.summary && (
                 <div
                     className="relative mb-4 flex-grow"
@@ -417,12 +450,14 @@ export function SignalCard({
                     onMouseLeave={() => setIsSummaryHovered(false)}
                 >
                     {/* Default View (Truncated) */}
-                    <div className="text-sm text-[var(--color-text-muted)] line-clamp-3 leading-relaxed">
+                    <div className={cn(
+                        "text-sm text-[var(--color-text-muted)] leading-relaxed transition-all duration-300",
+                        isSummaryHovered ? "line-clamp-none" : "line-clamp-3"
+                    )}>
                         {signal.aiSummary ? (
                             <div className="flex flex-col gap-1.5">
                                 <span className="flex gap-2">
                                     <Sparkles className="w-3.5 h-3.5 mt-0.5 text-purple-400 shrink-0" />
-                                    {/* Chinese locale: prefer zh/tw summary | English: show en summary */}
                                     <span className="text-[var(--color-text-muted)] opacity-90">
                                         {displaySummary}
                                     </span>
@@ -433,66 +468,41 @@ export function SignalCard({
                         )}
                     </div>
 
-                    {/* Hover Full View (Absolute Overlay) */}
-                    {/* Hover Full View (Absolute Overlay) */}
-                    {isSummaryHovered && (
-                        <div className="absolute -top-2 -left-2 -right-2 bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg p-4 shadow-2xl z-50 h-auto min-h-[calc(100%+16px)] flex flex-col">
-                            <div className="text-sm text-[var(--color-foreground)] leading-relaxed space-y-2 mb-4">
-                                {signal.aiSummary ? (
-                                    <span className="flex gap-2">
-                                        <Sparkles className="w-3.5 h-3.5 mt-0.5 text-purple-400 shrink-0" />
-                                        {/* Hover: Chinese locale prioritizes zh/tw summary | English shows en summary */}
-                                        <span className="text-[var(--color-text-muted)]">
-                                            {displaySummary}
-                                        </span>
-                                    </span>
-                                ) : (
-                                    signal.summary
+                    {/* Accordion expansion using CSS Grid for smooth animation */}
+                    <div
+                        className="grid transition-[grid-template-rows,opacity] duration-200 ease-out"
+                        style={{ gridTemplateRows: isSummaryHovered ? '1fr' : '0fr' }}
+                    >
+                        <div className={cn(
+                            "overflow-hidden transition-opacity duration-200",
+                            isSummaryHovered ? "opacity-100" : "opacity-0"
+                        )}>
+                            <div className={cn(
+                                "pt-3 mt-3 border-t border-[var(--color-border)]/30",
+                                !isSummaryHovered && "invisible"
+                            )}>
+                                {/* Tags in expanded view */}
+                                {displayTags && displayTags.length > 0 && (
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {displayTags.map((tag, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const url = new URL(window.location.href);
+                                                    url.searchParams.set('tag', tag);
+                                                    window.location.href = url.toString();
+                                                }}
+                                                className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--color-background)]/50 text-[var(--color-text-muted)] border border-[var(--color-border)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/30 transition-colors cursor-pointer"
+                                            >
+                                                #{tag}
+                                            </button>
+                                        ))}
+                                    </div>
                                 )}
                             </div>
-
-                            {/* Tags in Overlay */}
-                            {displayTags && displayTags.length > 0 && (
-                                <div className="mt-auto flex flex-wrap gap-1.5 pt-2 border-t border-[var(--color-border)]/50">
-                                    {displayTags.map((tag, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                const url = new URL(window.location.href);
-                                                url.searchParams.set('tag', tag);
-                                                window.location.href = url.toString();
-                                            }}
-                                            className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--color-background)]/50 text-[var(--color-text-muted)] border border-[var(--color-border)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/30 transition-colors cursor-pointer"
-                                        >
-                                            #{tag}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
                         </div>
-                    )}
-                </div>
-            )}
-
-            {displayTags && displayTags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-4">
-                    {displayTags.map((tag, idx) => (
-                        <button
-                            key={idx}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                // Use window.location to preserve search params if needed, or just router.push
-                                // But since we want to toggle/set tag, simplistic approach:
-                                const url = new URL(window.location.href);
-                                url.searchParams.set('tag', tag);
-                                window.location.href = url.toString();
-                            }}
-                            className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--color-background)]/50 text-[var(--color-text-muted)] border border-[var(--color-border)] hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/30 transition-colors cursor-pointer"
-                        >
-                            #{tag}
-                        </button>
-                    ))}
+                    </div>
                 </div>
             )}
 
@@ -555,7 +565,7 @@ export function SignalCard({
                             }).catch(() => { });
                         }}
                         className="p-2 hover:bg-[var(--color-card-hover)] rounded-full transition-colors text-[var(--color-text-muted)] hover:text-[var(--color-foreground)]"
-                        title={isZh ? "分享卡片" : "Share Card"}
+                        title={t('share', { fallback: isZh ? "分享卡片" : "Share Card" })}
                     >
                         {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
                     </button>

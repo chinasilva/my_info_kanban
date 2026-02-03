@@ -26,6 +26,20 @@ type SignalGroups = {
     custom: Signal[];
 };
 
+interface ColumnConfig {
+    key: string;
+    length: number;
+    props: {
+        title: string;
+        subtitle: string;
+        icon: React.ReactNode;
+        signals: Signal[];
+        colorClass: string;
+        sourceType: string;
+        sourceId?: string | null;
+    };
+}
+
 interface DashboardShellProps {
     signalGroups: SignalGroups;
     locale: string;
@@ -85,6 +99,33 @@ export function DashboardShell({
     };
 
     const [activeTab, setActiveTab] = useState<SourceType>(getInitialTab);
+    const [guestSubscribedIds, setGuestSubscribedIds] = useState<string[] | null>(null);
+
+    // Load guest source preferences
+    useEffect(() => {
+        if (!user) {
+            const stored = localStorage.getItem('guest_subscribed_sources');
+            if (stored) {
+                try {
+                    setGuestSubscribedIds(JSON.parse(stored));
+                } catch (e) {
+                    setGuestSubscribedIds([]);
+                }
+            } else {
+                // Default to all shown if never set
+                setGuestSubscribedIds(null);
+            }
+        }
+    }, [user]);
+
+    // Helper to filter signal groups for guests
+    const filteredSignalGroups = !user && guestSubscribedIds !== null ? {
+        build: signalGroups.build.filter(s => s.source && typeof s.source !== 'string' && guestSubscribedIds.includes(s.source.id)),
+        market: signalGroups.market.filter(s => s.source && typeof s.source !== 'string' && guestSubscribedIds.includes(s.source.id)),
+        news: signalGroups.news.filter(s => s.source && typeof s.source !== 'string' && guestSubscribedIds.includes(s.source.id)),
+        launch: signalGroups.launch.filter(s => s.source && typeof s.source !== 'string' && guestSubscribedIds.includes(s.source.id)),
+        custom: [] // Guest can't have custom sources
+    } : signalGroups;
 
     // Sync state if signalGroups update (e.g. date filter change from server)
     useEffect(() => {
@@ -123,7 +164,7 @@ export function DashboardShell({
     // Desktop Layout
     if (!isMobile) {
         return (
-            <main className="min-h-screen bg-[var(--color-background)] overflow-hidden desktop-only text-[var(--color-foreground)] flex flex-col">
+            <main className="min-h-screen bg-[var(--color-background)] desktop-only text-[var(--color-foreground)] flex flex-col">
                 {/* Desktop Header */}
                 <header className="h-14 border-b border-[var(--color-border)] shrink-0 flex items-center justify-between px-4 bg-[var(--color-background)] z-20">
                     <div className="flex items-center gap-3">
@@ -147,18 +188,16 @@ export function DashboardShell({
                         <ThemeSwitcher locale={locale} />
                         <ShareButton targetId="dashboard-content" locale={locale} />
                         <LanguageSwitcher />
+                        <Link
+                            href={`/${locale}/sources`}
+                            className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--color-text-muted)]
+                                    hover:text-[var(--color-foreground)] hover:bg-[var(--color-card-hover)] rounded-lg transition"
+                        >
+                            <Settings className="w-4 h-4" />
+                            {locale === "zh" ? "管理数据源" : "Manage Sources"}
+                        </Link>
                         {user ? (
-                            <>
-                                <Link
-                                    href={`/${locale}/sources`}
-                                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--color-text-muted)]
-                                            hover:text-[var(--color-foreground)] hover:bg-[var(--color-card-hover)] rounded-lg transition"
-                                >
-                                    <Settings className="w-4 h-4" />
-                                    {locale === "zh" ? "管理数据源" : "Manage Sources"}
-                                </Link>
-                                <UserMenu user={user} />
-                            </>
+                            <UserMenu user={user} />
                         ) : (
                             <Link
                                 href={`/${locale}/login`}
@@ -171,7 +210,7 @@ export function DashboardShell({
                 </header>
 
                 {/* Content Container */}
-                <div id="dashboard-content" className="flex-1 min-h-0 flex flex-col bg-[var(--color-background)] relative">
+                <div id="dashboard-content" className="flex-1 flex flex-col bg-[var(--color-background)] relative">
 
                     {/* Insights Banner */}
                     <div className="px-4 pt-4 shrink-0">
@@ -190,6 +229,7 @@ export function DashboardShell({
                                 colorClass="text-blue-400"
                                 locale={locale}
                                 sourceType="custom"
+                                sourceId={activeSourceId}
                                 isGuest={!user}
                             />
                             {(!singleSourceSignals || singleSourceSignals.length === 0) && (
@@ -201,66 +241,32 @@ export function DashboardShell({
                     ) : (
                         /* Kanban Board Mode (Default) */
                         <div className="kanban-container flex-1 overflow-x-auto px-4 pb-4 gap-4 flex min-w-0">
-                            {signalGroups.build.length > 0 && (
-                                <SignalColumn
-                                    title={t.buildTitle}
-                                    subtitle={t.buildSubtitle}
-                                    icon={<Code2 className="w-5 h-5" />}
-                                    signals={signalGroups.build}
-                                    colorClass="text-blue-400"
-                                    locale={locale}
-                                    sourceType="build"
-                                    isGuest={!user}
-                                />
-                            )}
-                            {signalGroups.market.length > 0 && (
-                                <SignalColumn
-                                    title={t.marketTitle}
-                                    subtitle={t.marketSubtitle}
-                                    icon={<BarChart3 className="w-5 h-5" />}
-                                    signals={signalGroups.market}
-                                    colorClass="text-purple-400"
-                                    locale={locale}
-                                    sourceType="market"
-                                    isGuest={!user}
-                                />
-                            )}
-                            {signalGroups.news.length > 0 && (
-                                <SignalColumn
-                                    title={t.newsTitle}
-                                    subtitle={t.newsSubtitle}
-                                    icon={<Newspaper className="w-5 h-5" />}
-                                    signals={signalGroups.news}
-                                    colorClass="text-orange-400"
-                                    locale={locale}
-                                    sourceType="news"
-                                    isGuest={!user}
-                                />
-                            )}
-                            {signalGroups.launch.length > 0 && (
-                                <SignalColumn
-                                    title={t.launchTitle}
-                                    subtitle={t.launchSubtitle}
-                                    icon={<Rocket className="w-5 h-5" />}
-                                    signals={signalGroups.launch}
-                                    colorClass="text-pink-400"
-                                    locale={locale}
-                                    sourceType="launch"
-                                    isGuest={!user}
-                                />
-                            )}
-                            {signalGroups.custom.length > 0 && (
-                                <SignalColumn
-                                    title={locale === "zh" ? "自定义源" : "Custom"}
-                                    subtitle="RSS & Others"
-                                    icon={<Settings className="w-5 h-5" />}
-                                    signals={signalGroups.custom}
-                                    colorClass="text-green-400"
-                                    locale={locale}
-                                    sourceType="custom"
-                                    isGuest={!user}
-                                />
-                            )}
+                            {(() => {
+                                const columns: ColumnConfig[] = [
+                                    { key: 'build', length: filteredSignalGroups.build.length, props: { title: t.buildTitle, subtitle: t.buildSubtitle, icon: <Code2 className="w-5 h-5" />, signals: filteredSignalGroups.build, colorClass: "text-blue-400", sourceType: "build" } },
+                                    { key: 'market', length: filteredSignalGroups.market.length, props: { title: t.marketTitle, subtitle: t.marketSubtitle, icon: <BarChart3 className="w-5 h-5" />, signals: filteredSignalGroups.market, colorClass: "text-purple-400", sourceType: "market" } },
+                                    { key: 'news', length: filteredSignalGroups.news.length, props: { title: t.newsTitle, subtitle: t.newsSubtitle, icon: <Newspaper className="w-5 h-5" />, signals: filteredSignalGroups.news, colorClass: "text-orange-400", sourceType: "news" } },
+                                    { key: 'launch', length: filteredSignalGroups.launch.length, props: { title: t.launchTitle, subtitle: t.launchSubtitle, icon: <Rocket className="w-5 h-5" />, signals: filteredSignalGroups.launch, colorClass: "text-pink-400", sourceType: "launch" } },
+                                    { key: 'custom', length: filteredSignalGroups.custom.length, props: { title: locale === "zh" ? "自定义源" : "Custom", subtitle: "RSS & Others", icon: <Settings className="w-5 h-5" />, signals: filteredSignalGroups.custom, colorClass: "text-green-400", sourceType: "custom", sourceId: activeSourceId } }
+                                ].filter(col => col.length > 0);
+
+                                return columns.map((col, index) => {
+                                    let position: 'first' | 'middle' | 'last' | 'single' = 'middle';
+                                    if (columns.length === 1) position = 'single';
+                                    else if (index === 0) position = 'first';
+                                    else if (index === columns.length - 1) position = 'last';
+
+                                    return (
+                                        <SignalColumn
+                                            key={col.key}
+                                            {...col.props}
+                                            locale={locale}
+                                            isGuest={!user}
+                                            columnPosition={position}
+                                        />
+                                    );
+                                });
+                            })()}
                         </div>
                     )}
                 </div>
@@ -296,6 +302,7 @@ export function DashboardShell({
                         onRefresh={handleRefresh}
                         isGuest={!user}
                         sourceType="custom"
+                        sourceId={activeSourceId}
                         activeTag={activeTag}
                         activeDate={activeDate}
                         onCountChange={() => { }}
@@ -304,11 +311,12 @@ export function DashboardShell({
                     /* Mobile Default View */
                     <>
                         <MobileSignalList
-                            signals={signalGroups[activeTab] || []}
+                            signals={filteredSignalGroups[activeTab] || []}
                             locale={locale}
                             onRefresh={handleRefresh}
                             isGuest={!user}
                             sourceType={activeTab}
+                            sourceId={activeSourceId}
                             activeTag={activeTag}
                             activeDate={activeDate}
                             onCountChange={handleCountChange}
@@ -317,11 +325,11 @@ export function DashboardShell({
                             activeTab={activeTab}
                             onTabChange={setActiveTab}
                             counts={{
-                                build: signalGroups.build.length,
-                                market: signalGroups.market.length,
-                                news: signalGroups.news.length,
-                                launch: signalGroups.launch.length,
-                                custom: signalGroups.custom.length,
+                                build: filteredSignalGroups.build.length,
+                                market: filteredSignalGroups.market.length,
+                                news: filteredSignalGroups.news.length,
+                                launch: filteredSignalGroups.launch.length,
+                                custom: filteredSignalGroups.custom.length,
                             }}
                             locale={locale}
                         />

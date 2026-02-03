@@ -6,17 +6,21 @@ import { prisma } from "@/lib/prisma/db";
 // 获取所有可用数据源
 export async function GET() {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const userId = session?.user?.id;
+
+    // If guest, only show built-in sources
+    const whereCondition: any = { isActive: true };
+    if (!userId) {
+        whereCondition.isBuiltIn = true;
     }
 
     const sources = await prisma.source.findMany({
-        where: { isActive: true },
+        where: whereCondition,
         include: {
-            subscribers: {
-                where: { userId: session.user.id },
+            subscribers: userId ? {
+                where: { userId: userId },
                 select: { isEnabled: true, displayOrder: true },
-            },
+            } : false,
             _count: {
                 select: { signals: true },
             },
@@ -32,8 +36,8 @@ export async function GET() {
         icon: source.icon,
         isBuiltIn: source.isBuiltIn,
         signalCount: source._count.signals,
-        isSubscribed: source.subscribers.length > 0 && source.subscribers[0].isEnabled,
-        displayOrder: source.subscribers[0]?.displayOrder ?? 999,
+        isSubscribed: userId ? (source.subscribers.length > 0 && source.subscribers[0].isEnabled) : false,
+        displayOrder: userId ? (source.subscribers[0]?.displayOrder ?? 999) : 999,
     }));
 
     return NextResponse.json(result);

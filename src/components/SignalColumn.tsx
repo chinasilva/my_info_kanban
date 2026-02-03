@@ -14,8 +14,10 @@ interface SignalColumnProps {
     colorClass?: string;
     locale?: string;
     sourceType?: string; // For API calls: 'build', 'market', 'news', 'launch'
+    sourceId?: string | null;
     enableInfiniteScroll?: boolean;
     isGuest?: boolean;
+    columnPosition?: 'first' | 'middle' | 'last' | 'single';
 }
 
 export function SignalColumn({
@@ -26,8 +28,10 @@ export function SignalColumn({
     colorClass = "text-accent",
     locale = 'en',
     sourceType,
+    sourceId,
     enableInfiniteScroll = true,
-    isGuest = false
+    isGuest = false,
+    columnPosition = 'middle'
 }: SignalColumnProps) {
     const [signals, setSignals] = useState<Signal[]>(initialSignals);
     const [isLoading, setIsLoading] = useState(false);
@@ -56,7 +60,8 @@ export function SignalColumn({
                 limit: "30",
                 cursor: cursor,
                 sourceType: sourceType,
-                days: "7"
+                days: "7",
+                ...(sourceId ? { sourceId } : {})
             });
 
             const response = await fetch(`/api/signals?${params}`);
@@ -88,7 +93,7 @@ export function SignalColumn({
         } finally {
             setIsLoading(false);
         }
-    }, [isLoading, hasMore, sourceType, cursor]);
+    }, [isLoading, hasMore, sourceType, cursor, sourceId]);
 
 
     // Intersection Observer for infinite scroll
@@ -141,6 +146,7 @@ export function SignalColumn({
                                 variant="compact"
                                 locale={locale}
                                 isGuest={isGuest}
+                                columnPosition={columnPosition}
                             />
                         ))}
 

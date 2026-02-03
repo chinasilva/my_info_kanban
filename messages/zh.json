@@ -63,5 +63,9 @@
     },
     "ConfirmDialog": {
         "loading": "处理中..."
+    },
+    "SignalCard": {
+        "viewDetails": "查看详情 →",
+        "share": "分享卡片"
     }
 }

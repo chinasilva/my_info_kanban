@@ -63,5 +63,9 @@
     },
     "ConfirmDialog": {
         "loading": "Loading..."
+    },
+    "SignalCard": {
+        "viewDetails": "View details →",
+        "share": "Share Card"
     }
 }

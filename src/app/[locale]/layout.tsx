@@ -10,6 +10,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { ReadingProvider } from "@/context/ReadingContext";
 
 import { GlobalReadingIndicator } from "@/components/GlobalReadingIndicator";
+import { NextAuthProvider } from "@/components/NextAuthProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -65,18 +66,20 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <NextIntlClientProvider messages={messages}>
-          <ThemeProvider>
-            <SignalProvider>
-              <ReadingProvider>
-                <SignalDetailSheet />
-                <GlobalReadingIndicator />
-                {children}
-              </ReadingProvider>
-              <Analytics />
-            </SignalProvider>
-          </ThemeProvider>
-        </NextIntlClientProvider>
+        <NextAuthProvider>
+          <NextIntlClientProvider messages={messages}>
+            <ThemeProvider>
+              <SignalProvider>
+                <ReadingProvider>
+                  <SignalDetailSheet />
+                  <GlobalReadingIndicator />
+                  {children}
+                </ReadingProvider>
+                <Analytics />
+              </SignalProvider>
+            </ThemeProvider>
+          </NextIntlClientProvider>
+        </NextAuthProvider>
       </body>
     </html>
   );
