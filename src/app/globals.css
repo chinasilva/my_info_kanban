@@ -72,7 +72,7 @@ body {
 /* Kanban Container */
 .kanban-container {
   display: flex;
-  height: 100vh;
+  height: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 0;

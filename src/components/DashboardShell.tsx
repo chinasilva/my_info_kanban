@@ -164,7 +164,7 @@ export function DashboardShell({
     // Desktop Layout
     if (!isMobile) {
         return (
-            <main className="min-h-screen bg-[var(--color-background)] desktop-only text-[var(--color-foreground)] flex flex-col">
+            <main className="h-screen overflow-hidden bg-[var(--color-background)] desktop-only text-[var(--color-foreground)] flex flex-col">
                 {/* Desktop Header */}
                 <header className="h-14 border-b border-[var(--color-border)] shrink-0 flex items-center justify-between px-4 bg-[var(--color-background)] z-20">
                     <div className="flex items-center gap-3">
