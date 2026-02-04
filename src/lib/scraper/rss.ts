@@ -4,9 +4,45 @@ import * as cheerio from "cheerio";
 export abstract class RssScraper extends BaseScraper {
     abstract rssUrl: string;
 
+    private async fetchWithRetry(url: string, retries = 2): Promise<Response> {
+        const headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+        };
+
+        for (let attempt = 0; attempt <= retries; attempt++) {
+            try {
+                const response = await fetch(url, {
+                    headers,
+                    signal: AbortSignal.timeout(20000), // Increase timeout to 20s
+                });
+                if (response.ok) {
+                    return response;
+                }
+                // 4xx 错误不重试
+                if (response.status >= 400 && response.status < 500) {
+                    throw new Error(`${this.name} RSS returned ${response.status}`);
+                }
+                // 5xx 错误继续重试
+                if (attempt < retries) {
+                    console.log(`Retry ${attempt + 1}/${retries} for ${this.name}...`);
+                    await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+                }
+            } catch (error: any) {
+                if (attempt >= retries) throw error;
+                console.log(`Retry ${attempt + 1}/${retries} for ${this.name} due to: ${error.message}`);
+                await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+            }
+        }
+        throw new Error(`${this.name} RSS fetch failed after ${retries} retries`);
+    }
+
     async fetch(): Promise<ScrapedSignal[]> {
         try {
-            const response = await fetch(this.rssUrl);
+            const response = await this.fetchWithRetry(this.rssUrl);
             if (!response.ok) {
                 throw new Error(`${this.name} RSS returned ${response.status}`);
             }
