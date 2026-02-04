@@ -97,27 +97,43 @@ export class ScraperRunner {
 
                 for (const signal of signals) {
                     try {
-                        await prisma.signal.upsert({
+                        // 先检查是否存在，以区分 new 和 updated
+                        const existing = await prisma.signal.findUnique({
                             where: { url: signal.url },
-                            update: {
-                                score: signal.score,
-                                ...(signal.summary !== undefined ? { summary: signal.summary } : {}),
-                                ...(signal.metadata !== undefined ? { metadata: signal.metadata } : {}),
-                            },
-                            create: {
-                                title: signal.title,
-                                url: signal.url,
-                                score: signal.score,
-                                sourceId: sourceId,
-                                category: signal.category,
-                                externalId: signal.externalId,
-                                summary: signal.summary,
-                                metadata: (signal.metadata as any) || {},
-                            },
+                            select: { id: true },
                         });
+
+                        if (existing) {
+                            // 更新现有记录
+                            await prisma.signal.update({
+                                where: { url: signal.url },
+                                data: {
+                                    score: signal.score,
+                                    ...(signal.summary !== undefined ? { summary: signal.summary } : {}),
+                                    ...(signal.metadata !== undefined ? { metadata: signal.metadata } : {}),
+                                },
+                            });
+                            results.updated++;
+                        } else {
+                            // 创建新记录
+                            await prisma.signal.create({
+                                data: {
+                                    title: signal.title,
+                                    url: signal.url,
+                                    score: signal.score,
+                                    sourceId: sourceId,
+                                    category: signal.category,
+                                    externalId: signal.externalId,
+                                    summary: signal.summary,
+                                    metadata: (signal.metadata as any) || {},
+                                },
+                            });
+                            results.new++;
+                        }
                         results.total++;
                     } catch (e) {
                         console.error(`Error saving signal ${signal.url}:`, e);
+                        results.errors++;
                     }
                 }
 
