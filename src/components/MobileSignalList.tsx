@@ -103,7 +103,7 @@ export function MobileSignalList({
                 limit: "15",
                 cursor: cursor,
                 sourceType: sourceType,
-                days: "7", // Default to same logic as PC
+                // Note: No days limit for infinite scroll - load all historical data
                 ...(sourceId ? { sourceId } : {})
             });
 

@@ -84,6 +84,10 @@ body {
   min-height: 0;
   -webkit-min-height: 0;
   /* Safari compatibility */
+  /* Prevent scroll events from bubbling to parent */
+  overscroll-behavior: contain;
+  /* Create isolated stacking context */
+  isolation: isolate;
 }
 
 .kanban-column {
@@ -127,10 +131,16 @@ body {
   -webkit-min-height: 0;
   /* Safari compatibility */
   overflow-y: auto;
+  overflow-x: hidden;
   /* Safari smooth scrolling */
   -webkit-overflow-scrolling: touch;
   /* Contain scroll to prevent parent scroll interference */
   overscroll-behavior-y: contain;
+  overscroll-behavior-x: none;
+  /* Mobile: Only allow vertical pan gestures */
+  touch-action: pan-y;
+  /* Create isolated stacking context for scroll */
+  isolation: isolate;
   padding: 0.5rem;
   scrollbar-width: thin;
   scrollbar-color: var(--color-border) transparent;

@@ -38,6 +38,7 @@ export function SignalColumn({
     const [hasMore, setHasMore] = useState(true);
     const [cursor, setCursor] = useState<string | null>(null);
     const loaderRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null); // Reference to the scroll container
 
     // Initialize cursor from initial signals
     useEffect(() => {
@@ -60,7 +61,7 @@ export function SignalColumn({
                 limit: "30",
                 cursor: cursor,
                 sourceType: sourceType,
-                days: "7",
+                // Note: No days limit for infinite scroll - load all historical data
                 ...(sourceId ? { sourceId } : {})
             });
 
@@ -100,13 +101,21 @@ export function SignalColumn({
     useEffect(() => {
         if (!enableInfiniteScroll || !sourceType) return;
 
+        // Use scroll container as the root for accurate intersection detection
+        const scrollContainer = scrollContainerRef.current;
+        if (!scrollContainer) return;
+
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting && hasMore && !isLoading) {
                     loadMore();
                 }
             },
-            { threshold: 0.1 }
+            {
+                root: scrollContainer, // Critical: Use scroll container as root, not viewport
+                rootMargin: '200px',   // Load more when 200px from bottom (better UX)
+                threshold: 0.1
+            }
         );
 
         if (loaderRef.current) {
@@ -117,7 +126,7 @@ export function SignalColumn({
     }, [enableInfiniteScroll, sourceType, hasMore, isLoading, loadMore]);
 
     return (
-        <div className="kanban-column border-r border-[var(--color-border)]">
+        <div className="kanban-column isolate border-r border-[var(--color-border)]">
             <header className="column-header bg-[var(--color-card)] border-b border-[var(--color-border)]">
                 <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg bg-[var(--color-background)]/50 ${colorClass}`}>
@@ -133,7 +142,7 @@ export function SignalColumn({
                 </div>
             </header>
 
-            <div className="column-scroll-area">
+            <div ref={scrollContainerRef} className="column-scroll-area">
                 {signals.length > 0 ? (
                     <>
                         {signals.map((signal) => (

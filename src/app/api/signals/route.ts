@@ -107,14 +107,9 @@ export async function GET(request: NextRequest) {
             gte: startDate,
             lte: endDate
         };
-    } else {
-        // Default: Past N days
-        const dateFilter = new Date();
-        dateFilter.setDate(dateFilter.getDate() - days);
-        whereClause.createdAt = {
-            gte: dateFilter
-        };
     }
+    // Note: If no date and no explicit days param in URL, skip time filtering for infinite scroll
+    // This allows loading all historical data
 
     // Tag Filtering Logic
     // Only apply tag filter if NOT filtering by specific sourceId (according to "pure timeline" spec)
