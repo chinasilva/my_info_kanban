@@ -1,5 +1,5 @@
 export interface LLMConfig {
-    provider: 'gemini' | 'deepseek' | 'openai' | 'openrouter' | 'zhipu';
+    provider: 'gemini' | 'deepseek' | 'openai' | 'openrouter' | 'zhipu' | 'minimax';
     apiKey: string;
     baseUrl?: string;
     model?: string;
