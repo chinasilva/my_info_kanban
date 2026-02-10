@@ -22,7 +22,7 @@ export class MiniMaxClient implements LLMClient {
     constructor(apiKey: string, baseUrl?: string, model?: string) {
         this.apiKey = apiKey;
         this.baseUrl = baseUrl || 'https://api.minimaxi.com/anthropic';
-        this.model = model || 'abab6.5s-chat';
+        this.model = model || 'claude-sonnet-4-20250514';
     }
 
     private async callApi(endpoint: string, body: object): Promise<any> {
@@ -67,12 +67,13 @@ Output JSON format:
 
         while (retries <= maxRetries) {
             try {
-                const response = await this.callApi('/text/chatcompletion_v2', {
+                const response = await this.callApi('/v1/messages', {
                     model: this.model,
                     messages: [{ role: 'user', content: prompt }],
+                    max_tokens: 1024,
                 });
 
-                const contentStr = response.choices?.[0]?.message?.content;
+                const contentStr = response.content?.[0]?.text;
                 if (!contentStr) throw new Error('No content from MiniMax');
 
                 return JSON.parse(contentStr) as ProcessingResult;
@@ -107,11 +108,12 @@ Output JSON format:
 
     async generate(prompt: string): Promise<string> {
         try {
-            const response = await this.callApi('/text/chatcompletion_v2', {
+            const response = await this.callApi('/v1/messages', {
                 model: this.model,
                 messages: [{ role: 'user', content: prompt }],
+                max_tokens: 1024,
             });
-            return response.choices?.[0]?.message?.content || '';
+            return response.content?.[0]?.text || '';
         } catch (error) {
             console.error('MiniMax Generate Error:', error);
             throw error;
@@ -120,7 +122,7 @@ Output JSON format:
 
     async *stream(prompt: string): AsyncIterable<string> {
         try {
-            const response = await fetch(`${this.baseUrl}/text/chatcompletion_v2`, {
+            const response = await fetch(`${this.baseUrl}/v1/messages`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${this.apiKey}`,
@@ -159,7 +161,7 @@ Output JSON format:
 
                         try {
                             const parsed = JSON.parse(data);
-                            const content = parsed.choices?.[0]?.delta?.content || parsed.choices?.[0]?.message?.content || '';
+                            const content = parsed.delta?.text || parsed.content?.[0]?.text || '';
                             if (content) {
                                 yield content;
                             }
