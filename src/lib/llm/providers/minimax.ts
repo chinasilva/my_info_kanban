@@ -74,8 +74,13 @@ Output JSON format:
                 });
 
                 console.log('MiniMax raw response:', JSON.stringify(response, null, 2));
-                const contentStr = response.content?.[0]?.text;
+                // Find the text content block (skip thinking block)
+                const textBlock = response.content?.find((block: any) => block.type === 'text');
+                let contentStr = textBlock?.text?.trim();
                 if (!contentStr) throw new Error('No content from MiniMax');
+
+                // Remove markdown code block wrapper if present
+                contentStr = contentStr.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
 
                 return JSON.parse(contentStr) as ProcessingResult;
             } catch (error: any) {
@@ -114,7 +119,8 @@ Output JSON format:
                 messages: [{ role: 'user', content: prompt }],
                 max_tokens: 1024,
             });
-            return response.content?.[0]?.text || '';
+            const textBlock = response.content?.find((block: any) => block.type === 'text');
+            return textBlock?.text?.trim()?.replace(/^```json?\n?/, '').replace(/\n?```$/, '') || '';
         } catch (error) {
             console.error('MiniMax Generate Error:', error);
             throw error;
