@@ -1,6 +1,7 @@
 import { LLMClient } from './types';
 import { OpenAIClient } from './providers/openai';
 import { GeminiClient } from './providers/gemini';
+import { MiniMaxClient } from './providers/minimax';
 
 export class LLMFactory {
     static createClient(): LLMClient | null {
@@ -41,7 +42,7 @@ export class LLMFactory {
                     process.env.LLM_MODEL
                 );
             case 'minimax':
-                return new OpenAIClient(
+                return new MiniMaxClient(
                     apiKey,
                     process.env.LLM_BASE_URL,
                     process.env.LLM_MODEL
