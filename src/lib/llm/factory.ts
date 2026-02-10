@@ -9,7 +9,8 @@ export class LLMFactory {
             provider === 'gemini' ? 'GEMINI_API_KEY' :
                 provider === 'deepseek' ? 'DEEPSEEK_API_KEY' :
                     provider === 'openrouter' ? 'OPENROUTER_API_KEY' :
-                        'OPENAI_API_KEY'
+                        provider === 'zhipu' ? 'ZHIPU_API_KEY' :
+                            'OPENAI_API_KEY'
         ];
 
         if (!apiKey) {
@@ -31,6 +32,12 @@ export class LLMFactory {
                     apiKey,
                     process.env.LLM_BASE_URL || 'https://openrouter.ai/api/v1',
                     process.env.LLM_MODEL || 'google/gemini-2.5-pro-exp-03-25:free'
+                );
+            case 'zhipu':
+                return new OpenAIClient(
+                    apiKey,
+                    process.env.LLM_BASE_URL,
+                    process.env.LLM_MODEL
                 );
             case 'openai':
                 return new OpenAIClient(
