@@ -73,6 +73,7 @@ Output JSON format:
                     max_tokens: 1024,
                 });
 
+                console.log('MiniMax raw response:', JSON.stringify(response, null, 2));
                 const contentStr = response.content?.[0]?.text;
                 if (!contentStr) throw new Error('No content from MiniMax');
 
