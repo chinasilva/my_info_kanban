@@ -79,7 +79,7 @@ export default async function DashboardPage(props: {
     endDate.setHours(23, 59, 59, 999);
   } else {
     startDate = new Date();
-    startDate.setDate(startDate.getDate() - 7);
+    startDate.setDate(startDate.getDate() - 30);
     endDate = new Date();
   }
 
