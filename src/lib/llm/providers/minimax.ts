@@ -1,4 +1,4 @@
-import { LLMClient, ProcessingResult } from '../types';
+import { LLMClient, ProcessingResult, BatchProcessingResult } from '../types';
 
 interface MiniMaxMessage {
     role: 'user' | 'assistant' | 'system';
@@ -84,6 +84,17 @@ Output JSON format:
 
                 return JSON.parse(contentStr) as ProcessingResult;
             } catch (error: any) {
+                // Handle JSON parse errors with retry
+                if (error instanceof SyntaxError || error?.message?.includes('JSON')) {
+                    console.warn(`JSON parse error. Retrying attempt ${retries + 1}/${maxRetries}...`);
+                    if (retries < maxRetries) {
+                        const delay = baseDelay * Math.pow(2, retries);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        retries++;
+                        continue;
+                    }
+                }
+
                 if (error?.status === 429 || error?.message?.includes('rate_limit')) {
                     console.warn(`Rate limit exceeded. Retrying attempt ${retries + 1}/${maxRetries}...`);
                     if (retries === maxRetries) {
@@ -110,6 +121,93 @@ Output JSON format:
             aiSummaryZh: '',
             titleTranslated: ''
         };
+    }
+
+    async generateSummaryAndCategories(
+        signals: Array<{id: string, title: string, content: string}>
+    ): Promise<BatchProcessingResult[]> {
+        // 构建批量 prompt
+        const signalsText = signals.map((s, i) =>
+            `${i + 1}. Title: ${s.title}\n   Content: ${s.content || 'No content provided, please infer from title.'}`
+        ).join('\n\n');
+
+        const prompt = `
+You are an expert content curator. Analyze the following content items and provide concise summaries and relevant categories for EACH item.
+
+${signalsText}
+
+Output JSON array format (one object per item, in the same order):
+[
+    {"index": 1, "summary": "...", "category": "...", "tags": [], "tagsZh": [], "aiSummaryZh": "...", "titleTranslated": "..."},
+    {"index": 2, "summary": "...", "category": "...", ...}
+]
+Each summary should be max 2 sentences. Category must be one of: AI, Crypto, Tech, Startups, Design, Other.
+`;
+
+        let retries = 0;
+        const maxRetries = 5;
+        const baseDelay = 1000;
+
+        while (retries <= maxRetries) {
+            try {
+                // 单次 API 调用获取所有结果
+                const response = await this.callApi('/v1/messages', {
+                    model: this.model,
+                    messages: [{ role: 'user', content: prompt }],
+                    max_tokens: 8192,  // 增大输出限制
+                });
+
+                // 解析响应并关联 signalId
+                const textBlock = response.content?.find((block: any) => block.type === 'text');
+                let contentStr = textBlock?.text?.trim();
+                if (!contentStr) throw new Error('No content from MiniMax');
+
+                // Remove markdown code block wrapper if present
+                contentStr = contentStr.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+
+                const results = JSON.parse(contentStr);
+
+                return results.map((r: any) => ({
+                    signalId: signals[r.index - 1].id,
+                    summary: r.summary,
+                    category: r.category,
+                    tags: r.tags || [],
+                    tagsZh: r.tagsZh || [],
+                    aiSummaryZh: r.aiSummaryZh,
+                    titleTranslated: r.titleTranslated
+                }));
+            } catch (error: any) {
+                // Handle JSON parse errors with retry
+                if (error instanceof SyntaxError || error?.message?.includes('JSON')) {
+                    console.warn(`Batch JSON parse error. Retrying attempt ${retries + 1}/${maxRetries}...`);
+                    if (retries < maxRetries) {
+                        const delay = baseDelay * Math.pow(2, retries);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        retries++;
+                        continue;
+                    }
+                }
+
+                if (error?.status === 429 || error?.message?.includes('rate_limit')) {
+                    console.warn(`Batch rate limit exceeded. Retrying attempt ${retries + 1}/${maxRetries}...`);
+                    if (retries === maxRetries) {
+                        console.error('Max retries reached for rate limiting.');
+                        break;
+                    }
+
+                    const delay = baseDelay * Math.pow(2, retries);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    retries++;
+                    continue;
+                }
+
+                console.error('MiniMax Batch LLM Error:', error);
+                break;
+            }
+        }
+
+        // Return empty array on failure
+        return [];
     }
 
     async generate(prompt: string): Promise<string> {

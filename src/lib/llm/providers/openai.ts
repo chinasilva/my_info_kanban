@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
-import { LLMClient, ProcessingResult } from '../types';
+import { LLMClient, ProcessingResult, BatchProcessingResult } from '../types';
+import pLimit from 'p-limit';
 
 export class OpenAIClient implements LLMClient {
     private client: OpenAI;
@@ -79,6 +80,28 @@ Output JSON format:
             titleTranslated: ''
         };
     }
+
+    async generateSummaryAndCategories(
+        signals: Array<{id: string, title: string, content: string}>
+    ): Promise<BatchProcessingResult[]> {
+        // 使用 p-limit 限制并发数量
+        const limit = pLimit(5);
+
+        const results = await Promise.all(
+            signals.map(signal =>
+                limit(async () => {
+                    const result = await this.generateSummaryAndCategory(signal.title, signal.content);
+                    return {
+                        signalId: signal.id,
+                        ...result
+                    };
+                })
+            )
+        );
+
+        return results;
+    }
+
     async generate(prompt: string): Promise<string> {
         try {
             const completion = await this.client.chat.completions.create({
