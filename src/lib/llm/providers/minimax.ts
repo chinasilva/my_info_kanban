@@ -73,7 +73,7 @@ Output JSON format:
                     max_tokens: 1024,
                 });
 
-                console.log('MiniMax raw response:', JSON.stringify(response, null, 2));
+                // console.log('MiniMax raw response:', JSON.stringify(response, null, 2));
                 // Find the text content block (skip thinking block)
                 const textBlock = response.content?.find((block: any) => block.type === 'text');
                 let contentStr = textBlock?.text?.trim();

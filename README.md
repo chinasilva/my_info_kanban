@@ -1,38 +1,151 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# High-Signal Aggregator
 
-## Getting Started
+<p align="center">
+  <img src="https://img.shields.io/github/stars/yourusername/high_quality_info" alt="stars">
+  <img src="https://img.shields.io/github/license/yourusername/high_quality_info" alt="license">
+  <img src="https://img.shields.io/github/issues/yourusername/high_quality_info" alt="issues">
+</p>
 
-First, run the development server:
+A curated news and content aggregation platform powered by AI. High-Signal Aggregator collects signals from various tech and news sources, uses AI for content enrichment, and delivers personalized high-quality information streams.
+
+[English](./README.md) | [中文](./README_zh.md)
+
+## Features
+
+- **Multi-Source Aggregation**: Collects content from HackerNews, GitHub Trending, RSS feeds, and more
+- **AI-Powered Enrichment**: Uses LLM to summarize, categorize, and extract key insights from articles
+- **Personalized Filtering**: Custom source groups (build, market, news, launch, custom)
+- **Multi-language Support**: English, Simplified Chinese, Traditional Chinese
+- **Podcast Generation**: Convert articles to podcast scripts using AI
+- **User Authentication**: Support for email, Google, and GitHub OAuth
+- **Modern UI**: Built with React 19, Tailwind CSS 4, and Radix UI
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript
+- **Database**: PostgreSQL + Prisma 7
+- **Authentication**: NextAuth.js v4
+- **Styling**: Tailwind CSS 4 + Radix UI + Framer Motion
+- **LLM Providers**: OpenAI, Gemini, DeepSeek, OpenRouter, Zhipu, MiniMax
+- **Caching**: Redis (ioredis)
+- **i18n**: next-intl
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- PostgreSQL database
+- Redis (optional, for caching)
+- At least one LLM API key (OpenAI, Gemini, etc.)
+
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/high_quality_info.git
+cd high_quality_info
+
+# Install dependencies
+npm install
+
+# Configure environment variables
+cp .env.example .env
+# Edit .env with your configuration
+
+# Initialize database
+npx prisma db push
+npm run db:seed
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-## npm run dev -- -p 3005
+### Environment Variables
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create a `.env` file with the following variables:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/high_quality_info"
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Auth (NextAuth)
+NEXTAUTH_SECRET="your-secret-key"
+NEXTAUTH_URL="http://localhost:3000"
 
-## Learn More
+# OAuth (optional)
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+GITHUB_CLIENT_ID=""
+GITHUB_CLIENT_SECRET="
 
-To learn more about Next.js, take a look at the following resources:
+# LLM Provider
+LLM_PROVIDER="openai"
+OPENAI_API_KEY=""
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Redis (optional)
+REDIS_URL="redis://localhost:6379"
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
 
-## Deploy on Vercel
+```
+src/
+├── app/                 # Next.js App Router
+│   ├── api/            # API routes
+│   └── [locale]/       # Internationalized pages
+├── components/         # React components
+├── lib/
+│   ├── scraper/        # Data source scrapers
+│   ├── llm/            # LLM integration
+│   └── auth/           # Authentication
+└── schemas/            # Zod validation schemas
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Available Scripts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run dev             # Start development server
+npm run build           # Build for production
+npm run start           # Start production server
+npm run lint            # Run ESLint
+npx prisma studio       # Open Prisma database GUI
+```
+
+## Deployment
+
+### Vercel (Recommended)
+
+1. Fork this repository
+2. Import to Vercel
+3. Configure environment variables
+4. Deploy
+
+### Docker
+
+```bash
+docker build -t high-signal-aggregator .
+docker run -p 3000:3000 high-signal-aggregator
+```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- [Next.js](https://nextjs.org)
+- [Prisma](https://prisma.io)
+- [NextAuth.js](https://next-auth.js.org)
+- [Tailwind CSS](https://tailwindcss.com)

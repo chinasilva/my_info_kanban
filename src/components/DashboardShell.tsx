@@ -16,6 +16,7 @@ import { ThemeSwitcher } from "./ThemeSwitcher";
 import { DatePicker } from "./DatePicker";
 import { DailyInsights } from "./DailyInsights";
 import { ShareButton } from "./ShareButton";
+import { PodcastButton } from "./PodcastButton";
 
 // Type definition for signal groups
 type SignalGroups = {
@@ -185,6 +186,7 @@ export function DashboardShell({
                     </div>
                     <div className="flex items-center gap-3">
                         <DatePicker currentDate={activeDate} locale={locale} />
+                        <PodcastButton locale={locale} />
                         <ThemeSwitcher locale={locale} />
                         <ShareButton targetId="dashboard-content" locale={locale} />
                         <LanguageSwitcher />
