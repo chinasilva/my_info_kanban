@@ -14,6 +14,7 @@ ALTER TABLE IF EXISTS "UserSignal" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS "Insight" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS "AICache" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS "AgentApiKey" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "_InsightToSignal" ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================
 -- User: 用户只能访问自己的数据
@@ -218,3 +219,22 @@ CREATE INDEX IF NOT EXISTS "idx_usersource_userid" ON "UserSource" ("userId");
 CREATE INDEX IF NOT EXISTS "idx_usersignal_userid" ON "UserSignal" ("userId");
 CREATE INDEX IF NOT EXISTS "idx_agentapikey_userid" ON "AgentApiKey" ("userId");
 CREATE INDEX IF NOT EXISTS "idx_agentapikey_key" ON "AgentApiKey" ("key");
+
+
+-- ============================================================
+-- _InsightToSignal: Prisma 隐式多对多关系表
+-- ============================================================
+
+-- 公开可读（通过 Signal 和 Insight 关联访问）
+CREATE POLICY "_InsightToSignal is public readable" ON "_InsightToSignal"
+  FOR SELECT USING (true);
+
+-- 禁止写入（通过隐式关系管理）
+CREATE POLICY "_InsightToSignal block insert" ON "_InsightToSignal"
+  FOR INSERT WITH CHECK (false);
+
+CREATE POLICY "_InsightToSignal block update" ON "_InsightToSignal"
+  FOR UPDATE USING (false);
+
+CREATE POLICY "_InsightToSignal block delete" ON "_InsightToSignal"
+  FOR DELETE USING (false);
