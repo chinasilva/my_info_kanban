@@ -55,9 +55,16 @@ export class SubstackScraper extends BaseScraper {
     }
 
     protected cleanText(text: string): string {
-        if (!text) return "";
+        if (!text) return '';
+
+        // Remove CDATA if present
         text = text.replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1');
-        text = text.replace(/<[^>]*>?/gm, "");
-        return text.trim().substring(0, 300) + (text.length > 300 ? "..." : "");
+
+        // Use cheerio to safely remove HTML tags
+        const $ = cheerio.load(text, null, false);
+        const plainText = $.text();
+
+        // Truncate
+        return plainText.trim().substring(0, 300) + (plainText.length > 300 ? "..." : "");
     }
 }

@@ -65,7 +65,13 @@ export class ProductHuntScraper extends BaseScraper {
     }
 
     private cleanContent(html: string): string {
-        // Strip HTML tags for summary
-        return html.replace(/<[^>]*>?/gm, "").trim().substring(0, 300) + (html.length > 300 ? "..." : "");
+        if (!html) return '';
+
+        // Use cheerio to safely remove HTML tags
+        const $ = cheerio.load(html, null, false);
+        const plainText = $.text();
+
+        // Truncate
+        return plainText.trim().substring(0, 300) + (plainText.length > 300 ? "..." : "");
     }
 }
