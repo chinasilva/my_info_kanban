@@ -2,7 +2,8 @@
 
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { LogOut, User, ChevronDown } from "lucide-react";
+import { LogOut, User, ChevronDown, Bot } from "lucide-react";
+import Link from "next/link";
 
 interface UserMenuProps {
     user: {
@@ -60,9 +61,17 @@ export function UserMenu({ user }: UserMenuProps) {
                             </p>
                         </div>
                         <div className="py-1">
+                            <Link
+                                href="/agent-setup"
+                                className="flex items-center gap-3 px-4 py-2 text-sm text-[var(--color-foreground)]
+                                           hover:bg-[var(--color-card-hover)] transition"
+                            >
+                                <Bot className="w-4 h-4" />
+                                Agent接入
+                            </Link>
                             <button
                                 onClick={() => signOut({ callbackUrl: "/login" })}
-                                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-500 
+                                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-500
                                            hover:bg-red-500/10 transition"
                             >
                                 <LogOut className="w-4 h-4" />

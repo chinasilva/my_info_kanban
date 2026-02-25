@@ -31,6 +31,62 @@
 - **缓存**：Redis (ioredis)
 - **国际化**：next-intl
 
+## Agent / MCP 集成
+
+支持 **MCP (Model Context Protocol)** 协议，允许外部 AI Agent 直接调用部署网站的功能。
+
+### MCP 端点
+
+| 端点 | 说明 |
+|------|------|
+| `/.well-known/mcp.json` | Agent 自动发现（MCP Well-Known） |
+| `/api/mcp.json` | 工具清单（Manifest） |
+| `/api/mcp` | JSON-RPC 入口（实际调用） |
+| `/api/agent/keys` | API Key 管理 |
+| `/agent-setup` | Agent 设置页面 |
+
+### 可用工具（9个）
+
+| 工具名称 | 说明 |
+|---------|------|
+| `get_signals` | 获取信号列表，支持按来源类型、时间范围、标签筛选 |
+| `get_signal_detail` | 获取单个信号的详细内容 |
+| `get_sources` | 获取可用的数据源列表及其订阅状态 |
+| `read_article` | AI 读取文章内容，返回摘要或翻译 |
+| `mark_as_read` | 标记信号为已读 |
+| `favorite_signal` | 收藏或取消收藏信号 |
+| `subscribe_source` | 订阅或取消订阅数据源 |
+| `search_signals` | 搜索信号（标题、摘要、标签） |
+| `get_insights` | 获取每日洞察（趋势分析、因果分析等） |
+
+### 认证方式
+
+通过 `Authorization` Header 传递 Bearer Token：
+
+```bash
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  https://your-domain.com/api/mcp
+```
+
+### Claude Desktop 配置示例
+
+在 `claude_desktop_config.json` 中添加：
+
+```json
+{
+  "mcpServers": {
+    "high-quality-info": {
+      "url": "https://your-domain.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+详细配置请访问 [/agent-setup](/agent-setup) 页面。
+
 ## 快速开始
 
 ### 前置要求

@@ -31,6 +31,62 @@ A curated news and content aggregation platform powered by AI. High-Signal Aggre
 - **Caching**: Redis (ioredis)
 - **i18n**: next-intl
 
+## Agent / MCP Integration
+
+Supports **MCP (Model Context Protocol)** for external AI Agents to directly invoke deployed website features.
+
+### MCP Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `/.well-known/mcp.json` | Agent Auto-Discovery (MCP Well-Known) |
+| `/api/mcp.json` | Tool Manifest |
+| `/api/mcp` | JSON-RPC Entry Point |
+| `/api/agent/keys` | API Key Management |
+| `/agent-setup` | Agent Setup Page |
+
+### Available Tools (9)
+
+| Tool Name | Description |
+|-----------|-------------|
+| `get_signals` | Get signal filtering by source type list with, date range, tags |
+| `get_signal_detail` | Get detailed content of a single signal |
+| `get_sources` | Get available sources and subscription status |
+| `read_article` | AI reads article and returns summary or translation |
+| `mark_as_read` | Mark signal as read |
+| `favorite_signal` | Favorite or unfavorite a signal |
+| `subscribe_source` | Subscribe or unsubscribe from a source |
+| `search_signals` | Search signals by title, summary, tags |
+| `get_insights` | Get daily insights (trend analysis, cause analysis, etc.) |
+
+### Authentication
+
+Pass Bearer Token via `Authorization` header:
+
+```bash
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  https://your-domain.com/api/mcp
+```
+
+### Claude Desktop Configuration
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "high-quality-info": {
+      "url": "https://your-domain.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+Visit [/agent-setup](/agent-setup) for detailed configuration.
+
 ## Quick Start
 
 ### Prerequisites
