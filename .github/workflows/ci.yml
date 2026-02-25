@@ -27,7 +27,7 @@ jobs:
         run: npx prisma generate
 
       - name: Build
-        run: npm run build
+        run: DATABASE_URL="postgresql://localhost:5432/test" npm run build
 
       - name: Lint
         run: npm run lint
