@@ -10,17 +10,23 @@ export const runtime = "nodejs";
  * 来发现网站是否支持 MCP 服务
  *
  * 访问方式: GET /.well-known/mcp.json
+ *
+ * 注意: 这是 MCP 服务器，不是 Signal 消息应用
  */
 export async function GET() {
   // 返回 MCP 服务发现信息
   const discovery = {
+    // 明确标识这是 MCP 服务器
+    mcp: "server",
+
     // MCP 规范要求的基本信息
-    name: "high-quality-info",
+    name: "High Quality Info Aggregator",
     version: "1.0.0",
-    description: "AI News Aggregator - 高质量信息聚合器",
+    description:
+      "MCP Server for high-quality tech/news signal aggregation - 使用 AI 从多个来源聚合高质量技术新闻和信号",
 
     // MCP 服务器地址
-    url: "https://signal.binaryworks.app/api/mcp",
+    url: "/api/mcp",
 
     // 支持的协议版本
     protocolVersion: "2024-11-05",
@@ -40,7 +46,16 @@ export async function GET() {
     },
 
     // 工具列表的 Manifest 地址
-    manifest: "https://signal.binaryworks.app/api/mcp.json",
+    manifest: "/api/mcp.json",
+
+    // 使用说明
+    usage: {
+      authentication:
+        "需要通过 Authorization header 传递 API Key，例如: Authorization: Bearer YOUR_API_KEY",
+      getTools:
+        "访问 /api/mcp.json 获取可用工具列表",
+      callTool: "通过 POST /api/mcp 调用工具",
+    },
 
     // 文档地址
     documentation: "https://signal.binaryworks.app/agent-setup",
@@ -50,8 +65,10 @@ export async function GET() {
     headers: {
       "Cache-Control": "public, max-age=3600",
       "Access-Control-Allow-Origin": "*",
-      // 明确告知这是 JSON 格式
       "Content-Type": "application/json",
+      // 明确标识这是 MCP 服务器
+      "X-MCP-Server": "high-quality-info",
+      "X-MCP-Version": "2024-11-05",
     },
   });
 }
