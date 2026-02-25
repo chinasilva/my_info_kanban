@@ -31,6 +31,7 @@ model User {
   sessions      Session[]
   sources       UserSource[]
   signals       UserSignal[]
+  agentApiKeys  AgentApiKey[]
   
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
@@ -177,19 +178,39 @@ model AICache {
   id           String   @id @default(cuid())
   url          String   @unique
   title        String?  // Articles title for history display
-  
+
   // 存储不同模式的结果
   summaryShort String?  // Mode 1: 短总结
   summaryLong  String?  // Mode 2: 长总结
   translation  String?  // Mode 3: 逐字翻译 (完整结果)
-  
+
   // 元数据
   provider     String?  // e.g. "openai", "anthropic"
   model        String?  // e.g. "gpt-4o"
-  
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  
+
   @@index([url])
+}
+
+// ============ Agent API Key ============
+model AgentApiKey {
+  id          String   @id @default(cuid())
+  key         String   @unique @db.Text
+  name        String
+  description String?
+  permissions String[] @default(["read:signals", "read:sources"])
+  isActive    Boolean  @default(true)
+  expiresAt   DateTime?
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([key])
 }
 

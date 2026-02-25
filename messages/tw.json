@@ -40,5 +40,35 @@
     "SignalCard": {
         "viewDetails": "查看詳情 →",
         "share": "分享卡片"
+    },
+    "AgentSetup": {
+        "title": "Agent 接入配置",
+        "description": "讓 AI Agent 自動發現並使用網站功能",
+        "quickStart": "快速開始",
+        "quickStartSteps": "1. 複製 MCP 服務器地址\n2. 在 Agent 配置中添加服務器\n3. Agent 即可自動發現可用工具",
+        "apiKey": "API Key",
+        "generateKey": "生成密鑰",
+        "loginRequired": "請先登錄以生成 API Key",
+        "apiKeyHint": "登錄後可生成 API Key",
+        "apiKeyWarning": "密鑰只會顯示一次，請妥善保存",
+        "serverUrls": "服務器地址",
+        "claudeDesktopConfig": "Claude Desktop 配置",
+        "claudeDesktopHint": "將以下配置複製到 Claude Desktop 的設定檔案中",
+        "availableTools": "可用工具",
+        "authentication": "認證方式",
+        "authHint": "在請求頭中添加 API Key：",
+        "authHint2": "或使用 x-api-key header",
+        "copy": "複製",
+        "tools": {
+            "get_signals": "獲取信號列表，支持按來源類型、時間範圍、標籤篩選",
+            "get_signal_detail": "獲取單個信號的詳細內容",
+            "get_sources": "獲取可用的數據源列表及其訂閱狀態",
+            "read_article": "AI 讀取文章內容，返回摘要或翻譯",
+            "mark_as_read": "標記信號為已讀",
+            "favorite_signal": "收藏或取消收藏信號",
+            "subscribe_source": "訂閱或取消訂閱數據源",
+            "search_signals": "搜索信號，按關鍵詞在標題、摘要、標籤中搜索",
+            "get_insights": "獲取每日洞察，包括趨勢分析、因果分析等"
+        }
     }
 }

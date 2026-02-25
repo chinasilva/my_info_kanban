@@ -67,5 +67,35 @@
     "SignalCard": {
         "viewDetails": "View details →",
         "share": "Share Card"
+    },
+    "AgentSetup": {
+        "title": "Agent Setup",
+        "description": "Let AI Agents automatically discover and use website features",
+        "quickStart": "Quick Start",
+        "quickStartSteps": "1. Copy the MCP server URL\n2. Add the server to your Agent configuration\n3. The Agent will automatically discover available tools",
+        "apiKey": "API Key",
+        "generateKey": "Generate Key",
+        "loginRequired": "Please login first to generate an API Key",
+        "apiKeyHint": "Login to generate an API Key",
+        "apiKeyWarning": "The key will only be shown once, please save it securely",
+        "serverUrls": "Server URLs",
+        "claudeDesktopConfig": "Claude Desktop Configuration",
+        "claudeDesktopHint": "Copy the following configuration to Claude Desktop settings",
+        "availableTools": "Available Tools",
+        "authentication": "Authentication",
+        "authHint": "Add API Key to request header:",
+        "authHint2": "Or use x-api-key header",
+        "copy": "Copy",
+        "tools": {
+            "get_signals": "Get signal list, filter by source type, date range, tags",
+            "get_signal_detail": "Get detailed content of a single signal",
+            "get_sources": "Get available sources and subscription status",
+            "read_article": "AI reads article content, returns summary or translation",
+            "mark_as_read": "Mark signal as read",
+            "favorite_signal": "Favorite or unfavorite a signal",
+            "subscribe_source": "Subscribe or unsubscribe from a source",
+            "search_signals": "Search signals by keywords in title, summary, tags",
+            "get_insights": "Get daily insights including trend analysis, causality analysis"
+        }
     }
 }
