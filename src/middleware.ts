@@ -67,7 +67,16 @@ export default function middleware(request: NextRequest) {
     }
 
     // 根路径返回静态 MCP 信息（供 AI Agent 发现）
+    // 通过 Accept header 区分人类用户和 AI Agent
     if (pathname === '/' || pathname === '') {
+        const acceptHeader = request.headers.get('accept') || '';
+
+        // 浏览器请求通常包含 text/html，让国际化中间件处理（重定向到本地化页面）
+        if (acceptHeader.includes('text/html')) {
+            return intlMiddleware(request);
+        }
+
+        // AI Agent 请求（只接受 application/json 或 */*），返回 MCP 静态页面
         return new NextResponse(AGENT_HTML, {
             status: 200,
             headers: {
