@@ -9,7 +9,7 @@ import { MobileSignalList } from "./MobileSignalList";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { UserMenu } from "./UserMenu";
 import { Signal } from "@/schemas/signal";
-import { Code2, BarChart3, Newspaper, Rocket, Settings, Loader2 } from "lucide-react";
+import { Code2, BarChart3, Newspaper, Rocket, Settings, Loader2, Bot } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ThemeSwitcher } from "./ThemeSwitcher";
@@ -190,6 +190,14 @@ export function DashboardShell({
                         <ThemeSwitcher locale={locale} />
                         <ShareButton targetId="dashboard-content" locale={locale} />
                         <LanguageSwitcher />
+                        <Link
+                            href={`/${locale}/agent-setup`}
+                            className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--color-text-muted)]
+                                    hover:text-[var(--color-foreground)] hover:bg-[var(--color-card-hover)] rounded-lg transition"
+                        >
+                            <Bot className="w-4 h-4" />
+                            {locale === "zh" ? "Agent接入" : "Agent Setup"}
+                        </Link>
                         <Link
                             href={`/${locale}/sources`}
                             className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--color-text-muted)]

@@ -41,10 +41,14 @@ const MCP_ERRORS = {
 
 /**
  * 处理 MCP 请求
+ * @param request MCP请求
+ * @param userId 用户ID，"anonymous"表示未认证
+ * @param isPreAuthenticated 是否已在POST层验证过认证
  */
 async function handleMCPRequest(
   request: MCPRequest,
-  userId: string
+  userId: string,
+  isPreAuthenticated: boolean = false
 ): Promise<MCPResponse> {
   const { method, params, id } = request;
 
@@ -116,7 +120,8 @@ async function handleMCPRequest(
         };
 
         const requiredPerms = permissionMap[name];
-        if (requiredPerms) {
+        // 只有在未预认证时才检查权限（已认证的用户在POST层已验证）
+        if (requiredPerms && !isPreAuthenticated) {
           const authResult = await authenticateAgentWithPermission(requiredPerms);
           if (!authResult.success) {
             return {
@@ -179,42 +184,83 @@ async function handleMCPRequest(
 }
 
 /**
+ * 允许无认证的MCP方法
+ * Agent需要先调用initialize和tools/list来发现可用工具
+ */
+const PUBLIC_METHODS = ["initialize", "tools/list"];
+
+/**
  * POST - 处理 MCP JSON-RPC 请求
  */
 export async function POST(request: NextRequest) {
-  // 验证 Agent
-  const authResult = await authenticateAgentWithPermission([
-    "read:signals",
-    "read:sources",
-  ]);
-
-  if (!authResult.success || !authResult.userId) {
-    return NextResponse.json(
-      {
-        jsonrpc: "2.0",
-        id: null,
-        error: {
-          code: -32001,
-          message: authResult.error || "Unauthorized",
-        },
-      },
-      { status: 401 }
-    );
-  }
+  let userId: string | null = null;
 
   try {
     const body = await request.json();
     const mcpRequest: MCPRequest = body;
+    const method = mcpRequest.method;
+
+    // 只有公共方法（initialize, tools/list）允许无认证调用
+    // 其他方法需要认证
+    if (!PUBLIC_METHODS.includes(method)) {
+      const authResult = await authenticateAgentWithPermission([
+        "read:signals",
+        "read:sources",
+      ]);
+
+      if (!authResult.success || !authResult.userId) {
+        return NextResponse.json(
+          {
+            jsonrpc: "2.0",
+            id: mcpRequest.id,
+            error: {
+              code: -32001,
+              message: authResult.error || "Unauthorized",
+            },
+          },
+          { status: 401 }
+        );
+      }
+      userId = authResult.userId;
+    }
 
     // 支持批量请求
     if (Array.isArray(mcpRequest)) {
+      // 批量请求时，逐个处理认证
       const results = await Promise.all(
-        mcpRequest.map((req) => handleMCPRequest(req, authResult.userId!))
+        mcpRequest.map(async (req) => {
+          const reqMethod = req.method;
+          let reqUserId = userId;
+
+          if (!PUBLIC_METHODS.includes(reqMethod) && !reqUserId) {
+            const authResult = await authenticateAgentWithPermission([
+              "read:signals",
+              "read:sources",
+            ]);
+            if (!authResult.success || !authResult.userId) {
+              return {
+                jsonrpc: "2.0",
+                id: req.id,
+                error: {
+                  code: -32001,
+                  message: authResult.error || "Unauthorized",
+                },
+              };
+            }
+            reqUserId = authResult.userId;
+          }
+
+          // 标记是否已认证
+          const isPreAuth = !PUBLIC_METHODS.includes(reqMethod) && !!reqUserId;
+          return handleMCPRequest(req, reqUserId || "anonymous", isPreAuth);
+        })
       );
       return NextResponse.json(results);
     }
 
-    const response = await handleMCPRequest(mcpRequest, authResult.userId);
+    // 标记是否已认证
+    const isPreAuthenticated = !PUBLIC_METHODS.includes(method) && !!userId;
+    const response = await handleMCPRequest(mcpRequest, userId || "anonymous", isPreAuthenticated);
     return NextResponse.json(response);
   } catch (error: any) {
     return NextResponse.json(

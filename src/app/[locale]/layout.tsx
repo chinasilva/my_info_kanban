@@ -29,6 +29,16 @@ export const metadata: Metadata = {
     template: "%s | High-Signal",
   },
   description: "Curated high-quality tech and finance signals from HackerNews, GitHub, and more.",
+  // MCP服务声明 - 让Agent能自动发现MCP服务
+  alternates: {
+    types: {
+      'application/json': '/api/mcp.json',
+    },
+  },
+  other: {
+    'mcp-server': '/api/mcp',
+    'mcp-discovery': '/.well-known/mcp.json',
+  },
   openGraph: {
     title: "High-Signal Aggregator",
     description: "Curated high-quality tech and finance signals.",
