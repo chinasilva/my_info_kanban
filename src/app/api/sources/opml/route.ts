@@ -87,7 +87,7 @@ export async function POST(request: Request) {
         }
 
         let successCount = 0;
-        let errors: string[] = [];
+        const errors: string[] = [];
 
         // 批量处理入库
         for (const feed of outlines) {

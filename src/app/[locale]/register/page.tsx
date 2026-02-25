@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 
 export default function RegisterPage() {
@@ -185,9 +186,9 @@ export default function RegisterPage() {
 
                 <p className="mt-6 text-center text-gray-400 text-sm">
                     已有账号？{" "}
-                    <a href="/login" className="text-blue-400 hover:text-blue-300 hover:underline transition">
+                    <Link href="/login" className="text-blue-400 hover:text-blue-300 hover:underline transition">
                         立即登录
-                    </a>
+                    </Link>
                 </p>
             </div>
         </div>
