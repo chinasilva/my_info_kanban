@@ -353,6 +353,8 @@ async function getSignalsHandler(
     days?: number;
     tag?: string;
     sourceId?: string;
+    hourStart?: number;
+    hourEnd?: number;
   },
   userId: string
 ) {
@@ -420,6 +422,25 @@ async function getSignalsHandler(
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - params.days);
     whereClause.createdAt = { gte: startDate };
+  }
+
+  // Hour filter (custom time range within a day)
+  if (params.hourStart !== undefined && params.hourEnd !== undefined) {
+    const now = new Date();
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const hourStart = new Date(startOfDay);
+    hourStart.setHours(params.hourStart);
+
+    const hourEnd = new Date(startOfDay);
+    hourEnd.setHours(params.hourEnd);
+
+    whereClause.createdAt = {
+      ...whereClause.createdAt,
+      gte: hourStart,
+      lt: hourEnd,
+    };
   }
 
   // Tag filter
@@ -717,6 +738,14 @@ export const mcpTools: MCPTool[] = [
         sourceId: {
           type: "string",
           description: "特定数据源 ID",
+        },
+        hourStart: {
+          type: "number",
+          description: "开始小时 (0-23)，与 hourEnd 配合使用筛选特定时间段",
+        },
+        hourEnd: {
+          type: "number",
+          description: "结束小时 (0-23)，与 hourStart 配合使用筛选特定时间段",
         },
       },
     },
