@@ -1,6 +1,7 @@
 
 import { load } from 'cheerio';
 import { BaseScraper, ScrapedSignal } from './base';
+import { validateUrl } from '@/lib/security/ssrf';
 
 export class GenericWebScraper extends BaseScraper {
     name = 'GenericWebScraper';
@@ -13,59 +14,18 @@ export class GenericWebScraper extends BaseScraper {
     }
 
     async fetch(): Promise<ScrapedSignal[]> {
+        // SSRF protection: validate URL before fetching
+        const validation = validateUrl(this.targetUrl);
+        if (!validation.valid) {
+            await this.logError(new Error(`SSRF blocked: ${validation.error} - ${this.targetUrl}`));
+            return [];
+        }
+
         let url: URL;
         try {
             url = new URL(this.targetUrl);
         } catch {
             await this.logError(new Error(`Invalid URL: ${this.targetUrl}`));
-            return [];
-        }
-
-        // SSRF protection: verify hostname before fetching
-        const hostname = url.hostname.toLowerCase();
-
-        // Block localhost variants
-        if (hostname === 'localhost' || hostname === '127.0.0.1' ||
-            hostname === '::1' || hostname === '0.0.0.0') {
-            await this.logError(new Error(`Blocked localhost URL: ${this.targetUrl}`));
-            return [];
-        }
-
-        // Block private IP ranges
-        const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
-        if (ipRegex.test(hostname)) {
-            const parts = hostname.split('.').map(Number);
-            // 10.x.x.x
-            if (parts[0] === 10) {
-                await this.logError(new Error(`Blocked private IP: ${this.targetUrl}`));
-                return [];
-            }
-            // 172.16-31.x.x
-            if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) {
-                await this.logError(new Error(`Blocked private IP: ${this.targetUrl}`));
-                return [];
-            }
-            // 192.168.x.x
-            if (parts[0] === 192 && parts[1] === 168) {
-                await this.logError(new Error(`Blocked private IP: ${this.targetUrl}`));
-                return [];
-            }
-            // 127.x.x.x
-            if (parts[0] === 127) {
-                await this.logError(new Error(`Blocked private IP: ${this.targetUrl}`));
-                return [];
-            }
-            // 169.254.x.x (link-local)
-            if (parts[0] === 169 && parts[1] === 254) {
-                await this.logError(new Error(`Blocked link-local IP: ${this.targetUrl}`));
-                return [];
-            }
-        }
-
-        // Block internal hostnames
-        if (hostname.endsWith('.local') || hostname.endsWith('.internal') ||
-            hostname.endsWith('.corp') || hostname.endsWith('.intranet')) {
-            await this.logError(new Error(`Blocked internal hostname: ${this.targetUrl}`));
             return [];
         }
 

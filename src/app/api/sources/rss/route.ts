@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/prisma/db";
+import { validateUrl } from "@/lib/security/ssrf";
 
 // 创建自定义 RSS 数据源
 export async function POST(request: Request) {
@@ -21,48 +22,10 @@ export async function POST(request: Request) {
         }
 
         // SSRF protection: validate URL before fetching
-        let parsedUrl: URL;
-        try {
-            parsedUrl = new URL(feedUrl);
-        } catch {
+        const validation = validateUrl(feedUrl);
+        if (!validation.valid) {
             return NextResponse.json(
-                { error: "无效的 RSS 地址格式" },
-                { status: 400 }
-            );
-        }
-
-        const hostname = parsedUrl.hostname.toLowerCase();
-
-        // Block localhost variants
-        if (hostname === 'localhost' || hostname === '127.0.0.1' ||
-            hostname === '::1' || hostname === '0.0.0.0') {
-            return NextResponse.json(
-                { error: "不允许访问内部或私有网络地址" },
-                { status: 400 }
-            );
-        }
-
-        // Block private IP ranges
-        const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
-        if (ipRegex.test(hostname)) {
-            const parts = hostname.split('.').map(Number);
-            // 10.x.x.x, 172.16-31.x.x, 192.168.x.x, 127.x.x.x, 169.254.x.x
-            if (parts[0] === 10 || parts[0] === 127 ||
-                (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
-                (parts[0] === 192 && parts[1] === 168) ||
-                (parts[0] === 169 && parts[1] === 254)) {
-                return NextResponse.json(
-                    { error: "不允许访问内部或私有网络地址" },
-                    { status: 400 }
-                );
-            }
-        }
-
-        // Block internal hostnames
-        if (hostname.endsWith('.local') || hostname.endsWith('.internal') ||
-            hostname.endsWith('.corp') || hostname.endsWith('.intranet')) {
-            return NextResponse.json(
-                { error: "不允许访问内部或私有网络地址" },
+                { error: `不允许访问该地址: ${validation.error}` },
                 { status: 400 }
             );
         }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
-import { Bot, Copy, Check, Terminal, ChevronRight, Loader2, Settings } from "lucide-react";
+import { Bot, Copy, Check, Terminal, ChevronRight, Loader2, Settings, BookOpen, Download } from "lucide-react";
 
 export default function AgentSetupPage() {
   const { data: session, status: sessionStatus } = useSession();
@@ -16,6 +16,7 @@ export default function AgentSetupPage() {
 
   const mcpServerUrl = `${baseUrl}/api/mcp`;
   const manifestUrl = `${baseUrl}/api/mcp.json`;
+  const skillConfigUrl = `${baseUrl}/api/skill.json`;
 
   const copyToClipboard = async (text: string, key: string) => {
     try {
@@ -255,6 +256,77 @@ export default function AgentSetupPage() {
               {`Authorization: Bearer ${generatedApiKey || "YOUR_API_KEY"}`}
             </div>
             <p>{t("authHint2")}</p>
+          </div>
+        </section>
+
+        {/* Skill Installation Section */}
+        <section className="bg-gradient-to-r from-green-500/10 to-teal-500/10 rounded-2xl p-6 border border-green-500/20">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-green-500" />
+            {t("skillInstall") || "安装为 Skill"}
+          </h2>
+          <p className="text-sm text-[var(--color-text-muted)] mb-4">
+            {t("skillInstallHint") || "让 AI Agent 通过 curl 调用此服务的工具"}
+          </p>
+
+          {/* Skill Config URL */}
+          <div className="mb-4">
+            <label className="block text-sm text-[var(--color-text-muted)] mb-1">
+              Skill Config URL
+            </label>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 p-3 bg-[#0d1117] rounded-lg font-mono text-sm break-all border border-[#30363d]">
+                {skillConfigUrl}
+              </code>
+              <button
+                onClick={() => copyToClipboard(skillConfigUrl, "skillConfigUrl")}
+                className="p-3 bg-[#21262d] hover:bg-[#30363d] rounded-lg transition"
+                title={t("copy")}
+              >
+                {copied === "skillConfigUrl" ? (
+                  <Check className="w-5 h-5 text-green-400" />
+                ) : (
+                  <Copy className="w-5 h-5" />
+                )}
+              </button>
+              <a
+                href={skillConfigUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-3 bg-[#21262d] hover:bg-[#30363d] rounded-lg transition"
+                title="Download"
+              >
+                <Download className="w-5 h-5" />
+              </a>
+            </div>
+          </div>
+
+          {/* Skill Usage Example */}
+          <div className="space-y-3">
+            <p className="text-sm text-[var(--color-text-muted)]">
+              {t("skillUsageHint") || "获取信号列表示例："}
+            </p>
+            <div className="relative">
+              <pre className="p-4 bg-[#0d1117] rounded-lg overflow-x-auto border border-[#30363d] text-sm">
+                <code className="font-mono text-green-400">
+                  {`curl -s -X POST ${mcpServerUrl} \\
+  -H "Authorization: Bearer $SIGNAL_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_signals","arguments":{}},"id":1}'`}
+                </code>
+              </pre>
+              <button
+                onClick={() => copyToClipboard(`curl -s -X POST ${mcpServerUrl} -H "Authorization: Bearer $SIGNAL_API_KEY" -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_signals","arguments":{}},"id":1}'`, "skillExample")}
+                className="absolute top-2 right-2 p-2 bg-[#21262d] hover:bg-[#30363d] rounded-lg transition"
+                title={t("copy")}
+              >
+                {copied === "skillExample" ? (
+                  <Check className="w-5 h-5 text-green-400" />
+                ) : (
+                  <Copy className="w-5 h-5" />
+                )}
+              </button>
+            </div>
           </div>
         </section>
       </div>
