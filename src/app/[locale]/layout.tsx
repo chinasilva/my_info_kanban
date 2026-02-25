@@ -25,10 +25,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://signal.binaryworks.app"),
   title: {
-    default: "High-Signal Aggregator",
+    default: "High-Signal Aggregator - MCP Server for AI Agents",
     template: "%s | High-Signal",
   },
-  description: "Curated high-quality tech and finance signals from HackerNews, GitHub, and more.",
+  description: "MCP Server - Curated high-quality tech and finance signals from HackerNews, GitHub, RSS, and more. Use AI to aggregate and discover tech news, GitHub trending, and market signals.",
   // MCP服务声明 - 让Agent能自动发现MCP服务
   alternates: {
     types: {
@@ -38,6 +38,10 @@ export const metadata: Metadata = {
   other: {
     'mcp-server': '/api/mcp',
     'mcp-discovery': '/.well-known/mcp.json',
+    'mcp-name': 'High Quality Info Aggregator',
+    'mcp-version': '1.0.0',
+    // 明确说明这是 MCP 服务器，不是 Signal 消息应用
+    'mcp-purpose': 'AI Agent integration for tech/news signal aggregation',
   },
   openGraph: {
     title: "High-Signal Aggregator",
