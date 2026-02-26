@@ -4,7 +4,7 @@ import { validateUrl } from '@/lib/security/ssrf';
 import { Source } from '@prisma/client';
 
 interface AppRankConfig {
-    sourceType: 'qimai';
+    sourceType: 'qimai' | 'itunes';
     category?: string;
     country?: string;
 }
@@ -142,7 +142,6 @@ export class AppRankScraper extends BaseScraper {
      */
     private async fetchAppStore(): Promise<ScrapedSignal[]> {
         const country = this.config.country || 'cn';
-        const genre = this.getGenreId(this.config.category);
 
         // iTunes RSS API - 免费应用榜单
         const url = `https://itunes.apple.com/${country}/rss/topfreeapplications/limit=50/json`;
@@ -156,37 +155,37 @@ export class AppRankScraper extends BaseScraper {
             const data = await response.json();
             const signals: ScrapedSignal[] = [];
 
-            for (const entry of data.feed?.entry || []) {
-                const nameId = entry['im:name'] || {};
-                const name = nameId.label || '';
-                const id = nameId.attributes || {};
+            const entries = data.feed?.entry || [];
+            for (let i = 0; i < entries.length; i++) {
+                const entry = entries[i];
+                const nameObj = entry['im:name'] || {};
+                const name = nameObj.label || 'Unknown';
 
-                const entryId = entry.id || {};
-                const bundleId = entryId.label || '';
+                const idObj = entry.id || {};
+                const idAttrs = idObj.attributes || {};
+                const appId = idAttrs['im:id'] || '';
 
-                const itemCount = entry['im:itemCount'] || {};
-                const downloads = itemCount.label || '';
+                const artist = entry['im:artist']?.label || 'Unknown';
 
                 const imRating = entry['im:rating'] || {};
-                const rating = imRating.label || '';
-
-                const artist = entry['im:artist']?.label || '';
+                const rating = imRating.attributes?.content || 'N/A';
 
                 signals.push({
-                    title: name?.label || 'Unknown',
-                    url: `https://apps.apple.com/${country}/app/id${id?.attributes?.['im:id']}`,
-                    score: 50, // App Store 没有直接下载量
+                    title: name,
+                    url: `https://apps.apple.com/${country}/app/id${appId}`,
+                    score: 50 - i, // 排名越高分数越高
                     category: 'iOS免费榜',
                     metadata: {
-                        bundleId,
+                        bundleId: idAttrs['im:bundleId'] || '',
+                        appId: appId,
                         downloads: 'N/A',
-                        rating: rating?.label || 'N/A',
-                        rank: signals.length + 1,
+                        rating: rating,
+                        rank: i + 1,
                         rankChange: 0,
                         category: this.config.category || '免费榜',
                         country: country.toUpperCase(),
                         publisher: artist,
-                        sourceType: 'appstore',
+                        sourceType: 'itunes',
                     }
                 });
             }

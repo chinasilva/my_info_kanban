@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
         market: ["polymarket", "cryptopanic", "dune"],
         news: ["hackernews", "substack"],
         launch: ["producthunt"],
+        demand: ["gov_procurement", "research_report", "recruitment", "app_rank", "social_demand", "overseas_trend"],
     };
 
     let subscribedSourceIds: string[] = [];
