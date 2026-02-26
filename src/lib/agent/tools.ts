@@ -418,16 +418,18 @@ async function getSignalsHandler(
   };
 
   // Date filter
+  let startDate: Date | undefined;
   if (params.days) {
-    const startDate = new Date();
+    startDate = new Date();
     startDate.setDate(startDate.getDate() - params.days);
     whereClause.createdAt = { gte: startDate };
   }
 
   // Hour filter (custom time range within a day)
   if (params.hourStart !== undefined && params.hourEnd !== undefined) {
-    const now = new Date();
-    const startOfDay = new Date(now);
+    // Determine base date for hour filter: use days-based startDate if available, otherwise use today
+    const baseDate = startDate || new Date();
+    const startOfDay = new Date(baseDate);
     startOfDay.setHours(0, 0, 0, 0);
 
     const hourStart = new Date(startOfDay);

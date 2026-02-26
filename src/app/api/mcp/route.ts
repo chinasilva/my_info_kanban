@@ -6,6 +6,7 @@ import {
 import { mcpTools, getToolDefinitions } from "@/lib/agent/tools";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 /**
  * MCP JSON-RPC 消息类型
