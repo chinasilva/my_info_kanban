@@ -1,9 +1,9 @@
 "use client";
 
-import { Code2, BarChart3, Newspaper, Rocket, Settings } from "lucide-react";
+import { Code2, BarChart3, Newspaper, Rocket, Settings, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type SourceType = "build" | "market" | "news" | "launch" | "custom";
+export type SourceType = "build" | "market" | "news" | "launch" | "demand" | "custom";
 
 interface TabConfig {
     id: SourceType;
@@ -17,6 +17,7 @@ const TABS: TabConfig[] = [
     { id: "market", label: "Market", labelZh: "市场", icon: <BarChart3 className="tab-icon" /> },
     { id: "news", label: "News", labelZh: "资讯", icon: <Newspaper className="tab-icon" /> },
     { id: "launch", label: "Launch", labelZh: "发布", icon: <Rocket className="tab-icon" /> },
+    { id: "demand", label: "Demand", labelZh: "需求", icon: <Search className="tab-icon" /> },
     { id: "custom", label: "Custom", labelZh: "自定义", icon: <Settings className="tab-icon" /> },
 ];
 

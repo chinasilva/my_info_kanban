@@ -17,6 +17,7 @@ const SOURCE_GROUPS: Record<string, string[]> = {
   market: ["polymarket", "cryptopanic", "dune"],
   news: ["hackernews", "substack"],
   launch: ["producthunt"],
+  demand: ["gov_procurement", "research_report", "recruitment", "app_rank", "social_demand", "overseas_trend"],
 };
 
 export default async function DashboardPage(props: {
@@ -171,17 +172,18 @@ export default async function DashboardPage(props: {
   }
 
   // Only fetch Groups if NO active source (optimization)
-  let signalGroupsData: any = { build: [], market: [], news: [], launch: [], custom: [] };
+  let signalGroupsData: any = { build: [], market: [], news: [], launch: [], demand: [], custom: [] };
 
   if (!activeSourceId) {
-    const [build, market, news, launch, custom] = await Promise.all([
+    const [build, market, news, launch, demand, custom] = await Promise.all([
       fetchSignals(SOURCE_GROUPS.build),
       fetchSignals(SOURCE_GROUPS.market),
       fetchSignals(SOURCE_GROUPS.news),
       fetchSignals(SOURCE_GROUPS.launch),
+      fetchSignals(SOURCE_GROUPS.demand),
       fetchSignals(null, true),
     ]);
-    signalGroupsData = { build, market, news, launch, custom };
+    signalGroupsData = { build, market, news, launch, demand, custom };
   }
 
   const insights = await prisma.insight.findMany({
@@ -203,6 +205,7 @@ export default async function DashboardPage(props: {
     market: processSignals(signalGroupsData.market),
     news: processSignals(signalGroupsData.news),
     launch: processSignals(signalGroupsData.launch),
+    demand: processSignals(signalGroupsData.demand),
     custom: processSignals(signalGroupsData.custom),
   };
 
@@ -217,6 +220,8 @@ export default async function DashboardPage(props: {
     newsSubtitle: t('newsSubtitle'),
     launchTitle: t('launchTitle'),
     launchSubtitle: t('launchSubtitle'),
+    demandTitle: t('demandTitle'),
+    demandSubtitle: t('demandSubtitle'),
   };
 
   return (

@@ -9,7 +9,7 @@ import { MobileSignalList } from "./MobileSignalList";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { UserMenu } from "./UserMenu";
 import { Signal } from "@/schemas/signal";
-import { Code2, BarChart3, Newspaper, Rocket, Settings, Loader2, Bot } from "lucide-react";
+import { Code2, BarChart3, Newspaper, Rocket, Settings, Loader2, Bot, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ThemeSwitcher } from "./ThemeSwitcher";
@@ -24,6 +24,7 @@ type SignalGroups = {
     market: Signal[];
     news: Signal[];
     launch: Signal[];
+    demand: Signal[];
     custom: Signal[];
 };
 
@@ -59,6 +60,8 @@ interface DashboardShellProps {
         newsSubtitle: string;
         launchTitle: string;
         launchSubtitle: string;
+        demandTitle: string;
+        demandSubtitle: string;
     };
     activeTag?: string;
     activeDate?: string;
@@ -95,6 +98,7 @@ export function DashboardShell({
         if (signalGroups.market.length > 0) return "market";
         if (signalGroups.news.length > 0) return "news";
         if (signalGroups.launch.length > 0) return "launch";
+        if (signalGroups.demand.length > 0) return "demand";
         if (signalGroups.custom.length > 0) return "custom";
         return "build";
     };
@@ -125,6 +129,7 @@ export function DashboardShell({
         market: signalGroups.market.filter(s => s.source && typeof s.source !== 'string' && guestSubscribedIds.includes(s.source.id)),
         news: signalGroups.news.filter(s => s.source && typeof s.source !== 'string' && guestSubscribedIds.includes(s.source.id)),
         launch: signalGroups.launch.filter(s => s.source && typeof s.source !== 'string' && guestSubscribedIds.includes(s.source.id)),
+        demand: signalGroups.demand.filter(s => s.source && typeof s.source !== 'string' && guestSubscribedIds.includes(s.source.id)),
         custom: [] // Guest can't have custom sources
     } : signalGroups;
 
@@ -257,6 +262,7 @@ export function DashboardShell({
                                     { key: 'market', length: filteredSignalGroups.market.length, props: { title: t.marketTitle, subtitle: t.marketSubtitle, icon: <BarChart3 className="w-5 h-5" />, signals: filteredSignalGroups.market, colorClass: "text-purple-400", sourceType: "market" } },
                                     { key: 'news', length: filteredSignalGroups.news.length, props: { title: t.newsTitle, subtitle: t.newsSubtitle, icon: <Newspaper className="w-5 h-5" />, signals: filteredSignalGroups.news, colorClass: "text-orange-400", sourceType: "news" } },
                                     { key: 'launch', length: filteredSignalGroups.launch.length, props: { title: t.launchTitle, subtitle: t.launchSubtitle, icon: <Rocket className="w-5 h-5" />, signals: filteredSignalGroups.launch, colorClass: "text-pink-400", sourceType: "launch" } },
+                                    { key: 'demand', length: filteredSignalGroups.demand.length, props: { title: t.demandTitle, subtitle: t.demandSubtitle, icon: <Search className="w-5 h-5" />, signals: filteredSignalGroups.demand, colorClass: "text-cyan-400", sourceType: "demand" } },
                                     { key: 'custom', length: filteredSignalGroups.custom.length, props: { title: locale === "zh" ? "自定义源" : "Custom", subtitle: "RSS & Others", icon: <Settings className="w-5 h-5" />, signals: filteredSignalGroups.custom, colorClass: "text-green-400", sourceType: "custom", sourceId: activeSourceId } }
                                 ].filter(col => col.length > 0);
 
@@ -340,6 +346,7 @@ export function DashboardShell({
                                 market: filteredSignalGroups.market.length,
                                 news: filteredSignalGroups.news.length,
                                 launch: filteredSignalGroups.launch.length,
+                                demand: filteredSignalGroups.demand.length,
                                 custom: filteredSignalGroups.custom.length,
                             }}
                             locale={locale}

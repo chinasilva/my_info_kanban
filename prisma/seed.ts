@@ -4,6 +4,7 @@ import "dotenv/config";
 import { prisma } from "../src/lib/prisma/db";
 
 const builtInSources = [
+    // 原有数据源
     {
         name: "Hacker News",
         type: "hackernews",
@@ -57,6 +58,43 @@ const builtInSources = [
         type: "substack",
         baseUrl: "https://substack.com",
         icon: "📰"
+    },
+    // 需求挖掘数据源
+    {
+        name: "政府采购",
+        type: "gov_procurement",
+        baseUrl: "https://www.ccgp.gov.cn",
+        icon: "🏛️"
+    },
+    {
+        name: "行业研报",
+        type: "research_report",
+        baseUrl: "https://www.iresearch.com.cn",
+        icon: "📑"
+    },
+    {
+        name: "招聘信号",
+        type: "recruitment",
+        baseUrl: "https://www.zhipin.com",
+        icon: "💼"
+    },
+    {
+        name: "应用榜单",
+        type: "app_rank",
+        baseUrl: "https://www.qimai.cn",
+        icon: "📱"
+    },
+    {
+        name: "社区需求",
+        type: "social_demand",
+        baseUrl: "https://weibo.com",
+        icon: "🔥"
+    },
+    {
+        name: "海外趋势",
+        type: "overseas_trend",
+        baseUrl: "https://www.producthunt.com",
+        icon: "🌍"
     },
 ];
 

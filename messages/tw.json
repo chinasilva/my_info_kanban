@@ -7,7 +7,9 @@
         "newsTitle": "資訊",
         "newsSubtitle": "科技新聞與深度閱讀",
         "launchTitle": "新品",
-        "launchSubtitle": "Product Hunt 新品榜"
+        "launchSubtitle": "Product Hunt 新品榜",
+        "demandTitle": "需求挖掘",
+        "demandSubtitle": "從多渠道發現市場需求"
     },
     "Common": {
         "loading": "加載中...",
