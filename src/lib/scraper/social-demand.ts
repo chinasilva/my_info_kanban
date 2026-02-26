@@ -371,10 +371,12 @@ export class SocialDemandScraper extends BaseScraper {
     /**
      * 解析热度值
      */
-    private parseHot(text: string): number {
+    private parseHot(text: any): number {
+        // 确保 text 是字符串，处理类型错误
         if (!text) return 0;
 
-        const cleaned = text.replace(/[,，\s]/g, '');
+        const textStr = typeof text === 'string' ? text : String(text);
+        const cleaned = textStr.replace(/[,，\s]/g, '');
 
         // 匹配模式: 10万, 100万, 1亿
         const patterns = [
@@ -387,8 +389,8 @@ export class SocialDemandScraper extends BaseScraper {
             const match = cleaned.match(pattern);
             if (match) {
                 const num = parseFloat(match[1]);
-                if (text.includes('亿')) return num * 10000;
-                if (text.includes('万')) return num;
+                if (textStr.includes('亿')) return num * 10000;
+                if (textStr.includes('万')) return num;
                 return num;
             }
         }
