@@ -10,11 +10,17 @@ import { PolymarketScraper } from "./polymarket";
 import { DuneScraper } from "./dune";
 import { SubstackScraper } from "./substack";
 import { GenericRssScraper } from "./generic-rss";
+import { GovProcurementScraper } from "./gov-procurement";
+import { ResearchReportScraper } from "./research-report";
+import { RecruitmentScraper } from "./recruitment";
+import { AppRankScraper } from "./app-rank";
+import { SocialDemandScraper } from "./social-demand";
+import { OverseasTrendScraper } from "./overseas-trend";
 import { SignalProcessor } from "../llm/processor";
 import { Source } from "@prisma/client";
 
 // 内置 Scraper 映射
-const BUILTIN_SCRAPERS: Record<string, () => BaseScraper> = {
+const BUILTIN_SCRAPERS: Record<string, (source: Source) => BaseScraper> = {
     hackernews: () => new HackerNewsScraper(),
     github: () => new GitHubTrendingScraper(),
     huggingface: () => new HuggingFaceScraper(),
@@ -24,6 +30,13 @@ const BUILTIN_SCRAPERS: Record<string, () => BaseScraper> = {
     polymarket: () => new PolymarketScraper(),
     dune: () => new DuneScraper(),
     substack: () => new SubstackScraper(),
+    // 需求挖掘分组
+    gov_procurement: (source) => new GovProcurementScraper(source),
+    research_report: (source) => new ResearchReportScraper(source),
+    recruitment: (source) => new RecruitmentScraper(source),
+    app_rank: (source) => new AppRankScraper(source),
+    social_demand: (source) => new SocialDemandScraper(source),
+    overseas_trend: (source) => new OverseasTrendScraper(source),
 };
 
 interface ScraperWithSource {
@@ -64,7 +77,7 @@ export class ScraperRunner {
         // 检查是否是内置类型
         const builtinFactory = BUILTIN_SCRAPERS[source.type];
         if (builtinFactory) {
-            return builtinFactory();
+            return builtinFactory(source);
         }
 
         // RSS 类型使用通用 RSS Scraper
