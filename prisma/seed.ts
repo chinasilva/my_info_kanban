@@ -64,37 +64,43 @@ const builtInSources = [
         name: "政府采购",
         type: "gov_procurement",
         baseUrl: "https://www.ccgp.gov.cn",
-        icon: "🏛️"
+        icon: "🏛️",
+        config: { sourceType: "ccgp" }
     },
     {
         name: "行业研报",
         type: "research_report",
         baseUrl: "https://www.iresearch.com.cn",
-        icon: "📑"
+        icon: "📑",
+        config: { sourceType: "iresearch" }
     },
     {
         name: "招聘信号",
         type: "recruitment",
         baseUrl: "https://www.zhipin.com",
-        icon: "💼"
+        icon: "💼",
+        config: { sourceType: "boss", keyword: "AI" }
     },
     {
         name: "应用榜单",
         type: "app_rank",
         baseUrl: "https://www.qimai.cn",
-        icon: "📱"
+        icon: "📱",
+        config: { sourceType: "itunes", country: "cn" }
     },
     {
         name: "社区需求",
         type: "social_demand",
         baseUrl: "https://weibo.com",
-        icon: "🔥"
+        icon: "🔥",
+        config: { sourceType: "weibo" }
     },
     {
         name: "海外趋势",
         type: "overseas_trend",
         baseUrl: "https://www.producthunt.com",
-        icon: "🌍"
+        icon: "🌍",
+        config: { sourceType: "producthunt" }
     },
 ];
 
@@ -110,6 +116,7 @@ async function main() {
                 icon: source.icon,
                 isBuiltIn: true,
                 isActive: true,
+                ...(source.config && { config: source.config }),
             },
             create: {
                 name: source.name,
@@ -118,6 +125,7 @@ async function main() {
                 icon: source.icon,
                 isBuiltIn: true,
                 isActive: true,
+                ...(source.config && { config: source.config }),
             },
         });
         console.log(`  ✅ ${source.icon} ${source.name} (${result.id})`);
