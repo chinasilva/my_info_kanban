@@ -38,21 +38,58 @@ export class RecruitmentScraper extends BaseScraper {
             return [];
         }
 
-        try {
-            switch (this.config.sourceType) {
-                case 'boss':
-                    return await this.fetchBoss(baseUrl);
-                case 'zhilian':
-                    return await this.fetchZhilian(baseUrl);
-                case 'lagou':
-                    return await this.fetchLagou(baseUrl);
-                default:
-                    return await this.fetchBoss(baseUrl);
+        // 定义 fallback 顺序：当前配置的平台优先，然后尝试其他平台
+        const platforms: Array<'boss' | 'zhilian' | 'lagou'> = [
+            this.config.sourceType,
+            'boss',
+            'zhilian',
+            'lagou'
+        ].filter((p, index, arr) => arr.indexOf(p) === index) as Array<'boss' | 'zhilian' | 'lagou'>;
+
+        // 依次尝试各个平台，直到成功或全部失败
+        for (const platform of platforms) {
+            try {
+                let signals: ScrapedSignal[] = [];
+                switch (platform) {
+                    case 'boss':
+                        signals = await this.fetchBoss(this.sourceConfig.baseUrl);
+                        break;
+                    case 'zhilian':
+                        signals = await this.fetchZhilian(this.sourceConfig.baseUrl);
+                        break;
+                    case 'lagou':
+                        signals = await this.fetchLagou(this.sourceConfig.baseUrl);
+                        break;
+                }
+
+                // 检查是否获取到有效数据（不是空数组，且不是仅包含 mock 数据）
+                if (signals.length > 0 && !this.isMockData(signals)) {
+                    console.log(`招聘信号: 从 ${platform} 平台获取到 ${signals.length} 条数据`);
+                    return signals;
+                }
+
+                console.log(`招聘信号: ${platform} 平台无有效数据，继续尝试其他平台`);
+            } catch (error) {
+                console.log(`招聘信号: ${platform} 平台抓取失败: ${error instanceof Error ? error.message : '未知错误'}，继续尝试其他平台`);
             }
-        } catch (error) {
-            await this.logError(error);
-            return [];
         }
+
+        // 所有平台都失败
+        await this.logError(new Error('所有招聘平台都抓取失败'));
+        return [];
+    }
+
+    /**
+     * 检查数据是否为 mock 数据
+     */
+    private isMockData(signals: ScrapedSignal[]): boolean {
+        if (signals.length === 0) return true;
+        // 如果任何一个信号是 mock 数据，则整个数组视为 mock 数据
+        return signals.some(signal =>
+            signal.url === this.sourceConfig.baseUrl &&
+            signal.score === 0 &&
+            signal.metadata?.note?.includes('需配置Cookie')
+        );
     }
 
     /**
@@ -61,94 +98,9 @@ export class RecruitmentScraper extends BaseScraper {
      */
     private async fetchBoss(_baseUrl: string): Promise<ScrapedSignal[]> {
         // BOSS直聘有强反爬机制，网页结构经常变化
-        // 建议使用第三方API获取数据，这里直接返回提示信息
-        console.warn('BOSS直聘需要反爬处理，建议使用第三方API');
-        return this.getMockData('BOSS直聘');
-    }
-
-    /**
-     * 暂时禁用 fetchBoss 方法，等配置好反爬后再启用
-     * @deprecated
-     */
-    private async _fetchBossOld(_baseUrl: string): Promise<ScrapedSignal[]> {
-        const searchUrl = this.buildSearchUrl('boss');
-
-        const response = await fetch(searchUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            }
-        });
-
-        if (!response.ok) {
-            // 如果无法抓取，返回模拟数据提示
-            console.warn('BOSS直聘抓取失败，可能需要反爬处理');
-            return this.getMockData('BOSS直聘');
-        }
-
-        const html = await response.text();
-        const $ = load(html);
-
-        const signals: ScrapedSignal[] = [];
-
-        // 尝试多种选择器（BOSS结构经常变化）
-        const selectors = [
-            '.job-list li',
-            '.job-card',
-            '.job-item',
-            '.search-result li',
-            '.position-list li',
-        ];
-
-        let items: any = null;
-        for (const selector of selectors) {
-            const found = $(selector);
-            if (found.length > 0) {
-                items = found;
-                break;
-            }
-        }
-
-        if (!items) return signals;
-
-        items.each((_: any, element: any) => {
-            const $item = $(element);
-
-            const title = $item.find('.job-title, .title, .position-name').text().trim();
-            const company = $item.find('.company-name, .company, .name').text().trim();
-            const salary = $item.find('.salary, .job-salary').text().trim();
-            const location = $item.find('.city, .location').text().trim();
-            const href = $item.find('a').attr('href');
-
-            if (!title) return;
-
-            let url = href || '';
-            if (href && !href.startsWith('http')) {
-                url = 'https://www.zhipin.com' + (href.startsWith('/') ? '' : '/') + href;
-            }
-
-            const skills = this.extractSkills($item.text());
-
-            signals.push({
-                title: this.cleanText(title),
-                url,
-                score: this.parseSalary(salary),
-                category: '招聘',
-                metadata: {
-                    salary,
-                    skills,
-                    company,
-                    city: location || this.config.city || '未知',
-                    companySize: this.extractCompanySize($item.text()),
-                    fundingStage: this.extractFundingStage($item.text()),
-                    platform: 'BOSS直聘',
-                    sourceType: 'boss',
-                }
-            });
-        });
-
-        return signals.slice(0, 30);
+        // 建议使用第三方API获取数据
+        console.warn('BOSS直聘需要反爬处理，返回空数组以便尝试其他平台');
+        return [];
     }
 
     /**
@@ -164,7 +116,7 @@ export class RecruitmentScraper extends BaseScraper {
         });
 
         if (!response.ok) {
-            return this.getMockData('智联招聘');
+            throw new Error(`智联招聘请求失败: ${response.status}`);
         }
 
         const html = await response.text();
@@ -223,7 +175,7 @@ export class RecruitmentScraper extends BaseScraper {
         });
 
         if (!response.ok) {
-            return this.getMockData('拉勾');
+            throw new Error(`拉勾请求失败: ${response.status}`);
         }
 
         const html = await response.text();
@@ -377,22 +329,5 @@ export class RecruitmentScraper extends BaseScraper {
         }
 
         return null;
-    }
-
-    /**
-     * 获取模拟数据（当实际抓取失败时）
-     */
-    private getMockData(platform: string): ScrapedSignal[] {
-        return [{
-            title: `${platform} - 技术岗位招聘（需配置Cookie/第三方API）`,
-            url: this.sourceConfig.baseUrl,
-            score: 0,
-            category: '招聘',
-            metadata: {
-                platform,
-                note: '请配置有效的Cookie或使用第三方API（如justoneapi）进行抓取',
-                sourceType: this.config.sourceType,
-            }
-        }];
     }
 }

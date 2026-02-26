@@ -31,25 +31,53 @@ export class ResearchReportScraper extends BaseScraper {
             return [];
         }
 
-        try {
-            switch (this.config.sourceType) {
-                case 'iresearch':
-                    return await this.fetchIResearch(baseUrl);
-                case 'iyiou':
-                    return await this.fetchIyiou(baseUrl);
-                case 'caict':
-                    return await this.fetchCAICT(baseUrl);
-                case 'yblook':
-                    return await this.fetchYblook(baseUrl);
-                case 'eastmoney':
-                    return await this.fetchEastMoney(baseUrl);
-                default:
-                    return await this.fetchIResearch(baseUrl);
+        // 定义 fallback 顺序：当前配置的数据源优先，然后尝试其他数据源
+        const sources: Array<'iresearch' | 'iyiou' | 'caict' | 'yblook' | 'eastmoney'> = [
+            this.config.sourceType,
+            'iresearch',
+            'iyiou',
+            'caict',
+            'yblook',
+            'eastmoney'
+        ].filter((s, index, arr) => arr.indexOf(s) === index) as Array<'iresearch' | 'iyiou' | 'caict' | 'yblook' | 'eastmoney'>;
+
+        // 依次尝试各个数据源，直到成功或全部失败
+        for (const source of sources) {
+            try {
+                let signals: ScrapedSignal[] = [];
+                switch (source) {
+                    case 'iresearch':
+                        signals = await this.fetchIResearch(this.sourceConfig.baseUrl);
+                        break;
+                    case 'iyiou':
+                        signals = await this.fetchIyiou(this.sourceConfig.baseUrl);
+                        break;
+                    case 'caict':
+                        signals = await this.fetchCAICT(this.sourceConfig.baseUrl);
+                        break;
+                    case 'yblook':
+                        signals = await this.fetchYblook(this.sourceConfig.baseUrl);
+                        break;
+                    case 'eastmoney':
+                        signals = await this.fetchEastMoney(this.sourceConfig.baseUrl);
+                        break;
+                }
+
+                // 检查是否获取到有效数据
+                if (signals.length > 0) {
+                    console.log(`行业研报: 从 ${source} 获取到 ${signals.length} 条数据`);
+                    return signals;
+                }
+
+                console.log(`行业研报: ${source} 无数据，继续尝试其他数据源`);
+            } catch (error) {
+                console.log(`行业研报: ${source} 抓取失败: ${error instanceof Error ? error.message : '未知错误'}，继续尝试其他数据源`);
             }
-        } catch (error) {
-            await this.logError(error);
-            return [];
         }
+
+        // 所有数据源都失败
+        await this.logError(new Error('所有行业研报数据源都抓取失败'));
+        return [];
     }
 
     /**
@@ -119,10 +147,10 @@ export class ResearchReportScraper extends BaseScraper {
             clearTimeout(timeoutId);
             if (error.name === 'AbortError') {
                 console.warn('艾瑞咨询请求超时');
-                return this.getMockData('艾瑞咨询');
+                throw new Error('艾瑞咨询请求超时');
             }
             console.warn('艾瑞咨询抓取失败:', error.message);
-            return this.getMockData('艾瑞咨询');
+            throw error;
         }
     }
 
