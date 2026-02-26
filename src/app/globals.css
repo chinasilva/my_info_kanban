@@ -88,13 +88,54 @@ body {
   overscroll-behavior: contain;
   /* Create isolated stacking context */
   isolation: isolate;
+  /* Smooth scrolling for horizontal scroll */
+  scroll-behavior: smooth;
+  /* Show scrollbar always for better UX */
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+/* Custom scrollbar for webkit browsers */
+.kanban-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.kanban-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.kanban-container::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 4px;
+}
+
+/* Scroll indicator - appears when content overflows */
+.kanban-scroll-indicator {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  padding: 8px;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.kanban-container.scrollable .kanban-scroll-indicator {
+  opacity: 0.6;
 }
 
 .kanban-column {
   flex: 1 1 0;
   /* Auto-fill available space evenly */
-  min-width: 280px;
-  /* Minimum width per column */
+  min-width: 200px;
+  /* Reduced minimum width for better responsive behavior */
+  max-width: 400px;
+  /* Maximum width to prevent columns from being too wide */
   background: var(--color-background);
   display: flex;
   flex-direction: column;
@@ -107,9 +148,30 @@ body {
   position: relative;
 }
 
+/* Responsive breakpoints for column width */
+@media (min-width: 576px) {
+  .kanban-column {
+    min-width: 240px;
+  }
+}
+
+@media (min-width: 768px) {
+  .kanban-column {
+    min-width: 260px;
+  }
+}
+
 @media (min-width: 1024px) {
   .kanban-column {
-    min-width: 320px;
+    min-width: 280px;
+    max-width: 360px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .kanban-column {
+    min-width: 300px;
+    max-width: 400px;
   }
 }
 

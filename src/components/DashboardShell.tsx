@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useTransition } from "react";
+import { useState, useCallback, useEffect, useTransition, useRef } from "react";
 import { useIsMobile } from "@/lib/hooks/useMediaQuery";
 import { SignalColumn } from "./SignalColumn";
 import { MobileHeader } from "./MobileHeader";
@@ -84,6 +84,8 @@ export function DashboardShell({
     singleSourceSignals
 }: DashboardShellProps) {
     const [mounted, setMounted] = useState(false);
+    const [isScrollable, setIsScrollable] = useState(false);
+    const kanbanRef = useRef<HTMLDivElement>(null);
     const isMobile = useIsMobile();
     const router = useRouter();
 
@@ -91,6 +93,22 @@ export function DashboardShell({
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    // Check if kanban container is scrollable
+    useEffect(() => {
+        const checkScrollable = () => {
+            if (kanbanRef.current) {
+                const { scrollWidth, clientWidth } = kanbanRef.current;
+                setIsScrollable(scrollWidth > clientWidth);
+            }
+        };
+
+        checkScrollable();
+
+        // Re-check on resize
+        window.addEventListener('resize', checkScrollable);
+        return () => window.removeEventListener('resize', checkScrollable);
+    }, [signalGroups]);
 
     // Determine initial active tab based on available signals
     const getInitialTab = (): SourceType => {
@@ -255,7 +273,10 @@ export function DashboardShell({
                         </div>
                     ) : (
                         /* Kanban Board Mode (Default) */
-                        <div className="kanban-container flex-1 px-4 pb-4 min-w-0">
+                        <div
+                            ref={kanbanRef}
+                            className={`kanban-container flex-1 px-4 pb-4 min-w-0 ${isScrollable ? 'scrollable' : ''}`}
+                        >
                             {(() => {
                                 const columns: ColumnConfig[] = [
                                     { key: 'build', length: filteredSignalGroups.build.length, props: { title: t.buildTitle, subtitle: t.buildSubtitle, icon: <Code2 className="w-5 h-5" />, signals: filteredSignalGroups.build, colorClass: "text-blue-400", sourceType: "build" } },

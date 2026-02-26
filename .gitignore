@@ -76,6 +76,7 @@ scripts/*.sh
 
 # Test files
 test-*.ts
+test-screenshots/
 *.test.ts
 *.spec.ts
 AI 驱动标准化软件开发流程.md
