@@ -53,8 +53,8 @@ export class GovProcurementScraper extends BaseScraper {
      * 采购公告列表页
      */
     private async fetchCCGP(_baseUrl: string): Promise<ScrapedSignal[]> {
-        // 采购公告最新列表 (2024年4月后强制覆盖)
-        const listUrl = 'http://www.ccgp.gov.cn/cggg/gggg/';
+        // 采购公告最新列表 - 使用HTTPS
+        const listUrl = 'https://www.ccgp.gov.cn/cggg/zygg/';
 
         const response = await fetch(listUrl, {
             headers: {
@@ -91,7 +91,7 @@ export class GovProcurementScraper extends BaseScraper {
             // 构建完整URL
             let url = href;
             if (!href.startsWith('http')) {
-                url = 'http://www.ccgp.gov.cn' + (href.startsWith('/') ? '' : '/') + href;
+                url = 'https://www.ccgp.gov.cn' + (href.startsWith('/') ? '' : '/') + href;
             }
 
             signals.push({

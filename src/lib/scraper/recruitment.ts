@@ -280,7 +280,10 @@ export class RecruitmentScraper extends BaseScraper {
     /**
      * 从文本中提取技能
      */
-    private extractSkills(text: string): string[] {
+    private extractSkills(text: any): string[] {
+        // 确保 text 是字符串，处理编码问题
+        const textStr = typeof text === 'string' ? text : String(text || '');
+
         const techKeywords = [
             'Python', 'Java', 'JavaScript', 'TypeScript', 'Go', 'Rust', 'C++', 'C#',
             'React', 'Vue', 'Angular', 'Node.js', 'Next.js', 'NestJS',
@@ -294,7 +297,7 @@ export class RecruitmentScraper extends BaseScraper {
 
         const found: string[] = [];
         for (const keyword of techKeywords) {
-            if (text.includes(keyword)) {
+            if (textStr.includes(keyword)) {
                 found.push(keyword);
             }
         }

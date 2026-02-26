@@ -17,6 +17,7 @@ export default function AgentSetupPage() {
   const mcpServerUrl = `${baseUrl}/api/mcp`;
   const manifestUrl = `${baseUrl}/api/mcp.json`;
   const skillConfigUrl = `${baseUrl}/api/skill.json`;
+  const openclawConfigUrl = `${baseUrl}/api/openclaw.json`;
 
   const copyToClipboard = async (text: string, key: string) => {
     try {
@@ -321,6 +322,76 @@ export default function AgentSetupPage() {
                 title={t("copy")}
               >
                 {copied === "skillExample" ? (
+                  <Check className="w-5 h-5 text-green-400" />
+                ) : (
+                  <Copy className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* OpenClaw Section */}
+        <section className="bg-gradient-to-r from-orange-500/10 to-red-500/10 rounded-2xl p-6 border border-orange-500/20">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Terminal className="w-5 h-5 text-orange-500" />
+            OpenClaw 配置
+          </h2>
+          <p className="text-sm text-[var(--color-text-muted)] mb-4">
+            OpenClaw 使用 exec 指令执行 curl 命令来调用 API。通过以下 URL 获取 OpenClaw 配置：
+          </p>
+
+          {/* OpenClaw Config URL */}
+          <div className="mb-4">
+            <label className="block text-sm text-[var(--color-text-muted)] mb-1">
+              OpenClaw Config URL
+            </label>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 p-3 bg-[#0d1117] rounded-lg font-mono text-sm break-all border border-[#30363d]">
+                {openclawConfigUrl}
+              </code>
+              <button
+                onClick={() => copyToClipboard(openclawConfigUrl, "openclawConfigUrl")}
+                className="p-3 bg-[#21262d] hover:bg-[#30363d] rounded-lg transition"
+                title={t("copy")}
+              >
+                {copied === "openclawConfigUrl" ? (
+                  <Check className="w-5 h-5 text-green-400" />
+                ) : (
+                  <Copy className="w-5 h-5" />
+                )}
+              </button>
+              <a
+                href={openclawConfigUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-3 bg-[#21262d] hover:bg-[#30363d] rounded-lg transition"
+                title="Download"
+              >
+                <Download className="w-5 h-5" />
+              </a>
+            </div>
+          </div>
+
+          {/* OpenClaw curl 示例 */}
+          <div className="space-y-3">
+            <p className="text-sm text-[var(--color-text-muted)]">
+              获取信号列表示例（通过 exec 执行）：
+            </p>
+            <div className="relative">
+              <pre className="p-4 bg-[#0d1117] rounded-lg overflow-x-auto border border-[#30363d] text-sm">
+                <code className="font-mono text-orange-400">
+                  {`curl -s -X GET "${baseUrl}/api/signals?limit=10" \\
+  -H "Authorization: Bearer $SIGNAL_API_KEY" \\
+  -H "Content-Type: application/json"`}
+                </code>
+              </pre>
+              <button
+                onClick={() => copyToClipboard(`curl -s -X GET "${baseUrl}/api/signals?limit=10" -H "Authorization: Bearer $SIGNAL_API_KEY" -H "Content-Type: application/json"`, "openclawExample")}
+                className="absolute top-2 right-2 p-2 bg-[#21262d] hover:bg-[#30363d] rounded-lg transition"
+                title={t("copy")}
+              >
+                {copied === "openclawExample" ? (
                   <Check className="w-5 h-5 text-green-400" />
                 ) : (
                   <Copy className="w-5 h-5" />

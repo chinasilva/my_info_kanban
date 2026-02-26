@@ -42,7 +42,8 @@ export class AppRankScraper extends BaseScraper {
         }
 
         try {
-            return await this.fetchQimai(baseUrl);
+            // 优先使用 iTunes RSS API（更稳定可靠）
+            return await this.fetchAppStore();
         } catch (error) {
             await this.logError(error);
             return this.getMockData();

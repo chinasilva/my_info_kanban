@@ -87,6 +87,30 @@ Add to your `claude_desktop_config.json`:
 
 Visit [/agent-setup](/agent-setup) for detailed configuration.
 
+### OpenClaw Configuration
+
+OpenClaw uses `exec` to run bash commands (curl). Get the full configuration at:
+
+```bash
+curl https://your-domain.com/api/openclaw.json
+```
+
+**Quick curl examples:**
+
+```bash
+# Get signals (exec curl "url")
+curl -s -X GET "https://your-domain.com/api/signals?limit=10" \
+  -H "Authorization: Bearer $SIGNAL_API_KEY"
+
+# Get sources
+curl -s -X GET "https://your-domain.com/api/sources" \
+  -H "Authorization: Bearer $SIGNAL_API_KEY"
+
+# Trigger data fetch
+curl -s -X GET "https://your-domain.com/api/cron/fetch" \
+  -H "Authorization: Bearer $SIGNAL_API_KEY"
+```
+
 ## Quick Start
 
 ### Prerequisites

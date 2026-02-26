@@ -59,18 +59,25 @@ export class ResearchReportScraper extends BaseScraper {
         // 艾瑞咨询 - 行业研究报告
         const listUrl = 'https://www.iresearch.com.cn/research/reportlist';
 
-        const response = await fetch(listUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'text/html,application/xhtml+xml',
+        // 添加超时处理
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        try {
+            const response = await fetch(listUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Accept': 'text/html,application/xhtml+xml',
+                },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch iResearch: ${response.statusText}`);
             }
-        });
 
-        if (!response.ok) {
-            throw new Error(`Failed to fetch iResearch: ${response.statusText}`);
-        }
-
-        const html = await response.text();
+            const html = await response.text();
         const $ = load(html);
 
         const signals: ScrapedSignal[] = [];
@@ -107,6 +114,13 @@ export class ResearchReportScraper extends BaseScraper {
         });
 
         return signals.slice(0, 30);
+        } catch (error: any) {
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+                throw new Error('Request timeout');
+            }
+            throw error;
+        }
     }
 
     /**
