@@ -147,6 +147,7 @@ export class RecruitmentScraper extends BaseScraper {
                 url,
                 score: this.parseSalary(salary),
                 category: '招聘',
+                platform: '智联招聘',
                 metadata: {
                     salary,
                     skills,
@@ -206,6 +207,7 @@ export class RecruitmentScraper extends BaseScraper {
                 url,
                 score: this.parseSalary(salary),
                 category: '招聘',
+                platform: '拉勾',
                 metadata: {
                     salary,
                     skills,

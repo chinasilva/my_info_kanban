@@ -21,7 +21,18 @@ const DEFAULT_BLACKLIST = [
     '薛之谦', '林俊杰', '迪丽热巴', '刘亦菲', '郭富城', '周深', '杨幂',
     '杨洋', '王鹤棣', '周杰伦', '田馥甄', '小S', '王一博', '陈星旭',
     '李乃文', '王安宇', '冯琳', '方穆扬', '刘宇宁', '李晓庆', '王劲松',
-    '逐玉', '镖人', '剧集', '综艺', '音乐', '演出'
+    '逐玉', '镖人', '剧集', '综艺', '音乐', '演出',
+    // 补充更多明星和八卦关键词
+    '胡歌', '赵丽颖', '唐嫣', '杨紫', '李易峰', '吴亦凡', '鹿晗', '关晓彤',
+    '黄晓明', 'baby', '倪大红', '恋情曝光', '官宣恋情', '分手', '复合',
+    '新恋情', '疑似恋情', '经纪公司', '票房', '收视率',
+    'papi酱', '李子柒', '疯狂小杨哥', '辛巴', '薇娅', '李佳琦',
+    '春晚', '跨年', '春晚主持人', '春晚节目', '春晚明星',
+    '红毯造型', '机场街拍', '粉丝见面会', '生日会', '粉丝福利',
+    '新歌', 'MV', '专辑', '演唱会门票', '票房冠军', '收视冠军',
+    '金鹰奖', '白玉兰奖', '华表奖', '金鸡奖', '百花奖', '金马奖', '金像奖',
+    '奥斯卡', '戛纳', '柏林', '威尼斯', '电影节', '影帝', '影后',
+    '顶流', '流量明星', '小鲜肉', '小花', '实力派', '偶像派'
 ];
 
 // 默认白名单关键词（科技/商业相关内容）
@@ -168,6 +179,7 @@ export class SocialDemandScraper extends BaseScraper {
                 url: `https://s.weibo.com/weibo?q=${encodeURIComponent(word)}&Refer=hot`,
                 score: this.parseHot(rawHot),
                 category: '微博热搜',
+                platform: '微博',
                 metadata: {
                     platform: '微博',
                     likes: item.raw_hot || 0,
@@ -185,6 +197,7 @@ export class SocialDemandScraper extends BaseScraper {
     /**
      * 抓取百度热搜榜（备用方案）
      * 注意：这是备用方案，实际抓取的是百度热搜而非微博
+     * 应用黑名单过滤，避免八卦新闻
      */
     private async fetchBaiduHot(): Promise<ScrapedSignal[]> {
         const response = await fetch('https://top.baidu.com/board?tab=realtime', {
@@ -215,6 +228,7 @@ export class SocialDemandScraper extends BaseScraper {
                 url: href || `https://s.weibo.com/weibo?q=${encodeURIComponent(title)}&Refer=hot`,
                 score: this.parseHot(hot),
                 category: '微博热搜',
+                platform: '微博',
                 metadata: {
                     platform: '微博',
                     likes: this.parseHot(hot),
@@ -224,7 +238,15 @@ export class SocialDemandScraper extends BaseScraper {
             });
         });
 
-        return signals.slice(0, 30);
+        // 应用黑名单过滤（备用方案也要过滤）
+        const filteredSignals = this.filterSignals(signals.slice(0, 30));
+
+        // 如果过滤后数据过少，返回空数组而不是mock数据
+        if (filteredSignals.length < 3) {
+            return [];
+        }
+
+        return filteredSignals;
     }
 
     /**
@@ -267,6 +289,7 @@ export class SocialDemandScraper extends BaseScraper {
                 url: href ? `https://www.xiaohongshu.com${href}` : '',
                 score: this.parseHot(likes),
                 category: '小红书',
+                platform: '小红书',
                 metadata: {
                     platform: '小红书',
                     likes: this.parseHot(likes),
@@ -309,6 +332,7 @@ export class SocialDemandScraper extends BaseScraper {
                 url: target.url || `https://www.zhihu.com/question/${target.id}`,
                 score: item.detail?.score || 0,
                 category: '知乎热榜',
+                platform: '知乎',
                 metadata: {
                     platform: '知乎',
                     likes: target.voteup_count || 0,
@@ -360,6 +384,7 @@ export class SocialDemandScraper extends BaseScraper {
                 url: href ? `https://www.dianping.com${href}` : '',
                 score: this.parseRating(rating) * 10,
                 category: '大众点评',
+                platform: '大众点评',
                 metadata: {
                     platform: '大众点评',
                     rating: this.parseRating(rating),
@@ -398,6 +423,7 @@ export class SocialDemandScraper extends BaseScraper {
                 url: `https://www.douyin.com/search/${encodeURIComponent(item.word || '')}`,
                 score: item.hot_value || 0,
                 category: '抖音热点',
+                platform: '抖音',
                 metadata: {
                     platform: '抖音',
                     likes: item.hot_value || 0,
@@ -437,6 +463,7 @@ export class SocialDemandScraper extends BaseScraper {
                 url: `https://www.bilibili.com/video/${item.bvid}`,
                 score: item.stat?.view || 0,
                 category: 'B站热门',
+                platform: 'B站',
                 metadata: {
                     platform: 'B站',
                     likes: item.stat?.like || 0,

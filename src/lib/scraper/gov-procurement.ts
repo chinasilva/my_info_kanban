@@ -3,6 +3,19 @@ import { BaseScraper, ScrapedSignal } from './base';
 import { validateUrl } from '@/lib/security/ssrf';
 import { Source } from '@prisma/client';
 
+// 政府采购黑名单（排除非采购相关的热搜内容）
+const GOV_BLACKLIST = [
+    '明星', '演员', '歌手', '艺人', '离婚', '出轨', '结婚', '恋情', '官宣',
+    '综艺', '节目', '电视剧', '电影', '娱乐', '八卦', '粉丝', '爱豆',
+    '演唱会', '颁奖典礼', '红毯', '怀孕', '生子', '小三',
+    '网红', '直播', '打赏', '主播', '真人秀',
+    '胡歌', '赵丽颖', '唐嫣', '杨紫', '李易峰', '吴亦凡', '鹿晗', '关晓彤',
+    '黄晓明', 'baby', '杨幂', '迪丽热巴', '刘亦菲', '杨洋', '王一博',
+    '恋情曝光', '官宣恋情', '分手', '复合', '新恋情', '疑似恋情',
+    '春晚', '跨年', '春晚主持人', '春晚节目', '春晚明星',
+    '票房', '收视率', '金鹰奖', '奥斯卡'
+];
+
 interface ProcurementConfig {
     sourceType: 'ccgp' | 'ggzy' | 'local';
     region?: string;
@@ -189,6 +202,7 @@ export class GovProcurementScraper extends BaseScraper {
 
     /**
      * 备用方案：抓取百度热搜的地方政府招标信息
+     * 应用黑名单过滤，避免非采购相关内容
      */
     private async fetchCCGPBackup(): Promise<ScrapedSignal[]> {
         try {
@@ -225,7 +239,22 @@ export class GovProcurementScraper extends BaseScraper {
                 });
             });
 
-            return signals.slice(0, 30);
+            // 应用黑名单过滤
+            const filteredSignals = signals
+                .slice(0, 30)
+                .filter(signal => {
+                    const title = signal.title.toLowerCase();
+                    return !GOV_BLACKLIST.some(keyword =>
+                        title.includes(keyword.toLowerCase())
+                    );
+                });
+
+            // 如果过滤后数据过少，返回空数组而不是未过滤的数据
+            if (filteredSignals.length < 3) {
+                return [];
+            }
+
+            return filteredSignals;
         } catch (error) {
             return this.getMockData();
         }

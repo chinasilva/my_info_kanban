@@ -133,6 +133,7 @@ export class ResearchReportScraper extends BaseScraper {
                 url,
                 score: 50, // 默认分数
                 category: category || '行业研究',
+                platform: '艾瑞咨询',
                 metadata: {
                     publisher: '艾瑞咨询',
                     publishDate: this.extractDate(dateText || $item.text()),
@@ -195,6 +196,7 @@ export class ResearchReportScraper extends BaseScraper {
                 url,
                 score: 50,
                 category: '产业研究',
+                platform: '亿欧智库',
                 metadata: {
                     publisher: '亿欧智库',
                     publishDate: this.extractDate(dateText || $item.text()),
@@ -248,6 +250,7 @@ export class ResearchReportScraper extends BaseScraper {
                 url,
                 score: 70, // 信通院权威性高
                 category: '白皮书/研究报告',
+                platform: '中国信息通信研究院',
                 metadata: {
                     publisher: '中国信息通信研究院',
                     publishDate: this.extractDate(dateText || $item.text()),
@@ -300,6 +303,7 @@ export class ResearchReportScraper extends BaseScraper {
                 url,
                 score: 40,
                 category: '行业研报',
+                platform: '研报之家',
                 metadata: {
                     publisher: '研报之家',
                     publishDate: this.extractDate(dateText || $item.text()),
@@ -352,6 +356,7 @@ export class ResearchReportScraper extends BaseScraper {
                 url,
                 score: 45,
                 category: '券商研报',
+                platform: '东方财富',
                 metadata: {
                     publisher: '东方财富',
                     publishDate: this.extractDate(dateText || $item.text()),
