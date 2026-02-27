@@ -78,7 +78,7 @@ export class DemandValidator {
      */
     private buildPrompt(signals: DemandSignal[]): string {
         const signalsText = signals.map((s, i) => {
-            return `信号${i + 1}: "${s.title}"
+            return `信号${i}: "${s.title}"
 - 平台: ${s.platform || '未知'}
 - 分类: ${s.category || '未知'}`;
         }).join('\n\n');
@@ -114,8 +114,8 @@ ${signalsText}
 注意：
 1. 必须使用 "index" 字段，值为信号的序号（从0开始，对应第一个信号 index=0）
 2. 不要使用 "id" 字段，使用 "index" 来标识信号
-1. 返回的 JSON 数组必须与输入信号数量一致
-2. isValid 为 true 表示有效需求信号，false 表示无效（八卦/娱乐）
+3. 返回的 JSON 数组必须与输入信号数量一致
+4. isValid 为 true 表示有效需求信号，false 表示无效（八卦/娱乐）
 3. reason 是判断原因的简要说明
 4. 只输出 JSON 数组，不要有任何前缀或后缀文字`;
     }
@@ -164,8 +164,8 @@ ${signalsText}
                 const item = parsed[i] as LLMValidationItem;
                 const signal = signals[i];
 
-                if (item && typeof item.index === 'number') {
-                    // 使用 index 找到对应的信号
+                if (item && typeof item.index === 'number' && item.index >= 0 && item.index < signals.length) {
+                    // 使用 index 找到对应的信号（带范围校验）
                     const matchedSignal = signals[item.index];
                     // 确保 isValid 是布尔类型
                     const isValid = typeof item.isValid === 'boolean' ? item.isValid : true;
@@ -175,11 +175,11 @@ ${signalsText}
                         reason: item.reason || ''
                     });
                 } else {
-                    // 如果没有 index，使用当前循环的信号
+                    // 如果没有 index 或 index 越界，使用当前循环的信号
                     results.push({
                         signalId: signal?.id || signal?.title,
                         isValid: true,
-                        reason: 'Index missing, default to valid'
+                        reason: !item ? 'Item missing' : 'Index invalid, default to valid'
                     });
                 }
             }
