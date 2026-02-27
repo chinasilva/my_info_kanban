@@ -86,7 +86,7 @@ Key models: `User`, `Source`, `Signal`, `UserSignal`, `Insight`, `AICache`
 
 ## Code Submission Workflow
 
-所有代码更改必须遵循以下流程：**创建分支 → 提交代码 → 创建 PR → Merge**
+所有代码更改必须遵循以下流程：**创建分支 → 代码检查 → 提交代码 → 创建 PR → Merge**
 
 ### 提交流程
 
@@ -95,20 +95,37 @@ Key models: `User`, `Source`, `Signal`, `UserSignal`, `Insight`, `AICache`
 git checkout -b feat/功能名称
 # 或 fix/修复名称
 
-# 2. 提交代码
+# 2. 代码开发完成
+
+# 3. 代码检查（使用 code-review-tester agent）
+# 在 Claude Code 中执行：
+Task -> code-review-tester agent -> 检查待提交代码
+
+# 4. 提交代码（检查通过后）
 git add 文件路径
 git commit -m "feat: 添加新功能" 或 "fix: 修复问题"
 
-# 3. 推送分支到远程
+# 5. 推送分支到远程
 git push -u origin feat/功能名称
 
-# 4. 创建 Pull Request（使用 gh CLI）
+# 6. 创建 Pull Request（使用 gh CLI）
 gh pr create --title "feat: 功能名称" --body "描述..."
 # 或访问 GitHub 创建：https://github.com/chinasilva/my_info_kanban/pull/new/分支名
 
-# 5. Code Review 通过后 Merge PR
+# 7. Code Review 通过后 Merge PR
 # 在 GitHub UI 上点击 "Merge pull request"
 ```
+
+### 代码检查要求
+
+使用 `code-review-tester` agent 检查以下内容：
+- TypeScript 类型检查
+- ESLint 检查
+- 代码逻辑正确性
+- 潜在 bug 和安全问题
+- 是否有遗漏的边界情况
+
+检查通过后（无严重问题）才能继续提交。
 
 ### 分支命名规范
 
