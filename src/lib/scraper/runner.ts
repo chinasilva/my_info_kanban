@@ -124,6 +124,7 @@ export class ScraperRunner {
                                     score: signal.score,
                                     ...(signal.summary !== undefined ? { summary: signal.summary } : {}),
                                     ...(signal.metadata !== undefined ? { metadata: signal.metadata } : {}),
+                                    ...(signal.platform !== undefined ? { platform: signal.platform } : {}),
                                 },
                             });
                             results.updated++;
@@ -138,6 +139,7 @@ export class ScraperRunner {
                                     category: signal.category,
                                     externalId: signal.externalId,
                                     summary: signal.summary,
+                                    platform: signal.platform,
                                     metadata: (signal.metadata as any) || {},
                                 },
                             });

@@ -7,6 +7,7 @@ export interface ScrapedSignal {
     score: number;
     externalId?: string;
     category?: string;
+    platform?: string;
     metadata?: any;
 }
 

@@ -120,6 +120,7 @@ export class AppRankScraper extends BaseScraper {
                 url: $item.find('a').attr('href') || `https://www.qimai.cn/search/result/search/${encodeURIComponent(title)}`,
                 score: this.parseDownloads(downloads),
                 category: '应用榜单',
+                platform: '七麦数据',
                 metadata: {
                     downloads,
                     rating: this.parseRating(rating),
@@ -175,6 +176,7 @@ export class AppRankScraper extends BaseScraper {
                     url: `https://apps.apple.com/${country}/app/id${appId}`,
                     score: 50 - i, // 排名越高分数越高
                     category: 'iOS免费榜',
+                    platform: 'Apple App Store',
                     metadata: {
                         bundleId: idAttrs['im:bundleId'] || '',
                         appId: appId,
