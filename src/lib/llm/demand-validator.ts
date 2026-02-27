@@ -15,7 +15,7 @@ interface ValidationResult {
 }
 
 interface LLMValidationItem {
-    id?: string;
+    index?: number;
     isValid?: boolean;
     reason?: string;
 }
@@ -109,9 +109,11 @@ ${signalsText}
 
 请严格按照以下 JSON 数组格式输出，不要包含任何其他内容：
 
-[{"id": "信号ID", "isValid": true/false, "reason": "判断原因（简要）"}, ...]
+[{"index": 序号(从0开始), "isValid": true/false, "reason": "判断原因（简要）"}, ...]
 
 注意：
+1. 必须使用 "index" 字段，值为信号的序号（从0开始，对应第一个信号 index=0）
+2. 不要使用 "id" 字段，使用 "index" 来标识信号
 1. 返回的 JSON 数组必须与输入信号数量一致
 2. isValid 为 true 表示有效需求信号，false 表示无效（八卦/娱乐）
 3. reason 是判断原因的简要说明
@@ -156,26 +158,28 @@ ${signalsText}
                 console.warn(`Result count mismatch: expected ${signals.length}, got ${parsed.length}`);
             }
 
-            // 映射结果，处理数量不匹配的情况
+            // 映射结果，使用 index 匹配信号
             const results: ValidationResult[] = [];
             for (let i = 0; i < signals.length; i++) {
                 const item = parsed[i] as LLMValidationItem;
                 const signal = signals[i];
 
-                if (item) {
+                if (item && typeof item.index === 'number') {
+                    // 使用 index 找到对应的信号
+                    const matchedSignal = signals[item.index];
                     // 确保 isValid 是布尔类型
                     const isValid = typeof item.isValid === 'boolean' ? item.isValid : true;
                     results.push({
-                        signalId: item.id || signal?.id || signal?.title,
+                        signalId: matchedSignal?.id || signal?.id || signal?.title,
                         isValid: isValid,
                         reason: item.reason || ''
                     });
                 } else {
-                    // 如果 LLM 返回结果不足，使用信号本身的信息
+                    // 如果没有 index，使用当前循环的信号
                     results.push({
                         signalId: signal?.id || signal?.title,
                         isValid: true,
-                        reason: 'Result missing, default to valid'
+                        reason: 'Index missing, default to valid'
                     });
                 }
             }
