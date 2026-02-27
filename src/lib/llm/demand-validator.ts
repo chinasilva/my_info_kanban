@@ -14,6 +14,12 @@ interface ValidationResult {
     reason?: string;
 }
 
+interface LLMValidationItem {
+    id?: string;
+    isValid?: boolean;
+    reason?: string;
+}
+
 export class DemandValidator {
     private client = LLMFactory.createClient();
     private readonly BATCH_SIZE = 500;
@@ -129,8 +135,8 @@ ${signalsText}
                 console.log("Extracted JSON from markdown code block");
             }
 
-            // 2. 尝试匹配 JSON 数组
-            const jsonMatch = jsonText.match(/\[[\s\S]*\]/);
+            // 2. 尝试匹配 JSON 数组（非贪婪匹配）
+            const jsonMatch = jsonText.match(/\[[\s\S]*?\]/);
             if (!jsonMatch) {
                 console.warn("Failed to find JSON array in response");
                 console.warn("Response preview:", response.substring(0, 500));
@@ -145,12 +151,34 @@ ${signalsText}
 
             console.log(`Successfully parsed ${parsed.length} validation results`);
 
-            // 映射结果
-            const results = parsed.map((item: any, index: number) => ({
-                signalId: item.id || signals[index]?.id || signals[index]?.title,
-                isValid: item.isValid === true,
-                reason: item.reason || ''
-            }));
+            // 检查结果数量是否匹配
+            if (parsed.length !== signals.length) {
+                console.warn(`Result count mismatch: expected ${signals.length}, got ${parsed.length}`);
+            }
+
+            // 映射结果，处理数量不匹配的情况
+            const results: ValidationResult[] = [];
+            for (let i = 0; i < signals.length; i++) {
+                const item = parsed[i] as LLMValidationItem;
+                const signal = signals[i];
+
+                if (item) {
+                    // 确保 isValid 是布尔类型
+                    const isValid = typeof item.isValid === 'boolean' ? item.isValid : true;
+                    results.push({
+                        signalId: item.id || signal?.id || signal?.title,
+                        isValid: isValid,
+                        reason: item.reason || ''
+                    });
+                } else {
+                    // 如果 LLM 返回结果不足，使用信号本身的信息
+                    results.push({
+                        signalId: signal?.id || signal?.title,
+                        isValid: true,
+                        reason: 'Result missing, default to valid'
+                    });
+                }
+            }
 
             // 统计有效/无效
             const validCount = results.filter(r => r.isValid).length;
@@ -166,24 +194,28 @@ ${signalsText}
     }
 
     /**
-     * 更新信号的验证结果到数据库
+     * 更新信号的验证结果到数据库（并行更新）
      */
     async updateValidationResults(results: ValidationResult[]): Promise<number> {
-        let successCount = 0;
+        // 过滤掉无效的 signalId（排除空字符串和 undefined）
+        const validResults = results.filter(r => r.signalId && r.signalId.trim() !== '');
 
-        for (const result of results) {
-            try {
-                await prisma.signal.update({
-                    where: { id: result.signalId },
-                    data: { isValidDemand: result.isValid }
-                });
-                successCount++;
-            } catch (error) {
-                console.error(`Failed to update signal ${result.signalId}:`, error);
-            }
-        }
+        // 并行更新
+        const updates = validResults.map(result =>
+            prisma.signal.update({
+                where: { id: result.signalId },
+                data: { isValidDemand: result.isValid }
+            }).then(() => ({ success: true, id: result.signalId }))
+                .catch((error) => {
+                    console.error(`Failed to update signal ${result.signalId}:`, error);
+                    return { success: false, id: result.signalId };
+                })
+        );
 
-        console.log(`Updated validation results for ${successCount}/${results.length} signals.`);
+        const settled = await Promise.allSettled(updates);
+        const successCount = settled.filter(r => r.status === 'fulfilled' && r.value.success).length;
+
+        console.log(`Updated validation results for ${successCount}/${validResults.length} signals.`);
         return successCount;
     }
 
