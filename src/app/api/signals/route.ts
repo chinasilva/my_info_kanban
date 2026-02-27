@@ -96,6 +96,11 @@ export async function GET(request: NextRequest) {
         ...(cursor ? { id: { lt: cursor } } : {})
     };
 
+    // [NEW] 需求挖掘类型过滤无效信号
+    if (sourceType === 'demand') {
+        whereClause.isValidDemand = true;
+    }
+
     // Date Filtering Logic
     if (date) {
         // Specific Date Logic (Time Machine)
@@ -149,6 +154,7 @@ export async function GET(request: NextRequest) {
         createdAt: s.createdAt.toISOString(),
         isRead: userId ? (s.userStates?.[0]?.isRead ?? false) : false,
         isFavorited: userId ? (s.userStates?.[0]?.isFavorited ?? false) : false,
+        platform: s.platform || s.source?.name || null,
     }));
 
     return NextResponse.json({

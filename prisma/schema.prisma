@@ -122,15 +122,17 @@ model Signal {
   aiSummaryZh String?
   titleTranslated String?
   externalId  String?
+  platform    String?  // 信息平台标签：微博、小红书、知乎、抖音、B站等
+  isValidDemand Boolean? // LLM 判断需求信号是否有效：true=有效需求信号，false=无效（八卦/娱乐新闻）
   metadata    Json?
-  
+
   source      Source       @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   userStates  UserSignal[]
   insights    Insight[]    // Implicit many-to-many relation
-    
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   @@index([sourceId])
   @@index([createdAt])
 }
