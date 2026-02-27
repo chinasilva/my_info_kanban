@@ -117,26 +117,50 @@ ${signalsText}
      */
     private parseResponse(response: string, signals: DemandSignal[]): ValidationResult[] {
         try {
-            // 提取 JSON 数组
-            const jsonMatch = response.match(/\[[\s\S]*\]/);
+            // 记录原始响应（用于调试）
+            console.log(`LLM response length: ${response.length} chars`);
+            console.log(`LLM response preview: ${response.substring(0, 200)}...`);
+
+            // 1. 尝试提取 markdown 代码块中的 JSON
+            let jsonText = response;
+            const codeBlockMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/i);
+            if (codeBlockMatch) {
+                jsonText = codeBlockMatch[1].trim();
+                console.log("Extracted JSON from markdown code block");
+            }
+
+            // 2. 尝试匹配 JSON 数组
+            const jsonMatch = jsonText.match(/\[[\s\S]*\]/);
             if (!jsonMatch) {
-                console.warn("Failed to parse LLM response, using default valid results");
+                console.warn("Failed to find JSON array in response");
+                console.warn("Response preview:", response.substring(0, 500));
                 return signals.map(s => ({ signalId: s.id, isValid: true, reason: "Parse error" }));
             }
 
             const parsed = JSON.parse(jsonMatch[0]);
             if (!Array.isArray(parsed)) {
+                console.warn("Parsed content is not an array");
                 return signals.map(s => ({ signalId: s.id, isValid: true, reason: "Invalid format" }));
             }
 
+            console.log(`Successfully parsed ${parsed.length} validation results`);
+
             // 映射结果
-            return parsed.map((item: any, index: number) => ({
+            const results = parsed.map((item: any, index: number) => ({
                 signalId: item.id || signals[index]?.id || signals[index]?.title,
                 isValid: item.isValid === true,
                 reason: item.reason || ''
             }));
+
+            // 统计有效/无效
+            const validCount = results.filter(r => r.isValid).length;
+            const invalidCount = results.filter(r => !r.isValid).length;
+            console.log(`Validation results: ${validCount} valid, ${invalidCount} invalid`);
+
+            return results;
         } catch (error) {
             console.error("Failed to parse validation response:", error);
+            console.error("Response:", response.substring(0, 500));
             return signals.map(s => ({ signalId: s.id, isValid: true, reason: "Parse error" }));
         }
     }
