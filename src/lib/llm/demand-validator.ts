@@ -137,8 +137,8 @@ ${signalsText}
                 console.log("Extracted JSON from markdown code block");
             }
 
-            // 2. 尝试匹配 JSON 数组（非贪婪匹配）
-            const jsonMatch = jsonText.match(/\[[\s\S]*?\]/);
+            // 2. 尝试匹配 JSON 数组（贪婪匹配，确保匹配整个数组）
+            const jsonMatch = jsonText.match(/\[[\s\S]*\]/);
             if (!jsonMatch) {
                 console.warn("Failed to find JSON array in response");
                 console.warn("Response preview:", response.substring(0, 500));
