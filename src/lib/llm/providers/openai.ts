@@ -2,6 +2,12 @@ import OpenAI from 'openai';
 import { LLMClient, ProcessingResult, BatchProcessingResult } from '../types';
 import pLimit from 'p-limit';
 
+function isRateLimitError(error: unknown): boolean {
+    if (!error || typeof error !== "object") return false;
+    const candidate = error as { status?: number; code?: string };
+    return candidate.status === 429 || candidate.code === 'rate_limit_exceeded';
+}
+
 export class OpenAIClient implements LLMClient {
     private client: OpenAI;
     private model: string;
@@ -48,9 +54,9 @@ Output JSON format:
                 if (!contentStr) throw new Error('No content from LLM');
 
                 return JSON.parse(contentStr) as ProcessingResult;
-            } catch (error: any) {
+            } catch (error: unknown) {
                 // Check for rate limit error (429)
-                if (error?.status === 429 || error?.code === 'rate_limit_exceeded') {
+                if (isRateLimitError(error)) {
                     console.warn(`Rate limit exceeded. Retrying attempt ${retries + 1}/${maxRetries}...`);
                     if (retries === maxRetries) {
                         console.error('Max retries reached for rate limiting.');

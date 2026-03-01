@@ -107,8 +107,9 @@ export function PodcastButton({ locale }: PodcastButtonProps) {
 
       const data = await response.json();
       setResult(data.data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to generate podcast');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to generate podcast";
+      setError(message);
     } finally {
       setIsGenerating(false);
     }

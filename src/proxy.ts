@@ -8,20 +8,17 @@ const intlMiddleware = createMiddleware({
     defaultLocale: 'zh'
 });
 
-// MCP Agent 静态首页 HTML
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://signal.binaryworks.app";
+
+// Agent 静态首页 HTML（Skill-first）
 const AGENT_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>High-Signal Aggregator - MCP Server</title>
-  <meta name="description" content="MCP Server - AI-powered tech and finance signal aggregation">
-  <meta name="mcp-server" content="/api/mcp">
-  <meta name="mcp-discovery" content="/.well-known/mcp.json">
-  <meta name="mcp-name" content="High Quality Info Aggregator">
-  <meta name="mcp-version" content="1.0.0">
-  <meta name="mcp-purpose" content="AI Agent integration">
-  <link rel="alternate" type="application/json" href="/api/mcp.json">
+  <title>High-Signal Aggregator - Skill Setup</title>
+  <meta name="description" content="Skill-first API access for AI Agents">
+  <link rel="alternate" type="application/json" href="/api/skill.json">
   <style>
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;min-height:100vh;background:linear-gradient(135deg,#0f172a,#1e293b);color:#e2e8f0;display:flex;align-items:center;justify-content:center;padding:20px}
     .card{max-width:600px;width:100%;background:rgba(30,41,59,.8);border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:32px}
@@ -39,18 +36,19 @@ const AGENT_HTML = `<!DOCTYPE html>
 </head>
 <body>
   <div class="card">
-    <span class="badge">MCP Server</span>
+    <span class="badge">Skill-Only</span>
     <h1>High-Signal Aggregator</h1>
     <p class="subtitle">AI-powered tech & finance signal aggregation</p>
-    <div class="warning"><strong>Note:</strong> This is an MCP server, not a messaging app.</div>
-    <div class="section"><div class="section-title">Quick Start</div><pre>curl /.well-known/mcp.json</pre></div>
-    <div class="section"><div class="section-title">Endpoints</div><code>/.well-known/mcp.json</code> - Discovery<br><code>/api/mcp.json</code> - Tools<br><code>/api/mcp</code> - MCP Protocol</div>
-    <div class="section"><div class="section-title">Tools</div><div class="tools"><span class="tool">get_signals</span><span class="tool">get_sources</span><span class="tool">read_article</span><span class="tool">search_signals</span><span class="tool">get_insights</span></div></div>
+    <div class="warning"><strong>Note:</strong> Install Skill first. MCP is removed.</div>
+    <div class="section"><div class="section-title">Quick Start</div><pre>curl ${baseUrl}/api/skill.json</pre></div>
+    <div class="section"><div class="section-title">Endpoints</div><code>/api/skill.json</code> - Skill manifest<br><code>/api/openclaw.json</code> - OpenClaw config<br><code>/agent-setup</code> - API key and setup guide</div>
+    <div class="section"><div class="section-title">Auth</div><code>Authorization: Bearer $SIGNAL_API_KEY</code></div>
+    <div class="section"><div class="section-title">Tools</div><div class="tools"><span class="tool">signals</span><span class="tool">sources</span><span class="tool">ai/read</span><span class="tool">podcast</span><span class="tool">rss/opml</span></div></div>
   </div>
 </body>
 </html>`;
 
-export default function middleware(request: NextRequest) {
+export default function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     // 排除不需要国际化处理的路径
@@ -66,7 +64,7 @@ export default function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // 根路径返回静态 MCP 信息（供 AI Agent 发现）
+    // 根路径返回静态 Agent 信息（供 AI Agent 发现）
     // 通过 Accept header 区分人类用户和 AI Agent
     if (pathname === '/' || pathname === '') {
         const acceptHeader = request.headers.get('accept') || '';
@@ -76,7 +74,7 @@ export default function middleware(request: NextRequest) {
             return intlMiddleware(request);
         }
 
-        // AI Agent 请求（只接受 application/json 或 */*），返回 MCP 静态页面
+        // AI Agent 请求（只接受 application/json 或 */*），返回静态接入页面
         return new NextResponse(AGENT_HTML, {
             status: 200,
             headers: {

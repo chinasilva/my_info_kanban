@@ -1,4 +1,5 @@
-import { load } from 'cheerio';
+import { load, type Cheerio } from 'cheerio';
+import type { AnyNode } from 'domhandler';
 import { BaseScraper, ScrapedSignal } from './base';
 import { validateUrl } from '@/lib/security/ssrf';
 import { Source } from '@prisma/client';
@@ -84,7 +85,7 @@ export class AppRankScraper extends BaseScraper {
             'table tr',
         ];
 
-        let items: any = null;
+        let items: Cheerio<AnyNode> | null = null;
         for (const selector of selectors) {
             const found = $(selector);
             if (found.length > 0) {
@@ -95,7 +96,7 @@ export class AppRankScraper extends BaseScraper {
 
         if (!items) return signals;
 
-        items.each((index: any, element: any) => {
+        items.each((index: number, element) => {
             if (index === 0) return; // 跳过表头
 
             const $item = $(element);

@@ -28,14 +28,14 @@ const safeLocalStorage = {
     getItem: (key: string): string | null => {
         try {
             return localStorage.getItem(key);
-        } catch (e) {
+        } catch {
             return null;
         }
     },
     setItem: (key: string, value: string) => {
         try {
             localStorage.setItem(key, value);
-        } catch (e) {
+        } catch {
             // Ignore error
         }
     }
@@ -49,7 +49,7 @@ export default function SourcesPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0); // Trigger history refresh
-    const { data: session, status: sessionStatus } = useSession();
+    const { status: sessionStatus } = useSession();
     const isGuest = sessionStatus === "unauthenticated";
     const t = useTranslations("SourcePage");
 
@@ -222,7 +222,7 @@ export default function SourcesPage() {
             setRssName("");
             setRssFeedUrl("");
             setRssIcon("📡");
-        } catch (error) {
+        } catch {
             setRssError(t("rssModal.error.network"));
         } finally {
             setRssLoading(false);

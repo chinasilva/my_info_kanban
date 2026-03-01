@@ -72,9 +72,9 @@
     },
     "AgentSetup": {
         "title": "Agent 接入配置",
-        "description": "让 AI Agent 自动发现并使用网站功能",
+        "description": "Skill-only 接入：让 AI Agent 直接调用网站 API",
         "quickStart": "快速开始",
-        "quickStartSteps": "1. 复制 MCP 服务器地址\n2. 在 Agent 配置中添加服务器\n3. Agent 即可自动发现可用工具",
+        "quickStartSteps": "1. 下载 /api/skill.json\n2. 安装到 Agent 的 skill 目录\n3. 生成 API Key 并设置 SIGNAL_API_KEY\n4. 执行一条 curl 命令验证",
         "apiKey": "API Key",
         "generateKey": "生成密钥",
         "loginRequired": "请先登录以生成 API Key",
@@ -86,7 +86,7 @@
         "availableTools": "可用工具",
         "authentication": "认证方式",
         "authHint": "在请求头中添加 API Key：",
-        "authHint2": "或使用 x-api-key header",
+        "authHint2": "使用 Authorization: Bearer TOKEN",
         "copy": "复制",
         "tools": {
             "get_signals": "获取信号列表，支持按来源类型、时间范围、标签筛选",

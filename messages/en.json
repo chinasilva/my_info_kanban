@@ -72,9 +72,9 @@
     },
     "AgentSetup": {
         "title": "Agent Setup",
-        "description": "Let AI Agents automatically discover and use website features",
+        "description": "Skill-only setup for AI Agents to call website APIs directly",
         "quickStart": "Quick Start",
-        "quickStartSteps": "1. Copy the MCP server URL\n2. Add the server to your Agent configuration\n3. The Agent will automatically discover available tools",
+        "quickStartSteps": "1. Download /api/skill.json\n2. Install it into your Agent skill directory\n3. Generate API key and set SIGNAL_API_KEY\n4. Run one curl command to verify",
         "apiKey": "API Key",
         "generateKey": "Generate Key",
         "loginRequired": "Please login first to generate an API Key",
@@ -86,7 +86,7 @@
         "availableTools": "Available Tools",
         "authentication": "Authentication",
         "authHint": "Add API Key to request header:",
-        "authHint2": "Or use x-api-key header",
+        "authHint2": "Use Bearer token in Authorization header",
         "copy": "Copy",
         "tools": {
             "get_signals": "Get signal list, filter by source type, date range, tags",

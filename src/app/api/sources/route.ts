@@ -1,15 +1,25 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/options";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma/db";
+import { getSessionOrAgentAuth } from "@/lib/auth/session-or-agent";
 
 // 获取所有可用数据源
-export async function GET() {
-    const session = await getServerSession(authOptions);
-    const userId = session?.user?.id;
+export async function GET(request: Request) {
+    const authResult = await getSessionOrAgentAuth(request, {
+        requiredPermissions: ["read:sources"],
+        allowGuest: true,
+    });
+    if (!authResult.success) {
+        return NextResponse.json(
+            { error: authResult.error || "Unauthorized" },
+            { status: authResult.status || 401 }
+        );
+    }
+
+    const userId = authResult.userId;
 
     // If guest, only show built-in sources
-    const whereCondition: any = { isActive: true };
+    const whereCondition: Prisma.SourceWhereInput = { isActive: true };
     if (!userId) {
         whereCondition.isBuiltIn = true;
     }

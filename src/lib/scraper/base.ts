@@ -1,5 +1,3 @@
-import { Signal } from "../prisma/client";
-
 export interface ScrapedSignal {
     title: string;
     url: string;
@@ -8,7 +6,7 @@ export interface ScrapedSignal {
     externalId?: string;
     category?: string;
     platform?: string;
-    metadata?: any;
+    metadata?: unknown;
 }
 
 export abstract class BaseScraper {
@@ -17,7 +15,7 @@ export abstract class BaseScraper {
 
     abstract fetch(): Promise<ScrapedSignal[]>;
 
-    protected async logError(error: any) {
+    protected async logError(error: unknown) {
         console.error(`Scraper error [${this.name}]:`, error);
     }
 

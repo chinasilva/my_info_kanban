@@ -36,7 +36,7 @@ export async function DELETE(
     });
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting API key:", error);
     return NextResponse.json({ error: "删除失败" }, { status: 500 });
   }
@@ -88,7 +88,7 @@ export async function PATCH(
     });
 
     return NextResponse.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating API key:", error);
     return NextResponse.json({ error: "更新失败" }, { status: 500 });
   }

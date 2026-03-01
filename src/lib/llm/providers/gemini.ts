@@ -4,7 +4,7 @@ import pLimit from 'p-limit';
 
 export class GeminiClient implements LLMClient {
     private genAI: GoogleGenerativeAI;
-    private model: any;
+    private model: ReturnType<GoogleGenerativeAI["getGenerativeModel"]>;
 
     constructor(apiKey: string, modelName: string = 'gemini-2.5-flash') {
         this.genAI = new GoogleGenerativeAI(apiKey);

@@ -41,11 +41,12 @@ export async function getSessionOrTestAuth(
     // 正常模式：使用 NextAuth
     const session = await getServerSession(authOptions);
     if (session?.user) {
+        const user = session.user as { id?: string; email?: string | null; name?: string | null };
         return {
             user: {
-                id: (session.user as any).id,
-                email: session.user.email || undefined,
-                name: session.user.name || undefined,
+                id: user.id || "",
+                email: user.email || undefined,
+                name: user.name || undefined,
             },
         };
     }

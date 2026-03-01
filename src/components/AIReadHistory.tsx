@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN, enUS } from "date-fns/locale";
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
 import { FileText, Clock, ExternalLink, Sparkles, Globe, Loader2 } from "lucide-react";
 
 interface HistoryItem {
@@ -23,7 +23,6 @@ interface AIReadHistoryProps {
 
 export function AIReadHistory({ refreshTrigger }: AIReadHistoryProps) {
     const locale = useLocale();
-    const t = useTranslations("AIReader"); // Assume strings exists
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 

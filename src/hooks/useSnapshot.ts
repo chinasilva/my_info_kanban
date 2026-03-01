@@ -24,7 +24,7 @@ export function useSnapshot() {
                 ? getComputedStyle(document.body).backgroundColor
                 : computedStyle.backgroundColor;
 
-            const dataUrl = await toPng(element, {
+            const renderOptions = ({
                 cacheBust: true,
                 backgroundColor: bgColor, // Use actual background color
                 filter: (node: HTMLElement) => !node.classList?.contains("no-capture"),
@@ -55,7 +55,9 @@ export function useSnapshot() {
                         clonedNode.appendChild(footer);
                     }
                 }
-            } as any);
+            } as unknown) as Parameters<typeof toPng>[1];
+
+            const dataUrl = await toPng(element, renderOptions);
 
             // Handle Sharing
             try {

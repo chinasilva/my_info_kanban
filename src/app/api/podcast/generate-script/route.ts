@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPodcastGenerator } from '@/lib/podcast/generator';
+import { getSessionOrAgentAuth } from '@/lib/auth/session-or-agent';
 
 export const runtime = 'nodejs';
 
@@ -7,6 +8,16 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  const authResult = await getSessionOrAgentAuth(req, {
+    requiredPermissions: ["read:signals"],
+  });
+  if (!authResult.success) {
+    return NextResponse.json(
+      { error: authResult.error || "Unauthorized" },
+      { status: authResult.status || 401 }
+    );
+  }
+
   try {
     const body = await req.json();
     const {
@@ -53,10 +64,11 @@ export async function POST(req: NextRequest) {
         estimatedDuration: podcastContent.estimatedDuration,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : null;
     console.error('Podcast script generation error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to generate podcast script' },
+      { error: message || 'Failed to generate podcast script' },
       { status: 500 }
     );
   }
@@ -64,6 +76,7 @@ export async function POST(req: NextRequest) {
 
 // GET: Return available options
 export async function GET() {
+  // Keep options endpoint public for frontend setup UX.
   return NextResponse.json({
     options: {
       styles: ['casual', 'professional', 'news'],

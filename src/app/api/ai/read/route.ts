@@ -4,10 +4,21 @@ import { prisma } from '@/lib/prisma/db';
 import { GenericWebScraper } from '@/lib/scraper/generic-web';
 import { LLMFactory } from '@/lib/llm/factory';
 import { splitTextIntoChunks } from '@/lib/ai/chunking';
+import { getSessionOrAgentAuth } from '@/lib/auth/session-or-agent';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
+    const authResult = await getSessionOrAgentAuth(req, {
+        requiredPermissions: ["read:article"],
+    });
+    if (!authResult.success) {
+        return NextResponse.json(
+            { error: authResult.error || "Unauthorized" },
+            { status: authResult.status || 401 }
+        );
+    }
+
     const { searchParams } = new URL(req.url);
     const url = searchParams.get('url');
     const mode = searchParams.get('mode');
@@ -42,18 +53,22 @@ export async function GET(req: NextRequest) {
                 // 1. Fetch Content
                 const scraper = new GenericWebScraper(url);
                 const signals = await scraper.fetch();
+                const metadata =
+                    signals[0]?.metadata && typeof signals[0].metadata === "object"
+                        ? (signals[0].metadata as Record<string, unknown>)
+                        : null;
+                const fullContent = typeof metadata?.fullContent === "string"
+                    ? metadata.fullContent
+                    : null;
 
-                if (!signals || signals.length === 0 || !signals[0].metadata?.fullContent) {
+                if (!signals || signals.length === 0 || !fullContent) {
                     // Standard error for scraper failure
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: 'Failed to fetch content. X.com/Twitter often blocks automated scrapers.' })}\n\n`));
                     controller.close();
                     return;
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: 'Failed to fetch content' })}\n\n`));
-                    controller.close();
-                    return;
                 }
 
-                const rawContent = signals[0].metadata.fullContent as string;
+                const rawContent = fullContent;
                 const title = signals[0].title;
                 const llm = LLMFactory.createClient();
 
@@ -106,20 +121,28 @@ export async function GET(req: NextRequest) {
                             translation: mode === 'translate' ? fullResult : undefined,
                         }
                     });
-                } catch (dbError) {
+                } catch (dbError: unknown) {
                     console.error("Failed to save to AICache (DB Error):", dbError);
                     // Print prisma error code if available
-                    if ((dbError as any).code) {
-                        console.error("Prisma Error Code:", (dbError as any).code);
+                    if (
+                        dbError &&
+                        typeof dbError === "object" &&
+                        "code" in dbError
+                    ) {
+                        console.error(
+                            "Prisma Error Code:",
+                            String((dbError as { code?: unknown }).code)
+                        );
                     }
                 }
 
                 controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
                 controller.close();
 
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("Streaming error:", err);
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: err.message })}\n\n`));
+                const message = err instanceof Error ? err.message : "Unknown error";
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: message })}\n\n`));
                 controller.close();
             }
         },
@@ -135,5 +158,3 @@ export async function GET(req: NextRequest) {
 }
 
 // Helper for Mock Response
-
-

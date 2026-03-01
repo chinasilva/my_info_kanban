@@ -2,8 +2,9 @@
 
 import { signOut } from "next-auth/react";
 import { useState } from "react";
-import { LogOut, User, ChevronDown, Bot } from "lucide-react";
+import { LogOut, ChevronDown, Bot } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface UserMenuProps {
     user: {
@@ -23,10 +24,12 @@ export function UserMenu({ user }: UserMenuProps) {
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-[var(--color-card-hover)] transition"
             >
                 {user.image ? (
-                    <img
+                    <Image
                         src={user.image}
                         alt={user.name || "User"}
                         className="w-7 h-7 rounded-full border border-[var(--color-border)]"
+                        width={28}
+                        height={28}
                     />
                 ) : (
                     <div className="w-7 h-7 rounded-full bg-[var(--color-accent)] flex items-center justify-center">

@@ -86,9 +86,18 @@ export class RecruitmentScraper extends BaseScraper {
         if (signals.length === 0) return true;
         // 如果任何一个信号是 mock 数据，则整个数组视为 mock 数据
         return signals.some(signal =>
+            (() => {
+                const note =
+                    signal.metadata && typeof signal.metadata === "object" && "note" in signal.metadata
+                        ? (signal.metadata as { note?: unknown }).note
+                        : undefined;
+                return (
             signal.url === this.sourceConfig.baseUrl &&
             signal.score === 0 &&
-            signal.metadata?.note?.includes('需配置Cookie')
+            typeof note === "string" &&
+            note.includes('需配置Cookie')
+                );
+            })()
         );
     }
 
@@ -244,7 +253,7 @@ export class RecruitmentScraper extends BaseScraper {
     /**
      * 从文本中提取技能
      */
-    private extractSkills(text: any): string[] {
+    private extractSkills(text: unknown): string[] {
         // 确保 text 是字符串，处理编码问题
         const textStr = typeof text === 'string' ? text : String(text || '');
 

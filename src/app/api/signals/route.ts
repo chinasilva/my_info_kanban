@@ -1,27 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/options";
 import { SignalQuerySchema } from "@/schemas/api";
+import { getSessionOrAgentAuth } from "@/lib/auth/session-or-agent";
 
 export async function GET(request: NextRequest) {
-    const apiKey = request.headers.get("x-api-key");
-    let userId: string | null = null;
-
-    // API Key 认证（用于终端测试）
-    if (apiKey && apiKey === process.env.API_SECRET_KEY) {
-        // 使用 API Key 时，获取第一个用户作为测试用户
-        const testUser = await prisma.user.findFirst();
-        if (testUser) {
-            userId = testUser.id;
-        }
-    } else {
-        // 正常 Session 认证
-        const session = await getServerSession(authOptions);
-        if (session?.user?.id) {
-            userId = session.user.id;
-        }
+    const authResult = await getSessionOrAgentAuth(request, {
+        requiredPermissions: ["read:signals"],
+        allowGuest: true,
+    });
+    if (!authResult.success) {
+        return NextResponse.json(
+            { error: authResult.error || "Unauthorized" },
+            { status: authResult.status || 401 }
+        );
     }
+
+    const userId = authResult.userId || null;
 
     // Remove strict 401 check. Proceed as guest if no userId.
 
@@ -32,7 +27,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Invalid query parameters", details: query.error.format() }, { status: 400 });
     }
 
-    const { cursor, limit, sourceType, days, tag, date, sourceId } = query.data;
+    const { cursor, limit, sourceType, tag, date, sourceId } = query.data;
 
     // Source type to actual source types mapping
     const SOURCE_GROUPS: Record<string, string[]> = {
@@ -43,8 +38,13 @@ export async function GET(request: NextRequest) {
         demand: ["gov_procurement", "research_report", "recruitment", "app_rank", "social_demand", "overseas_trend"],
     };
 
+    type UserSourceLike = {
+        sourceId: string;
+        source: { type: string };
+    };
+
     let subscribedSourceIds: string[] = [];
-    let userSources: any[] = []; // Only populated if user is logged in
+    let userSources: UserSourceLike[] = []; // Only populated if user is logged in
 
     if (userId) {
         // Logged-in user: Get subscribed sources
@@ -53,18 +53,32 @@ export async function GET(request: NextRequest) {
                 userId: userId,
                 isEnabled: true
             },
-            include: { source: true }
+            select: {
+                sourceId: true,
+                source: {
+                    select: {
+                        type: true,
+                    }
+                }
+            }
         });
         subscribedSourceIds = userSources.map(us => us.sourceId);
     } else {
         // Guest: Get built-in sources
         const builtInSources = await prisma.source.findMany({
-            where: { isBuiltIn: true }
+            where: { isBuiltIn: true },
+            select: {
+                id: true,
+                type: true,
+            }
         });
         subscribedSourceIds = builtInSources.map(s => s.id);
 
         // Mock userSources structure for filtering logic below
-        userSources = builtInSources.map(s => ({ source: s, sourceId: s.id }));
+        userSources = builtInSources.map(s => ({
+            sourceId: s.id,
+            source: { type: s.type },
+        }));
     }
 
     // Filter by source type if provided
@@ -91,7 +105,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build base where clause
-    const whereClause: any = {
+    const whereClause: Prisma.SignalWhereInput = {
         sourceId: { in: filteredSourceIds },
         ...(cursor ? { id: { lt: cursor } } : {})
     };

@@ -3,14 +3,12 @@
 import { useState } from "react";
 import { Link, Sparkles, FileText, Globe, Loader2, Play } from "lucide-react";
 import { useReading } from "@/context/ReadingContext";
-import { useTranslations } from "next-intl";
 
 interface AIReadInputProps {
     onStart?: () => void;
 }
 
 export function AIReadInput({ onStart }: AIReadInputProps) {
-    const t = useTranslations("AIReader"); // Assume we'll add these strings
     const [url, setUrl] = useState("");
     const [mode, setMode] = useState<'short' | 'long' | 'translate'>('short');
     const { startReading } = useReading();

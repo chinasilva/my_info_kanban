@@ -1,18 +1,29 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/prisma/db";
 import { validateUrl } from "@/lib/security/ssrf";
+import { getSessionOrAgentAuth } from "@/lib/auth/session-or-agent";
 
 // 创建自定义 RSS 数据源
 export async function POST(request: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authResult = await getSessionOrAgentAuth(request, {
+        requiredPermissions: ["write:sources"],
+    });
+    if (!authResult.success || !authResult.userId) {
+        return NextResponse.json(
+            { error: authResult.error || "Unauthorized" },
+            { status: authResult.status || 401 }
+        );
     }
 
+    const userId = authResult.userId;
+
     try {
-        const { name, feedUrl, icon } = await request.json();
+        const body = (await request.json()) as {
+            name?: string;
+            feedUrl?: string;
+            icon?: string;
+        };
+        const { name, feedUrl, icon } = body;
 
         if (!name || !feedUrl) {
             return NextResponse.json(
@@ -84,15 +95,18 @@ export async function POST(request: Request) {
                         { status: 400 }
                     );
                 }
-            } catch (fetchError: any) {
-                if (fetchError.name === "AbortError") {
+            } catch (fetchError: unknown) {
+                const isAbortError =
+                    fetchError instanceof Error && fetchError.name === "AbortError";
+                if (isAbortError) {
                     return NextResponse.json(
                         { error: "请求超时，请检查 RSS 地址" },
                         { status: 400 }
                     );
                 }
+                const message = fetchError instanceof Error ? fetchError.message : "Unknown error";
                 return NextResponse.json(
-                    { error: `无法访问该 RSS 地址: ${fetchError.message}` },
+                    { error: `无法访问该 RSS 地址: ${message}` },
                     { status: 400 }
                 );
             }
@@ -106,7 +120,7 @@ export async function POST(request: Request) {
                     icon: icon || "📡",
                     config: { feedUrl },
                     isBuiltIn: false,
-                    createdById: session.user.id,
+                    createdById: userId,
                 },
             });
         }
@@ -115,13 +129,13 @@ export async function POST(request: Request) {
         await prisma.userSource.upsert({
             where: {
                 userId_sourceId: {
-                    userId: session.user.id,
+                    userId,
                     sourceId: source.id
                 }
             },
             update: { isEnabled: true },
             create: {
-                userId: session.user.id,
+                userId,
                 sourceId: source.id,
                 isEnabled: true,
             }
@@ -137,7 +151,7 @@ export async function POST(request: Request) {
                 isReusable: !!existingSourceByUrl // 标记是否复用
             },
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Create RSS source error:", error);
         return NextResponse.json(
             { error: "创建数据源失败" },

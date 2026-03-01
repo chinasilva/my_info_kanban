@@ -10,8 +10,8 @@ export function ShareButton({ targetId, locale }: { targetId: string; locale: st
             await capture(targetId, {
                 fileName: `high-signal-dashboard-${new Date().toISOString().split('T')[0]}.png`
             });
-        } catch (error: any) {
-            const msg = error?.message || error?.toString() || "Unknown error";
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : String(error);
             alert(locale === "zh" ? `生成图片失败: ${msg}` : `Failed to generate snapshot: ${msg}`);
         }
     };

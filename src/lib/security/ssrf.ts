@@ -3,9 +3,6 @@
  * 防止 Server-Side Request Forgery 攻击
  */
 
-// 阻止的协议
-const BLOCKED_PROTOCOLS = ['file:', 'ftp:', 'gopher:', 'ws:', 'wss:', 'data:'];
-
 // 本地地址
 const LOCALHOST_HOSTNAMES = [
     'localhost', '127.0.0.1', '::1', '0.0.0.0', '::',
@@ -52,8 +49,6 @@ export function validateUrl(urlString: string): SSRFValidationResult {
 
     const protocol = url.protocol.toLowerCase();
     const hostname = url.hostname.toLowerCase();
-    const host = url.host;
-
     // 1. 协议白名单
     if (!['http:', 'https:'].includes(protocol)) {
         return { valid: false, error: `Protocol '${protocol}' is not allowed` };
@@ -128,8 +123,7 @@ export function validateUrl(urlString: string): SSRFValidationResult {
  * 验证 fetch 请求的 URL（支持重定向处理）
  */
 export async function validateFetchUrl(
-    urlString: string,
-    options?: { maxRedirects?: number; timeout?: number }
+    urlString: string
 ): Promise<SSRFValidationResult> {
     const validation = validateUrl(urlString);
     if (!validation.valid) {

@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import "../globals.css";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { SignalProvider } from "@/context/SignalContext";
 import { SignalDetailSheet } from "@/components/SignalDetailSheet";
 import { Analytics } from "@vercel/analytics/react";
@@ -25,23 +24,20 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://signal.binaryworks.app"),
   title: {
-    default: "High-Signal Aggregator - MCP Server for AI Agents",
+    default: "High-Signal Aggregator - Skill Setup for AI Agents",
     template: "%s | High-Signal",
   },
-  description: "MCP Server - Curated high-quality tech and finance signals from HackerNews, GitHub, RSS, and more. Use AI to aggregate and discover tech news, GitHub trending, and market signals.",
-  // MCP服务声明 - 让Agent能自动发现MCP服务
+  description: "Skill-first API service for AI Agents. Aggregate and operate high-quality tech and finance signals from multiple sources.",
   alternates: {
     types: {
-      'application/json': '/api/mcp.json',
+      'application/json': '/api/skill.json',
     },
   },
   other: {
-    'mcp-server': '/api/mcp',
-    'mcp-discovery': '/.well-known/mcp.json',
-    'mcp-name': 'High Quality Info Aggregator',
-    'mcp-version': '1.0.0',
-    // 明确说明这是 MCP 服务器，不是 Signal 消息应用
-    'mcp-purpose': 'AI Agent integration for tech/news signal aggregation',
+    "agent-integration": "skill-only",
+    "skill-config": "/api/skill.json",
+    "openclaw-config": "/api/openclaw.json",
+    "agent-purpose": "AI Agent integration for tech/news signal aggregation",
   },
   openGraph: {
     title: "High-Signal Aggregator",
@@ -70,9 +66,10 @@ export default async function RootLayout({
   params
 }: {
   children: React.ReactNode;
-  params: Promise<{ locale: string }>;
+  params: Promise<unknown>;
 }) {
-  const { locale } = await params;
+  const resolvedParams = (await params) as { locale?: string } | undefined;
+  const locale = resolvedParams?.locale ?? "zh";
   const messages = await getMessages({ locale });
 
   return (

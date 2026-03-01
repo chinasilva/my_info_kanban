@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
-import { getSessionOrTestAuth } from "@/lib/auth/test-auth";
 import { prisma } from "@/lib/prisma/db";
+import { getSessionOrAgentAuth } from "@/lib/auth/session-or-agent";
 
 // 删除自定义 RSS 数据源
 export async function DELETE(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const session = await getSessionOrTestAuth(request);
-    if (!session?.user?.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authResult = await getSessionOrAgentAuth(request, {
+        requiredPermissions: ["write:sources"],
+    });
+    if (!authResult.success || !authResult.userId) {
+        return NextResponse.json(
+            { error: authResult.error || "Unauthorized" },
+            { status: authResult.status || 401 }
+        );
     }
 
+    const userId = authResult.userId;
     const { id: sourceId } = await params;
 
     try {
@@ -36,7 +42,7 @@ export async function DELETE(
         }
 
         // 仅创建者可删除
-        if (source.createdById !== session.user.id) {
+        if (source.createdById !== userId) {
             return NextResponse.json(
                 { error: "仅创建者可删除此数据源" },
                 { status: 403 }
@@ -50,7 +56,7 @@ export async function DELETE(
         });
 
         return NextResponse.json({ success: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Delete RSS source error:", error);
         return NextResponse.json(
             { error: "删除数据源失败" },

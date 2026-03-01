@@ -7,6 +7,7 @@
     "build": "prisma generate && NEXT_DISABLE_TURBO_BUILD=1 next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-browsers playwright test",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",
@@ -50,6 +51,7 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",

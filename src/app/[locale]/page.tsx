@@ -1,11 +1,9 @@
 import { prisma } from "@/lib/prisma/db";
-import { Signal } from "@/schemas/signal";
-import { Settings } from "lucide-react";
+import { Prisma } from "@prisma/client";
+import type { Signal } from "@/schemas/signal";
 import { getTranslations } from 'next-intl/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
-import { redirect } from "next/navigation";
-import Link from "next/link";
 import { DashboardShell } from "@/components/DashboardShell";
 
 // export const revalidate = 60; // Revalidate every minute
@@ -30,6 +28,15 @@ export default async function DashboardPage(props: {
   ]);
   const locale = params.locale;
 
+  async function safeDb<T>(action: () => Promise<T>, fallback: T): Promise<T> {
+    try {
+      return await action();
+    } catch (error) {
+      console.error("Dashboard DB fallback triggered:", error);
+      return fallback;
+    }
+  }
+
   // Parallelize initial fetches
   const [session, t] = await Promise.all([
     getServerSession(authOptions),
@@ -45,23 +52,31 @@ export default async function DashboardPage(props: {
 
   // 1. Fetch Subscribed Sources (for validation and filtering)
   if (session?.user?.id) {
-    const userSources = await prisma.userSource.findMany({
-      where: {
-        userId: session.user.id,
-        isEnabled: true
-      },
-      select: { sourceId: true }, // Optimization: Only select ID
-      orderBy: { displayOrder: "asc" },
-    });
+    const userSources = await safeDb(
+      () =>
+        prisma.userSource.findMany({
+          where: {
+            userId: session.user.id,
+            isEnabled: true
+          },
+          select: { sourceId: true }, // Optimization: Only select ID
+          orderBy: { displayOrder: "asc" },
+        }),
+      [] as Array<{ sourceId: string }>
+    );
     subscribedSourceIds = userSources.map((us) => us.sourceId);
   }
 
   // Fallback: For guests OR logged-in users with no subscriptions, show built-in sources
   if (subscribedSourceIds.length === 0) {
-    const builtInSources = await prisma.source.findMany({
-      where: { isBuiltIn: true },
-      select: { id: true }
-    });
+    const builtInSources = await safeDb(
+      () =>
+        prisma.source.findMany({
+          where: { isBuiltIn: true },
+          select: { id: true }
+        }),
+      [] as Array<{ id: string }>
+    );
     subscribedSourceIds = builtInSources.map(s => s.id);
   }
 
@@ -70,8 +85,10 @@ export default async function DashboardPage(props: {
   let endDate: Date;
   // ... (keep date logic same as before)
   const activeDate = searchParams?.date;
-  const activeTag = searchParams?.tag;
-  const activeSourceId = searchParams?.sourceId as string | undefined; // [NEW]
+  const activeTag = Array.isArray(searchParams?.tag) ? searchParams.tag[0] : searchParams?.tag;
+  const activeSourceId = Array.isArray(searchParams?.sourceId)
+    ? searchParams.sourceId[0]
+    : searchParams?.sourceId;
 
   if (activeDate && typeof activeDate === 'string') {
     startDate = new Date(activeDate);
@@ -84,7 +101,7 @@ export default async function DashboardPage(props: {
     endDate = new Date();
   }
 
-  const whereClause: any = {
+  const whereClause: Prisma.SignalWhereInput = {
     sourceId: { in: subscribedSourceIds },
     createdAt: {
       gte: startDate,
@@ -100,79 +117,89 @@ export default async function DashboardPage(props: {
     ];
   }
 
+  const viewerId = session?.user?.id ?? "";
+  const signalSelect = Prisma.validator<Prisma.SignalSelect>()({
+    id: true,
+    sourceId: true,
+    title: true,
+    titleTranslated: true,
+    url: true,
+    summary: true,
+    aiSummary: true,
+    aiSummaryZh: true,
+    score: true,
+    category: true,
+    tags: true,
+    tagsZh: true,
+    createdAt: true,
+    source: { select: { id: true, name: true, icon: true, type: true } },
+    userStates: { where: { userId: viewerId }, select: { isRead: true, isFavorited: true } }
+  });
+  type SelectedSignal = Prisma.SignalGetPayload<{ select: typeof signalSelect }>;
+  type InsightWithSignals = Prisma.InsightGetPayload<{
+    include: { signals: { include: { source: true } } };
+  }>;
+
   const fetchSignals = async (types: string[] | null, isCustom: boolean = false) => {
     // ... existing fetch logic ...
-    const typeWhere: any = isCustom
-      ? { type: { notIn: Object.values(SOURCE_GROUPS).flat() } }
-      : { type: { in: types! } };
+    const typeWhere: Prisma.SignalWhereInput = isCustom
+      ? { source: { type: { notIn: Object.values(SOURCE_GROUPS).flat() } } }
+      : { source: { type: { in: types || [] } } };
 
-    return prisma.signal.findMany({
-      where: {
-        ...whereClause,
-        source: {
-          ...typeWhere
-        }
-      },
-      orderBy: { createdAt: "desc" },
-      take: 15,
-      select: {
-        id: true,
-        title: true,
-        titleTranslated: true,
-        url: true,
-        summary: true,
-        aiSummary: true,
-        aiSummaryZh: true,
-        score: true,
-        category: true,
-        tags: true,
-        tagsZh: true,
-        createdAt: true,
-        source: { select: { id: true, name: true, icon: true, type: true } },
-        ...(session?.user?.id ? { userStates: { where: { userId: session.user.id }, select: { isRead: true, isFavorited: true } } } : {})
-      },
-    });
+    return safeDb(
+      () =>
+        prisma.signal.findMany({
+          where: {
+            ...whereClause,
+            ...typeWhere
+          },
+          orderBy: { createdAt: "desc" },
+          take: 15,
+          select: signalSelect,
+        }),
+      [] as SelectedSignal[]
+    );
   };
 
   // [NEW] Single Source Fetcher
-  let singleSourceSignals: any[] = [];
+  let singleSourceSignals: SelectedSignal[] = [];
   let activeSource: { id: string; name: string; icon: string | null; type: string } | null = null;
 
   if (activeSourceId && subscribedSourceIds.includes(activeSourceId)) {
     // Fetch Source Details
-    activeSource = await prisma.source.findUnique({
-      where: { id: activeSourceId },
-      select: { id: true, name: true, icon: true, type: true }
-    });
+    activeSource = await safeDb(
+      () =>
+        prisma.source.findUnique({
+          where: { id: activeSourceId },
+          select: { id: true, name: true, icon: true, type: true }
+        }),
+      null as { id: string; name: string; icon: string | null; type: string } | null
+    );
 
-    singleSourceSignals = await prisma.signal.findMany({
-      where: {
-        sourceId: activeSourceId,
-        createdAt: { gte: startDate, lte: endDate }
-      },
-      orderBy: { createdAt: "desc" },
-      take: 50, // Fetch more for single source view
-      select: {
-        id: true,
-        title: true,
-        titleTranslated: true,
-        url: true,
-        summary: true,
-        aiSummary: true,
-        aiSummaryZh: true,
-        score: true,
-        category: true,
-        tags: true,
-        tagsZh: true,
-        createdAt: true,
-        source: { select: { id: true, name: true, icon: true, type: true } },
-        ...(session?.user?.id ? { userStates: { where: { userId: session.user.id }, select: { isRead: true, isFavorited: true } } } : {})
-      }
-    });
+    singleSourceSignals = await safeDb(
+      () =>
+        prisma.signal.findMany({
+          where: {
+            sourceId: activeSourceId,
+            createdAt: { gte: startDate, lte: endDate }
+          },
+          orderBy: { createdAt: "desc" },
+          take: 50, // Fetch more for single source view
+          select: signalSelect
+        }),
+      [] as SelectedSignal[]
+    );
   }
 
   // Only fetch Groups if NO active source (optimization)
-  let signalGroupsData: any = { build: [], market: [], news: [], launch: [], demand: [], custom: [] };
+  let signalGroupsData: {
+    build: SelectedSignal[];
+    market: SelectedSignal[];
+    news: SelectedSignal[];
+    launch: SelectedSignal[];
+    demand: SelectedSignal[];
+    custom: SelectedSignal[];
+  } = { build: [], market: [], news: [], launch: [], demand: [], custom: [] };
 
   if (!activeSourceId) {
     const [build, market, news, launch, demand, custom] = await Promise.all([
@@ -186,14 +213,18 @@ export default async function DashboardPage(props: {
     signalGroupsData = { build, market, news, launch, demand, custom };
   }
 
-  const insights = await prisma.insight.findMany({
-    where: {},
-    include: { signals: { include: { source: true } } },
-    orderBy: { score: 'desc' },
-    take: 3
-  });
+  const insights: InsightWithSignals[] = await safeDb(
+    () =>
+      prisma.insight.findMany({
+        where: {},
+        include: { signals: { include: { source: true } } },
+        orderBy: { score: 'desc' },
+        take: 3
+      }),
+    [] as InsightWithSignals[]
+  );
 
-  const processSignals = (signals: any[]) => signals.map(s => ({
+  const processSignals = (signals: SelectedSignal[]): Signal[] => signals.map(s => ({
     ...s,
     createdAt: s.createdAt.toISOString(),
     isRead: s.userStates?.[0]?.isRead ?? false,
@@ -239,4 +270,3 @@ export default async function DashboardPage(props: {
     />
   );
 }
-
