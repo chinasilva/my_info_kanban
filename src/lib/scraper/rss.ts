@@ -127,9 +127,10 @@ export abstract class RssScraper extends BaseScraper {
         const parsed = new URL(feedUrl);
         const host = parsed.hostname.replace(/^www\./, "");
         const path = parsed.pathname.replace(/\/+$/, "");
+        const isAtlanticHost = host === "theatlantic.com" || host.endsWith(".theatlantic.com");
 
         const atlanticAuthorMatch = path.match(/\/feed\/author\/([^/]+)/);
-        if (host.includes("theatlantic.com") && atlanticAuthorMatch?.[1]) {
+        if (isAtlanticHost && atlanticAuthorMatch?.[1]) {
             return `site:theatlantic.com/author/${atlanticAuthorMatch[1]}`;
         }
 
