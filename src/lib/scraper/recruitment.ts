@@ -7,6 +7,7 @@ interface RecruitmentConfig {
     sourceType: 'boss' | 'zhilian' | 'lagou';
     city?: string;
     keyword?: string;
+    fallbackUrls?: string[];
 }
 
 /**
@@ -30,6 +31,7 @@ export class RecruitmentScraper extends BaseScraper {
 
     async fetch(): Promise<ScrapedSignal[]> {
         const baseUrl = this.sourceConfig.baseUrl;
+        this.setAttemptedEndpoint(baseUrl);
 
         // SSRF protection
         const validation = validateUrl(baseUrl);
@@ -45,6 +47,8 @@ export class RecruitmentScraper extends BaseScraper {
             'zhilian',
             'lagou'
         ].filter((p, index, arr) => arr.indexOf(p) === index) as Array<'boss' | 'zhilian' | 'lagou'>;
+
+        const failures: string[] = [];
 
         // 依次尝试各个平台，直到成功或全部失败
         for (const platform of platforms) {
@@ -70,12 +74,20 @@ export class RecruitmentScraper extends BaseScraper {
 
                 console.log(`招聘信号: ${platform} 平台无有效数据，继续尝试其他平台`);
             } catch (error) {
-                console.log(`招聘信号: ${platform} 平台抓取失败: ${error instanceof Error ? error.message : '未知错误'}，继续尝试其他平台`);
+                const message = error instanceof Error ? error.message : '未知错误';
+                failures.push(`${platform}: ${message}`);
+                console.log(`招聘信号: ${platform} 平台抓取失败: ${message}，继续尝试其他平台`);
             }
         }
 
+        const fallbackSignals = await this.fetchFromConfiguredFallbacks();
+        if (fallbackSignals.length > 0) {
+            console.log(`招聘信号: 从 fallback URL 获取到 ${fallbackSignals.length} 条数据`);
+            return fallbackSignals;
+        }
+
         // 所有平台都失败
-        await this.logError(new Error('所有招聘平台都抓取失败'));
+        await this.logError(new Error(`所有招聘平台都抓取失败: ${failures.join(" | ") || "无可用数据"}`));
         return [];
     }
 
@@ -106,6 +118,7 @@ export class RecruitmentScraper extends BaseScraper {
      * 注意：BOSS直聘有较强的反爬机制，网页结构经常变化
      */
     private async fetchBoss(_baseUrl: string): Promise<ScrapedSignal[]> {
+        this.setAttemptedEndpoint(this.buildSearchUrl("boss"));
         // BOSS直聘有强反爬机制，网页结构经常变化
         // 建议使用第三方API获取数据
         console.warn('BOSS直聘需要反爬处理，返回空数组以便尝试其他平台');
@@ -117,6 +130,7 @@ export class RecruitmentScraper extends BaseScraper {
      */
     private async fetchZhilian(_baseUrl: string): Promise<ScrapedSignal[]> {
         const searchUrl = this.buildSearchUrl('zhilian');
+        this.setAttemptedEndpoint(searchUrl);
 
         const response = await fetch(searchUrl, {
             headers: {
@@ -129,6 +143,9 @@ export class RecruitmentScraper extends BaseScraper {
         }
 
         const html = await response.text();
+        if (this.looksLikeAntiBotResponse(html)) {
+            throw new Error('智联招聘触发反爬策略');
+        }
         const $ = load(html);
 
         const signals: ScrapedSignal[] = [];
@@ -169,7 +186,11 @@ export class RecruitmentScraper extends BaseScraper {
             });
         });
 
-        return signals.slice(0, 30);
+        const sliced = signals.slice(0, 30);
+        if (sliced.length === 0) {
+            throw new Error('智联招聘页面结构变化，未解析到职位条目');
+        }
+        return sliced;
     }
 
     /**
@@ -177,6 +198,7 @@ export class RecruitmentScraper extends BaseScraper {
      */
     private async fetchLagou(_baseUrl: string): Promise<ScrapedSignal[]> {
         const searchUrl = this.buildSearchUrl('lagou');
+        this.setAttemptedEndpoint(searchUrl);
 
         const response = await fetch(searchUrl, {
             headers: {
@@ -189,6 +211,9 @@ export class RecruitmentScraper extends BaseScraper {
         }
 
         const html = await response.text();
+        if (this.looksLikeAntiBotResponse(html)) {
+            throw new Error('拉勾触发反爬策略');
+        }
         const $ = load(html);
 
         const signals: ScrapedSignal[] = [];
@@ -228,7 +253,99 @@ export class RecruitmentScraper extends BaseScraper {
             });
         });
 
-        return signals.slice(0, 30);
+        const sliced = signals.slice(0, 30);
+        if (sliced.length === 0) {
+            throw new Error('拉勾页面结构变化，未解析到职位条目');
+        }
+        return sliced;
+    }
+
+    private looksLikeAntiBotResponse(html: string): boolean {
+        const normalized = html.toLowerCase();
+        return (
+            normalized.includes('captcha')
+            || normalized.includes('verify')
+            || normalized.includes('human verification')
+            || normalized.includes('访问受限')
+            || normalized.includes('行为验证')
+            || normalized.includes('反爬')
+            || normalized.includes('forbidden')
+        );
+    }
+
+    private async fetchFromConfiguredFallbacks(): Promise<ScrapedSignal[]> {
+        const urls = Array.isArray(this.config.fallbackUrls) ? this.config.fallbackUrls : [];
+        for (const url of urls) {
+            try {
+                this.setAttemptedEndpoint(url);
+                const response = await fetch(url, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Accept': 'application/json,text/html,application/xml;q=0.9,*/*;q=0.8',
+                    },
+                    signal: AbortSignal.timeout(20000),
+                });
+                if (!response.ok) {
+                    throw new Error(`fallback URL returned ${response.status}`);
+                }
+
+                const contentType = response.headers.get('content-type') || '';
+                const body = await response.text();
+                const parsed = this.parseFallbackPayload(body, contentType, url);
+                if (parsed.length > 0) {
+                    return parsed.slice(0, 30);
+                }
+            } catch (error) {
+                console.warn(`招聘信号 fallback URL 失败 (${url}):`, error);
+            }
+        }
+        return [];
+    }
+
+    private parseFallbackPayload(body: string, contentType: string, fallbackUrl: string): ScrapedSignal[] {
+        if (contentType.includes('application/json')) {
+            const parsed = JSON.parse(body) as Array<{ title?: string; url?: string; summary?: string; salary?: string }>;
+            if (!Array.isArray(parsed)) return [];
+            return parsed
+                .map((item) => ({
+                    title: this.cleanText(item.title || 'Untitled'),
+                    url: item.url || fallbackUrl,
+                    summary: item.summary ? this.cleanText(item.summary) : undefined,
+                    score: this.parseSalary(item.salary || ''),
+                    category: '招聘',
+                    platform: 'fallback',
+                    metadata: { sourceType: 'fallback' },
+                }))
+                .filter((item) => Boolean(item.url));
+        }
+
+        const xmlMode = contentType.includes('xml') || body.trim().startsWith('<?xml');
+        const $ = load(body, xmlMode ? { xmlMode: true } : undefined);
+        const signals: ScrapedSignal[] = [];
+        const items = xmlMode ? ($("item").length ? $("item") : $("entry")) : $('.joblist-box li, .job-list li, .position-list li');
+        items.each((_, element) => {
+            const $item = $(element);
+            const title = xmlMode ? $item.find('title').text().trim() : $item.find('.job-name, .title, .position-name, a').first().text().trim();
+            if (!title) return;
+            let url = xmlMode ? $item.find('link').text().trim() : ($item.find('a').attr('href') || '').trim();
+            if (xmlMode && !url) url = ($item.find('link').attr('href') || '').trim();
+            if (url && !url.startsWith('http')) {
+                url = new URL(url, fallbackUrl).toString();
+            }
+            if (!url) return;
+
+            const summary = xmlMode ? $item.find('description, summary').first().text().trim() : $item.text().trim();
+            signals.push({
+                title: this.cleanText(title),
+                url,
+                summary: summary ? this.cleanText(summary) : undefined,
+                score: 0,
+                category: '招聘',
+                platform: 'fallback',
+                metadata: { sourceType: 'fallback' },
+            });
+        });
+        return signals;
     }
 
     /**

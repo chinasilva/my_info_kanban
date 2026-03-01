@@ -1,10 +1,21 @@
 import { BaseScraper, ScrapedSignal } from "./base";
 import * as cheerio from "cheerio";
 
+interface SubstackArchiveItem {
+    id?: number | string;
+    title?: string;
+    social_title?: string;
+    canonical_url?: string;
+    subtitle?: string;
+    description?: string;
+    slug?: string;
+}
+
 export abstract class RssScraper extends BaseScraper {
     abstract rssUrl: string;
 
     private async fetchWithRetry(url: string, retries = 2): Promise<Response> {
+        this.setAttemptedEndpoint(url);
         const headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
@@ -39,6 +50,65 @@ export abstract class RssScraper extends BaseScraper {
             }
         }
         throw new Error(`${this.name} RSS fetch failed after ${retries} retries`);
+    }
+
+    private isSubstackFeed(url: string): boolean {
+        try {
+            const parsed = new URL(url);
+            return parsed.hostname.endsWith(".substack.com") && parsed.pathname.includes("/feed");
+        } catch {
+            return false;
+        }
+    }
+
+    private shouldUseSubstackFallback(url: string, error: unknown): boolean {
+        if (!this.isSubstackFeed(url)) return false;
+        const message = error instanceof Error ? error.message : String(error);
+        return message.includes("403") || message.includes("429");
+    }
+
+    private async fetchSubstackArchive(feedUrl: string): Promise<ScrapedSignal[]> {
+        const host = new URL(feedUrl).hostname;
+        const apiUrl = `https://${host}/api/v1/archive?sort=new&search=&offset=0&limit=20`;
+        this.setAttemptedEndpoint(apiUrl);
+
+        const response = await fetch(apiUrl, {
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json,text/plain,*/*",
+            },
+            signal: AbortSignal.timeout(20000),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Substack archive API returned ${response.status} for ${host}`);
+        }
+
+        const items = (await response.json()) as SubstackArchiveItem[];
+        if (!Array.isArray(items)) {
+            throw new Error(`Substack archive API returned invalid payload for ${host}`);
+        }
+
+        const signals: ScrapedSignal[] = [];
+        for (const item of items) {
+            const title = item.title || item.social_title || "Untitled";
+            const url = item.canonical_url || (item.slug ? `https://${host}/p/${item.slug}` : "");
+            if (!url) continue;
+
+            const summaryRaw = item.description || item.subtitle || "";
+            signals.push({
+                title: this.cleanText(title),
+                url,
+                summary: this.cleanText(summaryRaw),
+                score: 0,
+                category: "General",
+                externalId: item.id ? String(item.id) : url,
+                metadata: {
+                    sourceType: "substack_archive",
+                },
+            });
+        }
+        return signals.slice(0, 20);
     }
 
     async fetch(): Promise<ScrapedSignal[]> {
@@ -79,7 +149,16 @@ export abstract class RssScraper extends BaseScraper {
 
             return signals.slice(0, 20);
         } catch (error) {
-            await this.logError(error);
+            if (this.shouldUseSubstackFallback(this.rssUrl, error)) {
+                try {
+                    console.warn(`RSS blocked for ${this.name}, fallback to Substack archive API`);
+                    return await this.fetchSubstackArchive(this.rssUrl);
+                } catch (fallbackError) {
+                    await this.logError(fallbackError, { endpoint: this.getAttemptedEndpoint() || undefined });
+                    return [];
+                }
+            }
+            await this.logError(error, { endpoint: this.getAttemptedEndpoint() || undefined });
             return [];
         }
     }

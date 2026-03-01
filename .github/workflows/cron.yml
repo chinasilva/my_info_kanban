@@ -25,7 +25,9 @@ jobs:
         run: npx prisma generate
 
       - name: Run Scraper
-        run: npx tsx src/scripts/trigger.ts
+        run: |
+          set -o pipefail
+          npx tsx src/scripts/trigger.ts | tee scrape.log
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
@@ -37,3 +39,90 @@ jobs:
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          SCRAPE_SUMMARY_PATH: ${{ runner.temp }}/scrape-summary.json
+
+      - name: Publish Scrape Summary
+        if: always()
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const path = process.env.SCRAPE_SUMMARY_PATH;
+          const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+          if (!path || !fs.existsSync(path)) {
+            fs.appendFileSync(summaryPath, "## Scrape Summary\n\nSummary file not found.\n");
+            process.exit(0);
+          }
+
+          const data = JSON.parse(fs.readFileSync(path, "utf8"));
+          const run = data.runResults || {};
+          const counts = run.statusCounts || {};
+          const failureStats = run.failureStats || {};
+          const sources = Array.isArray(run.sourceSummary) ? run.sourceSummary : [];
+          const hardFailed = sources.filter((s) => s.status === "hard_fail");
+          const softFailed = sources.filter((s) => s.status === "soft_fail");
+          const totalSources = sources.length || 0;
+
+          const lines = [
+            "## Scrape Summary",
+            "",
+            `- GeneratedAt: ${data.generatedAt || "n/a"}`,
+            `- Total Sources: ${totalSources}`,
+            `- Success: ${counts.success || 0}`,
+            `- Empty: ${counts.empty || 0}`,
+            `- Soft Fail: ${counts.soft_fail || 0}`,
+            `- Hard Fail: ${counts.hard_fail || 0}`,
+            "",
+            "### Failure Stats",
+            "",
+          ];
+
+          const entries = Object.entries(failureStats);
+          if (entries.length === 0) {
+            lines.push("- None");
+          } else {
+            for (const [k, v] of entries) lines.push(`- ${k}: ${v}`);
+          }
+
+          lines.push("", "### Top Failed Sources", "");
+          const failedSources = [...hardFailed, ...softFailed].slice(0, 12);
+          if (failedSources.length === 0) {
+            lines.push("- None");
+          } else {
+            for (const item of failedSources) {
+              lines.push(`- ${item.sourceName} | ${item.status} | ${item.errorCode || "n/a"} | ${item.attemptedEndpoint || "n/a"}`);
+            }
+          }
+
+          fs.appendFileSync(summaryPath, `${lines.join("\n")}\n`);
+          NODE
+        env:
+          SCRAPE_SUMMARY_PATH: ${{ runner.temp }}/scrape-summary.json
+
+      - name: Enforce Hard Failure Threshold
+        if: always()
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const path = process.env.SCRAPE_SUMMARY_PATH;
+          const threshold = Number(process.env.SCRAPE_HARD_FAIL_THRESHOLD || "25");
+          if (!path || !fs.existsSync(path)) {
+            console.error("Missing scrape summary file, fail closed.");
+            process.exit(1);
+          }
+          const data = JSON.parse(fs.readFileSync(path, "utf8"));
+          const sources = Array.isArray(data?.runResults?.sourceSummary) ? data.runResults.sourceSummary : [];
+          if (sources.length === 0) {
+            console.error("No source summary generated, fail closed.");
+            process.exit(1);
+          }
+          const hardFailCount = sources.filter((s) => s.status === "hard_fail").length;
+          const hardFailRatio = (hardFailCount / sources.length) * 100;
+          console.log(`Hard-fail ratio: ${hardFailCount}/${sources.length} = ${hardFailRatio.toFixed(2)}% (threshold ${threshold}%)`);
+          if (hardFailRatio > threshold) {
+            console.error("Hard-fail ratio exceeded threshold.");
+            process.exit(1);
+          }
+          NODE
+        env:
+          SCRAPE_SUMMARY_PATH: ${{ runner.temp }}/scrape-summary.json
+          SCRAPE_HARD_FAIL_THRESHOLD: '25'
