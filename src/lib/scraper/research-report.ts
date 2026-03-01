@@ -9,6 +9,11 @@ interface ResearchConfig {
     fallbackUrls?: string[];
 }
 
+const GOOGLE_NEWS_REPORT_QUERIES = [
+    "行业 研究 报告 AI",
+    "market research report AI SaaS",
+];
+
 export class ResearchReportScraper extends BaseScraper {
     name = '行业研报';
     source = 'research_report';
@@ -85,6 +90,12 @@ export class ResearchReportScraper extends BaseScraper {
         if (fallbackSignals.length > 0) {
             console.log(`行业研报: 从 fallback URL 获取到 ${fallbackSignals.length} 条数据`);
             return fallbackSignals;
+        }
+
+        const googleNewsSignals = await this.fetchFromGoogleNewsFallback();
+        if (googleNewsSignals.length > 0) {
+            console.log(`行业研报: 从 Google News fallback 获取到 ${googleNewsSignals.length} 条数据`);
+            return googleNewsSignals;
         }
 
         // 所有数据源都失败
@@ -501,6 +512,65 @@ export class ResearchReportScraper extends BaseScraper {
             });
         });
         return signals;
+    }
+
+    private async fetchFromGoogleNewsFallback(): Promise<ScrapedSignal[]> {
+        const collected: ScrapedSignal[] = [];
+        const seen = new Set<string>();
+
+        for (const query of GOOGLE_NEWS_REPORT_QUERIES) {
+            const endpoint = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
+            try {
+                this.setAttemptedEndpoint(endpoint);
+                const response = await fetch(endpoint, {
+                    headers: {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                        "Accept": "application/rss+xml,application/xml;q=0.9,*/*;q=0.8",
+                    },
+                    signal: AbortSignal.timeout(20000),
+                });
+                if (!response.ok) {
+                    throw new Error(`Google News returned ${response.status}`);
+                }
+
+                const xml = await response.text();
+                const $ = load(xml, { xmlMode: true });
+                const items = $("item").length ? $("item") : $("entry");
+                items.each((_, element) => {
+                    if (collected.length >= 30) return false;
+                    const $item = $(element);
+                    const title = this.cleanText($item.find("title").text());
+                    if (!title) return;
+
+                    let url = $item.find("link").text().trim();
+                    if (!url) url = ($item.find("link").attr("href") || "").trim();
+                    if (!url || seen.has(url)) return;
+                    seen.add(url);
+
+                    const summary = this.cleanText($item.find("description").text() || $item.find("summary").text() || "");
+                    collected.push({
+                        title,
+                        url,
+                        summary,
+                        score: 45,
+                        category: "行业研报",
+                        platform: "Google News",
+                        metadata: {
+                            sourceType: "google_news_report_fallback",
+                            query,
+                        },
+                    });
+                });
+
+                if (collected.length >= 30) {
+                    break;
+                }
+            } catch (error) {
+                console.warn(`行业研报 Google News fallback 失败 (${query}):`, error);
+            }
+        }
+
+        return collected.slice(0, 30);
     }
 
     /**

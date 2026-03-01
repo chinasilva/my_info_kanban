@@ -111,6 +111,84 @@ export abstract class RssScraper extends BaseScraper {
         return signals.slice(0, 20);
     }
 
+    private shouldUseGoogleNewsFallback(error: unknown): boolean {
+        const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+        return (
+            message.includes("403")
+            || message.includes("429")
+            || message.includes("fetch failed")
+            || message.includes("timeout")
+            || message.includes("timed out")
+            || message.includes("und_err_connect_timeout")
+        );
+    }
+
+    private buildGoogleNewsQuery(feedUrl: string): string {
+        const parsed = new URL(feedUrl);
+        const host = parsed.hostname.replace(/^www\./, "");
+        const path = parsed.pathname.replace(/\/+$/, "");
+
+        const atlanticAuthorMatch = path.match(/\/feed\/author\/([^/]+)/);
+        if (host.includes("theatlantic.com") && atlanticAuthorMatch?.[1]) {
+            return `site:theatlantic.com/author/${atlanticAuthorMatch[1]}`;
+        }
+
+        return `site:${host}`;
+    }
+
+    private async fetchGoogleNewsFallback(feedUrl: string): Promise<ScrapedSignal[]> {
+        const query = this.buildGoogleNewsQuery(feedUrl);
+        const endpoint = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
+        this.setAttemptedEndpoint(endpoint);
+
+        const response = await fetch(endpoint, {
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/rss+xml,application/xml;q=0.9,*/*;q=0.8",
+            },
+            signal: AbortSignal.timeout(20000),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Google News fallback returned ${response.status}`);
+        }
+
+        const xml = await response.text();
+        const $ = cheerio.load(xml, { xmlMode: true });
+        const signals: ScrapedSignal[] = [];
+        const seen = new Set<string>();
+
+        $("item").each((_, element) => {
+            if (signals.length >= 20) return false;
+            const $item = $(element);
+            const title = this.cleanText($item.find("title").text());
+            let url = $item.find("link").text().trim();
+            if (!url) url = ($item.find("link").attr("href") || "").trim();
+            if (!title || !url || seen.has(url)) return;
+
+            seen.add(url);
+            const summary = this.cleanText($item.find("description").text() || $item.find("summary").text() || "");
+            signals.push({
+                title,
+                url,
+                summary,
+                score: 0,
+                category: "General",
+                externalId: url,
+                metadata: {
+                    sourceType: "google_news_fallback",
+                    query,
+                },
+            });
+        });
+
+        if (signals.length === 0) {
+            throw new Error("Google News fallback returned no items");
+        }
+
+        return signals;
+    }
+
     async fetch(): Promise<ScrapedSignal[]> {
         try {
             const response = await this.fetchWithRetry(this.rssUrl);
@@ -149,16 +227,26 @@ export abstract class RssScraper extends BaseScraper {
 
             return signals.slice(0, 20);
         } catch (error) {
+            let finalError: unknown = error;
             if (this.shouldUseSubstackFallback(this.rssUrl, error)) {
                 try {
                     console.warn(`RSS blocked for ${this.name}, fallback to Substack archive API`);
                     return await this.fetchSubstackArchive(this.rssUrl);
                 } catch (fallbackError) {
-                    await this.logError(fallbackError, { endpoint: this.getAttemptedEndpoint() || undefined });
-                    return [];
+                    finalError = fallbackError;
                 }
             }
-            await this.logError(error, { endpoint: this.getAttemptedEndpoint() || undefined });
+
+            if (this.shouldUseGoogleNewsFallback(finalError)) {
+                try {
+                    console.warn(`RSS unavailable for ${this.name}, fallback to Google News site search`);
+                    return await this.fetchGoogleNewsFallback(this.rssUrl);
+                } catch (googleFallbackError) {
+                    finalError = googleFallbackError;
+                }
+            }
+
+            await this.logError(finalError, { endpoint: this.getAttemptedEndpoint() || undefined });
             return [];
         }
     }

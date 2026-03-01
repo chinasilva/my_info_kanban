@@ -10,6 +10,12 @@ interface RecruitmentConfig {
     fallbackUrls?: string[];
 }
 
+const PUBLIC_JOB_FEEDS = [
+    "https://remoteok.com/remote-ai-jobs.rss",
+    "https://weworkremotely.com/remote-jobs.rss",
+    "https://hnrss.org/jobs",
+];
+
 /**
  * 招聘信号抓取器
  *
@@ -84,6 +90,12 @@ export class RecruitmentScraper extends BaseScraper {
         if (fallbackSignals.length > 0) {
             console.log(`招聘信号: 从 fallback URL 获取到 ${fallbackSignals.length} 条数据`);
             return fallbackSignals;
+        }
+
+        const publicFeedSignals = await this.fetchFromPublicJobFeeds();
+        if (publicFeedSignals.length > 0) {
+            console.log(`招聘信号: 从公开招聘 RSS fallback 获取到 ${publicFeedSignals.length} 条数据`);
+            return publicFeedSignals;
         }
 
         // 所有平台都失败
@@ -346,6 +358,131 @@ export class RecruitmentScraper extends BaseScraper {
             });
         });
         return signals;
+    }
+
+    private async fetchFromPublicJobFeeds(): Promise<ScrapedSignal[]> {
+        const keyword = (this.config.keyword || "").trim().toLowerCase();
+        const collected: ScrapedSignal[] = [];
+        const seen = new Set<string>();
+
+        for (const feedUrl of PUBLIC_JOB_FEEDS) {
+            try {
+                this.setAttemptedEndpoint(feedUrl);
+                const response = await fetch(feedUrl, {
+                    headers: {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                        "Accept": "application/rss+xml,application/xml;q=0.9,*/*;q=0.8",
+                    },
+                    signal: AbortSignal.timeout(20000),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`public feed returned ${response.status}`);
+                }
+
+                const xml = await response.text();
+                const $ = load(xml, { xmlMode: true });
+                const items = $("item").length ? $("item") : $("entry");
+                items.each((_, element) => {
+                    if (collected.length >= 30) return false;
+
+                    const $item = $(element);
+                    const title = this.cleanText($item.find("title").text());
+                    if (!title) return;
+
+                    let url = $item.find("link").text().trim();
+                    if (!url) url = ($item.find("link").attr("href") || "").trim();
+                    if (!url) return;
+                    if (!url.startsWith("http")) {
+                        url = new URL(url, feedUrl).toString();
+                    }
+                    if (seen.has(url)) return;
+
+                    const summaryRaw = $item.find("description").text() || $item.find("summary").text() || "";
+                    const summary = this.cleanText(summaryRaw);
+                    const haystack = `${title} ${summary}`.toLowerCase();
+                    if (keyword && !haystack.includes(keyword)) return;
+
+                    seen.add(url);
+                    collected.push({
+                        title,
+                        url,
+                        summary,
+                        score: this.parseSalary(summary),
+                        category: "招聘",
+                        platform: "公开招聘RSS",
+                        metadata: {
+                            sourceType: "public_job_feed_fallback",
+                            feedUrl,
+                        },
+                    });
+                });
+
+                if (collected.length >= 30) {
+                    break;
+                }
+            } catch (error) {
+                console.warn(`招聘信号公开 RSS fallback 失败 (${feedUrl}):`, error);
+            }
+        }
+
+        // 如果按关键词过滤后没有命中，则退回使用全部公开招聘数据，避免全量失败
+        if (collected.length === 0 && keyword) {
+            for (const feedUrl of PUBLIC_JOB_FEEDS) {
+                try {
+                    this.setAttemptedEndpoint(feedUrl);
+                    const response = await fetch(feedUrl, {
+                        headers: {
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                            "Accept": "application/rss+xml,application/xml;q=0.9,*/*;q=0.8",
+                        },
+                        signal: AbortSignal.timeout(20000),
+                    });
+                    if (!response.ok) continue;
+
+                    const xml = await response.text();
+                    const $ = load(xml, { xmlMode: true });
+                    const items = $("item").length ? $("item") : $("entry");
+                    items.each((_, element) => {
+                        if (collected.length >= 30) return false;
+                        const $item = $(element);
+                        const title = this.cleanText($item.find("title").text());
+                        if (!title) return;
+                        let url = $item.find("link").text().trim();
+                        if (!url) url = ($item.find("link").attr("href") || "").trim();
+                        if (!url) return;
+                        if (!url.startsWith("http")) {
+                            url = new URL(url, feedUrl).toString();
+                        }
+                        if (seen.has(url)) return;
+                        seen.add(url);
+
+                        const summary = this.cleanText($item.find("description").text() || $item.find("summary").text() || "");
+                        collected.push({
+                            title,
+                            url,
+                            summary,
+                            score: this.parseSalary(summary),
+                            category: "招聘",
+                            platform: "公开招聘RSS",
+                            metadata: {
+                                sourceType: "public_job_feed_fallback",
+                                feedUrl,
+                                keywordBypassed: true,
+                            },
+                        });
+                    });
+
+                    if (collected.length >= 30) {
+                        break;
+                    }
+                } catch {
+                    // ignore secondary fallback failures
+                }
+            }
+        }
+
+        return collected.slice(0, 30);
     }
 
     /**
