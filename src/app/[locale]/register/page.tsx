@@ -58,7 +58,7 @@ export default function RegisterPage() {
             } else {
                 router.push("/login");
             }
-        } catch (err) {
+        } catch {
             setError("网络错误，请重试");
             setIsLoading(false);
         }

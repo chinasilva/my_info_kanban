@@ -1,6 +1,7 @@
 import { LLMFactory } from '../llm/factory';
 import { LLMClient } from '../llm/types';
 import { prisma } from '../prisma/db';
+import type { Prisma } from '@prisma/client';
 
 export interface PodcastOptions {
   sourceIds?: string[];
@@ -75,7 +76,7 @@ export class PodcastScriptGenerator {
   }
 
   private async fetchSignals(sourceIds?: string[], dateRange: number = 7, limit: number = 10): Promise<SignalWithSource[]> {
-    const where: any = {
+    const where: Prisma.SignalWhereInput = {
       // Only fetch signals with AI summary
       aiSummary: { not: null },
     };

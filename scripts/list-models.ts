@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Load .env manually
 const envPath = path.resolve(process.cwd(), '.env');
@@ -38,9 +37,11 @@ async function main() {
             console.error("Error listing models:", JSON.stringify(data.error, null, 2));
         } else {
             console.log("Available Models:");
-            (data.models || []).forEach((m: any) => {
-                if (m.name.includes('gemini')) {
-                    console.log(`- ${m.name} (${m.displayName})`);
+            type Model = { name?: string; displayName?: string };
+            const models: Model[] = Array.isArray(data.models) ? data.models : [];
+            models.forEach((m) => {
+                if (typeof m.name === "string" && m.name.includes('gemini')) {
+                    console.log(`- ${m.name} (${m.displayName || "unknown"})`);
                 }
             });
         }

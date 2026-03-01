@@ -3,8 +3,9 @@
 
 import { useState } from "react";
 import { Insight, Signal, Source } from "@prisma/client";
-import { ChevronDown, ChevronUp, Lightbulb, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronUp, Lightbulb } from "lucide-react";
 import { SignalCard } from "./SignalCard";
+import type { Signal as UiSignal } from "@/schemas/signal";
 
 interface DailyInsightsProps {
     insights: (Insight & { signals: (Signal & { source: Source })[] })[];
@@ -111,7 +112,7 @@ export function DailyInsights({ insights, locale }: DailyInsightsProps) {
                                             {insight.signals.map(signal => (
                                                 <SignalCard
                                                     key={signal.id}
-                                                    signal={signal as any}
+                                                    signal={signal as unknown as UiSignal}
                                                     locale={locale}
                                                     isGuest={true} // Insights are public for now
                                                 />

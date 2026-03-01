@@ -1,18 +1,23 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/prisma/db";
+import { getSessionOrAgentAuth } from "@/lib/auth/session-or-agent";
 
 // 订阅数据源
 export async function POST(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authResult = await getSessionOrAgentAuth(request, {
+        requiredPermissions: ["write:sources"],
+    });
+    if (!authResult.success || !authResult.userId) {
+        return NextResponse.json(
+            { error: authResult.error || "Unauthorized" },
+            { status: authResult.status || 401 }
+        );
     }
 
+    const userId = authResult.userId;
     const { id: sourceId } = await params;
 
     // 检查数据源是否存在
@@ -27,13 +32,13 @@ export async function POST(
     await prisma.userSource.upsert({
         where: {
             userId_sourceId: {
-                userId: session.user.id,
+                userId,
                 sourceId,
             },
         },
         update: { isEnabled: true },
         create: {
-            userId: session.user.id,
+            userId,
             sourceId,
             isEnabled: true,
         },
@@ -47,16 +52,22 @@ export async function DELETE(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authResult = await getSessionOrAgentAuth(request, {
+        requiredPermissions: ["write:sources"],
+    });
+    if (!authResult.success || !authResult.userId) {
+        return NextResponse.json(
+            { error: authResult.error || "Unauthorized" },
+            { status: authResult.status || 401 }
+        );
     }
 
+    const userId = authResult.userId;
     const { id: sourceId } = await params;
 
     await prisma.userSource.updateMany({
         where: {
-            userId: session.user.id,
+            userId,
             sourceId,
         },
         data: { isEnabled: false },

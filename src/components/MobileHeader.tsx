@@ -30,15 +30,6 @@ export function MobileHeader({ user, activeTag, onClearTag, activeDate, locale =
     // ... (keep existing logic)
     const isZh = pathname.startsWith("/zh");
     const isTw = pathname.startsWith("/tw");
-    // Remove local locale definition as it shadows the prop
-    // const locale = isZh ? "zh" : (isTw ? "tw" : "en");
-
-    const toggleLanguage = () => {
-        let newLocale = "en";
-        // ...
-    };
-
-    // ... (keep getLanguageLabel methods if needed, but I'll skip re-implementing them here as they are inside)
 
     return (
         <>

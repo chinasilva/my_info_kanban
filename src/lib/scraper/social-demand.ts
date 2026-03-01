@@ -1,6 +1,5 @@
 import { load } from 'cheerio';
 import { BaseScraper, ScrapedSignal } from './base';
-import { validateUrl } from '@/lib/security/ssrf';
 import { Source } from '@prisma/client';
 
 interface SocialDemandConfig {
@@ -10,6 +9,43 @@ interface SocialDemandConfig {
     filterMode?: 'blacklist' | 'whitelist' | 'none';
     blacklist?: string[];
     whitelist?: string[];
+}
+
+interface WeiboRealtimeItem {
+    word?: string;
+    note?: string;
+    raw_hot?: number;
+    num?: number;
+    comment?: number;
+    rank?: number;
+    label_name?: string;
+}
+
+interface ZhihuItem {
+    detail?: { score?: number };
+    target?: {
+        id?: string | number;
+        title?: string;
+        url?: string;
+        voteup_count?: number;
+        comment_count?: number;
+        answer_count?: number;
+        tags?: Array<{ name?: string }>;
+    };
+}
+
+interface DouyinWordItem {
+    word?: string;
+    hot_value?: number;
+    event_time?: string;
+}
+
+interface BilibiliItem {
+    title?: string;
+    bvid?: string;
+    stat?: { view?: number; like?: number; reply?: number; share?: number };
+    owner?: { name?: string };
+    tname?: string;
 }
 
 // 默认黑名单关键词（明星八卦、娱乐内容）
@@ -167,10 +203,10 @@ export class SocialDemandScraper extends BaseScraper {
             return await this.fetchBaiduHot();
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as { data?: { realtime?: WeiboRealtimeItem[] } };
         const realtime = data.data?.realtime || [];
 
-        const signals: ScrapedSignal[] = realtime.slice(0, 50).map((item: any) => {
+        const signals: ScrapedSignal[] = realtime.slice(0, 50).map((item) => {
             const word = item.word || item.note || '';
             const rawHot = item.raw_hot || item.num || 0;
 
@@ -320,12 +356,11 @@ export class SocialDemandScraper extends BaseScraper {
             return this.getMockData();
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as { data?: ZhihuItem[] };
         const items = data.data || [];
 
-        const signals: ScrapedSignal[] = items.map((item: any) => {
+        const signals: ScrapedSignal[] = items.map((item) => {
             const target = item.target || {};
-            const detail = target.detail || {};
 
             return {
                 title: this.cleanText(target.title || ''),
@@ -338,7 +373,7 @@ export class SocialDemandScraper extends BaseScraper {
                     likes: target.voteup_count || 0,
                     comments: target.comment_count || 0,
                     answers: target.answer_count || 0,
-                    tags: target.tags?.map((t: any) => t.name) || [],
+                    tags: target.tags?.map((t) => t.name).filter(Boolean) || [],
                     sourceType: 'zhihu',
                 }
             };
@@ -414,10 +449,10 @@ export class SocialDemandScraper extends BaseScraper {
             return this.getMockData();
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as { data?: { word_list?: DouyinWordItem[] } };
         const wordList = data.data?.word_list || [];
 
-        const signals: ScrapedSignal[] = wordList.map((item: any, index: number) => {
+        const signals: ScrapedSignal[] = wordList.map((item, index: number) => {
             return {
                 title: this.cleanText(item.word || ''),
                 url: `https://www.douyin.com/search/${encodeURIComponent(item.word || '')}`,
@@ -454,10 +489,10 @@ export class SocialDemandScraper extends BaseScraper {
             return this.getMockData();
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as { data?: { list?: BilibiliItem[] } };
         const list = data.data?.list || [];
 
-        const signals: ScrapedSignal[] = list.map((item: any) => {
+        const signals: ScrapedSignal[] = list.map((item) => {
             return {
                 title: this.cleanText(item.title || ''),
                 url: `https://www.bilibili.com/video/${item.bvid}`,
@@ -482,7 +517,7 @@ export class SocialDemandScraper extends BaseScraper {
     /**
      * 解析热度值
      */
-    private parseHot(text: any): number {
+    private parseHot(text: unknown): number {
         // 确保 text 是字符串，处理类型错误
         if (!text) return 0;
 

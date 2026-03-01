@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
-import { getSessionOrTestAuth } from "@/lib/auth/test-auth"; // 使用统一认证
 import { prisma } from "@/lib/prisma/db";
 import { XMLParser } from "fast-xml-parser";
-import { opmlSchema, OpmlOutline } from "@/schemas/opml";
-import { z } from "zod";
+import { OpmlOutline } from "@/schemas/opml";
+import { getSessionOrAgentAuth } from "@/lib/auth/session-or-agent";
+
+function asString(value: unknown): string | undefined {
+    return typeof value === "string" ? value : undefined;
+}
 
 // 获取所有嵌套的 outline
-function flattenOutlines(outline: any): OpmlOutline[] {
+function flattenOutlines(outline: unknown): OpmlOutline[] {
     const results: OpmlOutline[] = [];
 
     // 如果是数组，递归处理
@@ -19,21 +22,26 @@ function flattenOutlines(outline: any): OpmlOutline[] {
 
     // 单个对象
     if (outline && typeof outline === 'object') {
-        const item = outline as any;
+        const item = outline as Record<string, unknown>;
+        const xmlUrl = asString(item.xmlUrl);
+        const title = asString(item.title);
+        const text = asString(item.text);
+        const type = asString(item.type);
+        const htmlUrl = asString(item.htmlUrl);
 
         // 只有包含 xmlUrl 的才是有效的 RSS 源
-        if (item.xmlUrl) {
+        if (xmlUrl) {
             results.push({
-                text: item.text || item.title || "Untitled",
-                title: item.title,
-                type: item.type,
-                xmlUrl: item.xmlUrl,
-                htmlUrl: item.htmlUrl,
+                text: text || title || "Untitled",
+                title,
+                type,
+                xmlUrl,
+                htmlUrl,
             });
         }
 
         // 检查是否有子 outline (嵌套结构)
-        if (item.outline) {
+        if (item.outline !== undefined) {
             results.push(...flattenOutlines(item.outline));
         }
     }
@@ -42,10 +50,16 @@ function flattenOutlines(outline: any): OpmlOutline[] {
 }
 
 export async function POST(request: Request) {
-    const session = await getSessionOrTestAuth(request);
-    if (!session?.user?.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authResult = await getSessionOrAgentAuth(request, {
+        requiredPermissions: ["write:sources"],
+    });
+    if (!authResult.success || !authResult.userId) {
+        return NextResponse.json(
+            { error: authResult.error || "Unauthorized" },
+            { status: authResult.status || 401 }
+        );
     }
+    const userId = authResult.userId;
 
     try {
         const formData = await request.formData();
@@ -62,7 +76,13 @@ export async function POST(request: Request) {
             ignoreAttributes: false,
             attributeNamePrefix: "",
         });
-        const result = parser.parse(text);
+        const result = parser.parse(text) as {
+            opml?: {
+                body?: {
+                    outline?: unknown;
+                };
+            };
+        };
 
         // 验证结构 (Schema-driven validation)
         // 注意：fast-xml-parser 可能会将单个元素转为对象而不是数组，
@@ -72,11 +92,11 @@ export async function POST(request: Request) {
             if (!result.opml || !result.opml.body) {
                 throw new Error("Invalid OPML format");
             }
-        } catch (e) {
+        } catch {
             return NextResponse.json({ error: "Invalid OPML file format" }, { status: 400 });
         }
 
-        const outlines = flattenOutlines(result.opml.body.outline);
+        const outlines = flattenOutlines(result.opml.body?.outline);
 
         if (outlines.length === 0) {
             return NextResponse.json({
@@ -131,7 +151,7 @@ export async function POST(request: Request) {
                             type: 'rss',
                             baseUrl: feed.htmlUrl || new URL(feedUrl).origin,
                             isBuiltIn: false,
-                            createdById: session.user.id,
+                            createdById: userId,
                             config: {
                                 feedUrl: feedUrl
                             }
@@ -143,13 +163,13 @@ export async function POST(request: Request) {
                 await prisma.userSource.upsert({
                     where: {
                         userId_sourceId: {
-                            userId: session.user.id,
+                            userId,
                             sourceId: source.id
                         }
                     },
                     update: { isEnabled: true }, // 如果已存在但禁用，则重新启用
                     create: {
-                        userId: session.user.id,
+                        userId,
                         sourceId: source.id,
                         isEnabled: true,
                         displayOrder: 999 // Put at end
@@ -157,9 +177,10 @@ export async function POST(request: Request) {
                 });
 
                 successCount++;
-            } catch (err: any) {
+            } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : "Unknown error";
                 console.error(`Failed to import feed ${feed.xmlUrl}:`, err);
-                errors.push(`${feed.title || feed.xmlUrl}: ${err.message}`);
+                errors.push(`${feed.title || feed.xmlUrl}: ${message}`);
             }
         }
 
@@ -170,7 +191,7 @@ export async function POST(request: Request) {
             errors: errors.length > 0 ? errors : undefined
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("OPML Import Error:", error);
         return NextResponse.json({ error: "Failed to process OPML file" }, { status: 500 });
     }

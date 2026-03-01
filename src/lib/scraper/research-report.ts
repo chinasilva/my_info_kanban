@@ -144,13 +144,14 @@ export class ResearchReportScraper extends BaseScraper {
         });
 
         return signals.slice(0, 30);
-        } catch (error: any) {
+        } catch (error: unknown) {
             clearTimeout(timeoutId);
-            if (error.name === 'AbortError') {
+            if (error instanceof Error && error.name === 'AbortError') {
                 console.warn('艾瑞咨询请求超时');
                 throw new Error('艾瑞咨询请求超时');
             }
-            console.warn('艾瑞咨询抓取失败:', error.message);
+            const message = error instanceof Error ? error.message : String(error);
+            console.warn('艾瑞咨询抓取失败:', message);
             throw error;
         }
     }

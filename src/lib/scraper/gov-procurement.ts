@@ -1,4 +1,5 @@
-import { load } from 'cheerio';
+import { load, type Cheerio } from 'cheerio';
+import type { AnyNode } from 'domhandler';
 import { BaseScraper, ScrapedSignal } from './base';
 import { validateUrl } from '@/lib/security/ssrf';
 import { Source } from '@prisma/client';
@@ -126,7 +127,7 @@ export class GovProcurementScraper extends BaseScraper {
                     const $item = $(element);
                     const $link = $item.find('a');
 
-                    let title = $link.text().trim() || $item.text().trim();
+                    const title = $link.text().trim() || $item.text().trim();
                     const href = $link.attr('href');
 
                     // 过滤掉太短或包含导航关键字的标题
@@ -168,7 +169,7 @@ export class GovProcurementScraper extends BaseScraper {
         if (signals.length < 3) {
             $('a').each((_, element) => {
                 const $link = $(element);
-                let title = $link.text().trim();
+                const title = $link.text().trim();
                 const href = $link.attr('href');
 
                 // 只保留看起来像公告的链接
@@ -255,7 +256,7 @@ export class GovProcurementScraper extends BaseScraper {
             }
 
             return filteredSignals;
-        } catch (error) {
+        } catch {
             return this.getMockData();
         }
     }
@@ -263,7 +264,7 @@ export class GovProcurementScraper extends BaseScraper {
     /**
      * 解析热度值
      */
-    private parseHot(text: any): number {
+    private parseHot(text: unknown): number {
         if (!text) return 0;
         const textStr = typeof text === 'string' ? text : String(text);
         const cleaned = textStr.replace(/[,，\s]/g, '');
@@ -374,7 +375,7 @@ export class GovProcurementScraper extends BaseScraper {
             'ul li a',
         ];
 
-        let items: any = null;
+        let items: Cheerio<AnyNode> | null = null;
         for (const selector of selectors) {
             const found = $(selector);
             if (found.length > 0) {
@@ -385,7 +386,7 @@ export class GovProcurementScraper extends BaseScraper {
 
         if (!items) return signals;
 
-        items.each((_: any, element: any) => {
+        items.each((_: number, element) => {
             const $item = $(element);
             const $link = $item.is('a') ? $item : $item.find('a');
 

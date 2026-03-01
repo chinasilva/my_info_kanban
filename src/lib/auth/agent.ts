@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma/db";
 import { checkRateLimit, getRateLimitConfigFromEnv } from "@/lib/rate-limit";
+import { AGENT_PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 
 export interface AgentAuthResult {
   success: boolean;
@@ -10,16 +11,7 @@ export interface AgentAuthResult {
 }
 
 // 可用的权限列表
-export const AVAILABLE_PERMISSIONS = [
-  "read:signals",
-  "read:sources",
-  "read:article",
-  "write:signals", // 标记已读、收藏等操作
-  "write:sources", // 订阅/取消订阅数据源
-  "read:insights", // 获取洞察
-] as const;
-
-export type Permission = (typeof AVAILABLE_PERMISSIONS)[number];
+export const AVAILABLE_PERMISSIONS = AGENT_PERMISSIONS;
 
 /**
  * 从请求头中提取 API Key

@@ -79,4 +79,8 @@ test-*.ts
 test-screenshots/
 *.test.ts
 *.spec.ts
+!tests/
+!tests/*.spec.ts
+playwright-report/
+test-results/
 AI 驱动标准化软件开发流程.md

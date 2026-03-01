@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma/db";
 import { SignalProcessor } from "@/lib/llm/processor";
+import { getSessionOrAgentAuth } from "@/lib/auth/session-or-agent";
 
 /**
  * 专门用于处理未被 LLM 总结的信号
@@ -12,6 +13,16 @@ import { SignalProcessor } from "@/lib/llm/processor";
  *   - maxBatches: 最大批次数，默认 5（即最多处理 250 条）
  */
 export async function GET(request: Request) {
+    const authResult = await getSessionOrAgentAuth(request, {
+        requiredPermissions: ["execute:jobs"],
+    });
+    if (!authResult.success) {
+        return NextResponse.json(
+            { error: authResult.error || "Unauthorized" },
+            { status: authResult.status || 401 }
+        );
+    }
+
     const { searchParams } = new URL(request.url);
     const batchSize = parseInt(searchParams.get("batchSize") || "50");
     const maxBatches = parseInt(searchParams.get("maxBatches") || "5");
@@ -71,10 +82,11 @@ export async function GET(request: Request) {
             }
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Unknown error";
         console.error("❌ Error processing pending signals:", error);
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: message },
             { status: 500 }
         );
     }

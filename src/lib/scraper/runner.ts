@@ -1,5 +1,5 @@
 import { prisma } from "../prisma/db";
-import { BaseScraper, ScrapedSignal } from "./base";
+import { BaseScraper } from "./base";
 import { HackerNewsScraper } from "./hacker-news";
 import { GitHubTrendingScraper } from "./github-trending";
 import { HuggingFaceScraper } from "./hugging-face";
@@ -17,7 +17,7 @@ import { AppRankScraper } from "./app-rank";
 import { SocialDemandScraper } from "./social-demand";
 import { OverseasTrendScraper } from "./overseas-trend";
 import { SignalProcessor } from "../llm/processor";
-import { Source } from "@prisma/client";
+import { Prisma, Source } from "@prisma/client";
 
 // 内置 Scraper 映射
 const BUILTIN_SCRAPERS: Record<string, (source: Source) => BaseScraper> = {
@@ -123,7 +123,14 @@ export class ScraperRunner {
                                 data: {
                                     score: signal.score,
                                     ...(signal.summary !== undefined ? { summary: signal.summary } : {}),
-                                    ...(signal.metadata !== undefined ? { metadata: signal.metadata } : {}),
+                                    ...(signal.metadata !== undefined
+                                        ? {
+                                            metadata:
+                                                signal.metadata === null
+                                                    ? Prisma.JsonNull
+                                                    : (signal.metadata as Prisma.InputJsonValue),
+                                        }
+                                        : {}),
                                     ...(signal.platform !== undefined ? { platform: signal.platform } : {}),
                                 },
                             });
@@ -140,7 +147,10 @@ export class ScraperRunner {
                                     externalId: signal.externalId,
                                     summary: signal.summary,
                                     platform: signal.platform,
-                                    metadata: (signal.metadata as any) || {},
+                                    metadata:
+                                        signal.metadata === null
+                                            ? Prisma.JsonNull
+                                            : ((signal.metadata ?? {}) as Prisma.InputJsonValue),
                                 },
                             });
                             results.new++;

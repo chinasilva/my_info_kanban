@@ -26,7 +26,6 @@ async function triggerProcessor() {
         const processor = new SignalProcessor();
         console.log("🤖 Starting Manual Signal Processing...");
 
-        let totalProcessed = 0;
         let batchCount = 0;
 
         while (true) {
@@ -43,7 +42,6 @@ async function triggerProcessor() {
 
             // Process a batch
             await processor.processSignals(10); // Smaller batch to see progress
-            totalProcessed += 10;
             batchCount++;
 
             // Optional: Safety break

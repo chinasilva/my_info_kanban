@@ -6,6 +6,37 @@ interface OverseasTrendConfig {
     topic?: string;
 }
 
+interface ProductHuntNode {
+    name?: string;
+    tagline?: string;
+    url?: string;
+    votesCount?: number;
+    commentsCount?: number;
+    featuredAt?: string;
+    topics?: { edges?: Array<{ node?: { name?: string } }> };
+}
+
+interface HackerNewsStory {
+    id?: number;
+    title?: string;
+    url?: string;
+    score?: number;
+    descendants?: number;
+    by?: string;
+    time?: number;
+}
+
+interface GitHubIssue {
+    title?: string;
+    html_url?: string;
+    comments?: number;
+    repository_url?: string;
+    labels?: Array<{ name?: string }>;
+    state?: string;
+    user?: { login?: string };
+    created_at?: string;
+}
+
 /**
  * 海外趋势抓取器
  *
@@ -94,24 +125,30 @@ export class OverseasTrendScraper extends BaseScraper {
                 return await this.fetchProductHuntWeb();
             }
 
-            const data = await response.json();
+            const data = (await response.json()) as {
+                data?: { posts?: { edges?: Array<{ node?: ProductHuntNode }> } };
+            };
             const edges = data.data?.posts?.edges || [];
 
-            const signals: ScrapedSignal[] = edges.map(({ node }: any) => {
-                const topics = node.topics?.edges?.map((e: any) => e.node.name) || [];
+            const signals: ScrapedSignal[] = edges.map(({ node }) => {
+                const item = node || {};
+                const topics =
+                    item.topics?.edges
+                        ?.map((e) => e.node?.name)
+                        .filter((name): name is string => typeof name === "string") || [];
 
                 return {
-                    title: node.name,
-                    url: node.url,
-                    summary: node.tagline,
-                    score: node.votesCount || 0,
+                    title: item.name || 'Untitled',
+                    url: item.url || 'https://www.producthunt.com',
+                    summary: item.tagline,
+                    score: item.votesCount || 0,
                     category: 'Product Hunt',
                     metadata: {
                         platform: 'Product Hunt',
-                        votes: node.votesCount,
-                        comments: node.commentsCount,
+                        votes: item.votesCount,
+                        comments: item.commentsCount,
                         topics,
-                        featuredAt: node.featuredAt,
+                        featuredAt: item.featuredAt,
                         sourceType: 'producthunt',
                     }
                 };
@@ -138,7 +175,7 @@ export class OverseasTrendScraper extends BaseScraper {
             return [];
         }
 
-        const html = await response.text();
+        await response.text();
         // Product Hunt 是 React 应用，简单解析
         // 实际应该使用 API
 
@@ -185,10 +222,10 @@ export class OverseasTrendScraper extends BaseScraper {
         );
 
         const signals: ScrapedSignal[] = stories
-            .filter(Boolean)
-            .map((story: any) => {
+            .filter((story): story is HackerNewsStory => story !== null)
+            .map((story) => {
                 return {
-                    title: story.title,
+                    title: story.title || 'Untitled',
                     url: story.url || `https://news.ycombinator.com/item?id=${story.id}`,
                     score: story.score || 0,
                     category: 'Hacker News',
@@ -238,23 +275,23 @@ export class OverseasTrendScraper extends BaseScraper {
             throw new Error(`Failed to fetch GitHub Issues: ${response.statusText}`);
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as { items?: GitHubIssue[] };
         const items = data.items || [];
 
-        const signals: ScrapedSignal[] = items.map((issue: any) => {
+        const signals: ScrapedSignal[] = items.map((issue) => {
             // 提取 repo 名称
             const repoUrl = issue.repository_url;
             const repoName = repoUrl ? repoUrl.replace('https://api.github.com/repos/', '') : '';
 
             return {
-                title: issue.title,
-                url: issue.html_url,
+                title: issue.title || 'Untitled',
+                url: issue.html_url || 'https://github.com/issues',
                 score: issue.comments || 0,
                 category: 'GitHub Issues',
                 metadata: {
                     platform: 'GitHub',
                     comments: issue.comments,
-                    labels: issue.labels?.map((l: any) => l.name) || [],
+                    labels: issue.labels?.map((l) => l.name).filter(Boolean) || [],
                     state: issue.state,
                     author: issue.user?.login,
                     repo: repoName,

@@ -1,5 +1,13 @@
 import { BaseScraper, ScrapedSignal } from "./base";
 
+interface HackerNewsHit {
+    title?: string;
+    url?: string;
+    objectID?: string;
+    points?: number;
+    num_comments?: number;
+}
+
 export class HackerNewsScraper extends BaseScraper {
     name = "Hacker News";
     source = "hackernews";
@@ -16,16 +24,16 @@ export class HackerNewsScraper extends BaseScraper {
                 throw new Error(`HN API returned ${response.status}`);
             }
 
-            const data = await response.json();
+            const data = (await response.json()) as { hits?: HackerNewsHit[] };
 
-            return data.hits.map((hit: any) => ({
-                title: hit.title,
+            return (data.hits || []).map((hit) => ({
+                title: hit.title || "Untitled",
                 url: hit.url || `https://news.ycombinator.com/item?id=${hit.objectID}`,
-                score: hit.points,
+                score: hit.points || 0,
                 externalId: hit.objectID,
                 summary: null, // Clear summary to trigger AI processing
                 metadata: {
-                    comments: hit.num_comments
+                    comments: hit.num_comments || 0
                 },
                 category: "Tech",
             }));

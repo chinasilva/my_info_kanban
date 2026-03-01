@@ -31,84 +31,40 @@ A curated news and content aggregation platform powered by AI. High-Signal Aggre
 - **Caching**: Redis (ioredis)
 - **i18n**: next-intl
 
-## Agent / MCP Integration
+## Agent Integration (Skill-Only)
 
-Supports **MCP (Model Context Protocol)** for external AI Agents to directly invoke deployed website features.
+This project uses a **Skill-first** integration model for AI Agents. MCP has been removed.
 
-### MCP Endpoints
+### Agent Endpoints
 
 | Endpoint | Description |
 |----------|-------------|
-| `/.well-known/mcp.json` | Agent Auto-Discovery (MCP Well-Known) |
-| `/api/mcp.json` | Tool Manifest |
-| `/api/mcp` | JSON-RPC Entry Point |
-| `/api/agent/keys` | API Key Management |
-| `/agent-setup` | Agent Setup Page |
-
-### Available Tools (9)
-
-| Tool Name | Description |
-|-----------|-------------|
-| `get_signals` | Get signal filtering by source type list with, date range, tags |
-| `get_signal_detail` | Get detailed content of a single signal |
-| `get_sources` | Get available sources and subscription status |
-| `read_article` | AI reads article and returns summary or translation |
-| `mark_as_read` | Mark signal as read |
-| `favorite_signal` | Favorite or unfavorite a signal |
-| `subscribe_source` | Subscribe or unsubscribe from a source |
-| `search_signals` | Search signals by title, summary, tags |
-| `get_insights` | Get daily insights (trend analysis, cause analysis, etc.) |
+| `/api/skill.json` | Full skill manifest with all commands |
+| `/api/openclaw.json` | OpenClaw config (exec + curl) |
+| `/api/agent/keys` | API key management |
+| `/agent-setup` | Setup page for key generation and command examples |
 
 ### Authentication
 
-Pass Bearer Token via `Authorization` header:
+Use Bearer token in `Authorization` header:
 
 ```bash
 curl -H "Authorization: Bearer YOUR_API_KEY" \
-  https://your-domain.com/api/mcp
+  https://your-domain.com/api/signals?limit=5
 ```
 
-### Claude Desktop Configuration
+### Install Skill
 
-Add to your `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "high-quality-info": {
-      "url": "https://your-domain.com/api/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_API_KEY"
-      }
-    }
-  }
-}
+```bash
+curl https://your-domain.com/api/skill.json
 ```
 
-Visit [/agent-setup](/agent-setup) for detailed configuration.
+Install the downloaded config into your Agent skill directory, then set `SIGNAL_API_KEY`.
 
-### OpenClaw Configuration
-
-OpenClaw uses `exec` to run bash commands (curl). Get the full configuration at:
+### OpenClaw
 
 ```bash
 curl https://your-domain.com/api/openclaw.json
-```
-
-**Quick curl examples:**
-
-```bash
-# Get signals (exec curl "url")
-curl -s -X GET "https://your-domain.com/api/signals?limit=10" \
-  -H "Authorization: Bearer $SIGNAL_API_KEY"
-
-# Get sources
-curl -s -X GET "https://your-domain.com/api/sources" \
-  -H "Authorization: Bearer $SIGNAL_API_KEY"
-
-# Trigger data fetch
-curl -s -X GET "https://your-domain.com/api/cron/fetch" \
-  -H "Authorization: Bearer $SIGNAL_API_KEY"
 ```
 
 ## Quick Start

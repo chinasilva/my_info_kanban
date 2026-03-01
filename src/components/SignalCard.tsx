@@ -1,17 +1,16 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ExternalLink, TrendingUp, Star, Sparkles, Languages, Share2, Loader2 } from "lucide-react";
+import { ExternalLink, TrendingUp, Star, Sparkles, Languages, Share2, Loader2, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { useSnapshot } from "@/hooks/useSnapshot";
 import { useSignal } from "@/context/SignalContext";
-import { Signal, SignalSchema } from "@/schemas/signal"; // Import Zod Types
+import { Signal } from "@/schemas/signal";
 import { convertToTraditional } from "@/lib/utils/converter";
 import { useReading } from "@/context/ReadingContext";
-import { BookOpen } from "lucide-react";
 
 export type ColumnPosition = 'first' | 'middle' | 'last' | 'single';
 
@@ -29,8 +28,7 @@ export function SignalCard({
     className,
     variant = "default",
     locale = "en",
-    isGuest = false,
-    columnPosition = 'middle'
+    isGuest = false
 }: SignalCardProps) {
     const [mounted, setMounted] = useState(false);
     const [isRead, setIsRead] = useState(signal.isRead ?? false);
@@ -90,6 +88,14 @@ export function SignalCard({
     const sourceIcon = typeof signal.source === 'string'
         ? null
         : signal.source?.icon;
+    const metadata =
+        signal.metadata && typeof signal.metadata === "object"
+            ? (signal.metadata as Record<string, unknown>)
+            : null;
+    const comments =
+        metadata && typeof metadata.comments === "number"
+            ? metadata.comments
+            : undefined;
 
     useEffect(() => {
         setMounted(true);
@@ -146,7 +152,7 @@ export function SignalCard({
         // 服务端更新 (fire and forget)
         try {
             fetch(`/api/signals/${signal.id}/read`, { method: "POST" });
-        } catch (e) {
+        } catch {
             // Ignore errors
         }
     };
@@ -159,7 +165,7 @@ export function SignalCard({
 
         try {
             await fetch(`/api/signals/${signal.id}/favorite`, { method: "POST" });
-        } catch (e) {
+        } catch {
             // Revert on error
             setIsFavorited(isFavorited);
         }
@@ -223,11 +229,11 @@ export function SignalCard({
                         <span className="text-[10px] text-[var(--color-text-muted)]">
                             {mounted ? new Date(signal.createdAt).toLocaleString() : ""}
                         </span>
-                        {(signal.metadata as any)?.comments !== undefined && (
+                        {comments !== undefined && (
                             <>
                                 <span className="text-[10px] text-[var(--color-text-muted)]">•</span>
                                 <span className="text-[10px] text-[var(--color-text-muted)]">
-                                    {isZh || isTw ? (isTw ? '評論' : '评论') : 'Comments'}: {(signal.metadata as any).comments}
+                                    {isZh || isTw ? (isTw ? '評論' : '评论') : 'Comments'}: {comments}
                                 </span>
                             </>
                         )}
@@ -509,10 +515,10 @@ export function SignalCard({
             <div className="mt-auto pt-4 flex justify-between items-center text-xs text-[var(--color-text-muted)] border-t border-[var(--color-border)]">
                 <div className="flex items-center gap-3">
                     <span>{mounted ? new Date(signal.createdAt).toLocaleString() : ""}</span>
-                    {(signal.metadata as any)?.comments !== undefined && (
+                    {comments !== undefined && (
                         <span className="flex items-center gap-1 opacity-80">
                             <span className="w-1 h-1 rounded-full bg-[var(--color-text-muted)]" />
-                            {isZh || isTw ? (isTw ? '評論' : '评论') : 'Comments'}: {(signal.metadata as any).comments}
+                            {isZh || isTw ? (isTw ? '評論' : '评论') : 'Comments'}: {comments}
                         </span>
                     )}
                 </div>

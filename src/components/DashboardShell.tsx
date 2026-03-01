@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useTransition, useRef } from "react";
+import type { Insight as PrismaInsight, Signal as PrismaSignal, Source as PrismaSource } from "@prisma/client";
 import { useIsMobile } from "@/lib/hooks/useMediaQuery";
 import { SignalColumn } from "./SignalColumn";
 import { MobileHeader } from "./MobileHeader";
@@ -65,7 +66,7 @@ interface DashboardShellProps {
     };
     activeTag?: string;
     activeDate?: string;
-    insights?: any[];
+    insights?: (PrismaInsight & { signals: (PrismaSignal & { source: PrismaSource })[] })[];
     activeSourceId?: string | null;
     activeSource?: { id: string; name: string; icon: string | null; type: string } | null;
     singleSourceSignals?: Signal[];
@@ -131,7 +132,7 @@ export function DashboardShell({
             if (stored) {
                 try {
                     setGuestSubscribedIds(JSON.parse(stored));
-                } catch (e) {
+                } catch {
                     setGuestSubscribedIds([]);
                 }
             } else {
@@ -156,13 +157,9 @@ export function DashboardShell({
         // Optional: Update logic if needed
     }, [signalGroups]);
 
-    const handleCountChange = useCallback((count: number) => {
+    const handleCountChange = useCallback((_count: number) => {
         // Only update for standard tabs
     }, [activeTab]);
-
-    const getActiveSignals = (): Signal[] => {
-        return signalGroups[activeTab] || [];
-    };
 
     const handleRefresh = useCallback(async () => {
         router.refresh();

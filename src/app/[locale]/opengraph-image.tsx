@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 
 // Route segment config
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 // Image metadata
 export const alt = 'High-Signal Aggregator';
@@ -14,7 +14,7 @@ export const contentType = 'image/png';
 
 // Image generation
 export default async function Image({ params }: { params: { locale: string } }) {
-    const { locale } = await params;
+    const { locale } = params;
     const isZh = locale === 'zh' || locale === 'tw';
 
     return new ImageResponse(

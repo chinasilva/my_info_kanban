@@ -31,9 +31,10 @@ export abstract class RssScraper extends BaseScraper {
                     console.log(`Retry ${attempt + 1}/${retries} for ${this.name}...`);
                     await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
                 }
-            } catch (error: any) {
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : String(error);
                 if (attempt >= retries) throw error;
-                console.log(`Retry ${attempt + 1}/${retries} for ${this.name} due to: ${error.message}`);
+                console.log(`Retry ${attempt + 1}/${retries} for ${this.name} due to: ${message}`);
                 await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
             }
         }
@@ -63,8 +64,6 @@ export abstract class RssScraper extends BaseScraper {
                 }
 
                 const description = $item.find("description").text() || $item.find("content").text() || $item.find("summary").text();
-                const pubDate = $item.find("pubDate").text() || $item.find("published").text();
-
                 // Simple dedup logic or validation could go here
                 if (title && url) {
                     signals.push({
@@ -85,7 +84,7 @@ export abstract class RssScraper extends BaseScraper {
         }
     }
 
-    protected getCategory($item: any): string {
+    protected getCategory(_item: unknown): string {
         return "General";
     }
 

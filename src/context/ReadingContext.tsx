@@ -95,8 +95,9 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
                 setActiveTask(prev => prev ? { ...prev, status: 'error', error: 'Connection failed' } : null);
             };
 
-        } catch (e: any) {
-            setActiveTask(prev => prev ? { ...prev, status: 'error', error: e.message } : null);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : "Unknown error";
+            setActiveTask(prev => prev ? { ...prev, status: 'error', error: message } : null);
         }
     }, []);
 

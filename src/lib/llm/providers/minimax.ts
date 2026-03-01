@@ -1,17 +1,30 @@
 import { LLMClient, ProcessingResult, BatchProcessingResult } from '../types';
 
-interface MiniMaxMessage {
-    role: 'user' | 'assistant' | 'system';
-    content: string;
+interface MiniMaxTextBlock {
+    type?: string;
+    text?: string;
 }
 
-interface MiniMaxChoice {
-    message: MiniMaxMessage;
-    stop_reason?: string;
+interface MiniMaxApiResponse {
+    content?: MiniMaxTextBlock[];
 }
 
-interface MiniMaxResponse {
-    choices: MiniMaxChoice[];
+function extractTextBlock(response: MiniMaxApiResponse): string | null {
+    const textBlock = response.content?.find((block) => block.type === 'text');
+    return textBlock?.text?.trim() || null;
+}
+
+function isRateLimitError(error: unknown): boolean {
+    if (!error || typeof error !== "object") return false;
+    const candidate = error as { status?: number; message?: string };
+    return candidate.status === 429 || candidate.message?.includes('rate_limit') === true;
+}
+
+function isJsonError(error: unknown): boolean {
+    if (error instanceof SyntaxError) return true;
+    if (!error || typeof error !== "object") return false;
+    const candidate = error as { message?: string };
+    return candidate.message?.includes('JSON') === true;
 }
 
 export class MiniMaxClient implements LLMClient {
@@ -25,7 +38,7 @@ export class MiniMaxClient implements LLMClient {
         this.model = model || 'claude-sonnet-4-20250514';
     }
 
-    private async callApi(endpoint: string, body: object): Promise<any> {
+    private async callApi(endpoint: string, body: object): Promise<MiniMaxApiResponse> {
         const response = await fetch(`${this.baseUrl}${endpoint}`, {
             method: 'POST',
             headers: {
@@ -73,19 +86,16 @@ Output JSON format:
                     max_tokens: 1024,
                 });
 
-                // console.log('MiniMax raw response:', JSON.stringify(response, null, 2));
-                // Find the text content block (skip thinking block)
-                const textBlock = response.content?.find((block: any) => block.type === 'text');
-                let contentStr = textBlock?.text?.trim();
+                let contentStr = extractTextBlock(response);
                 if (!contentStr) throw new Error('No content from MiniMax');
 
                 // Remove markdown code block wrapper if present
                 contentStr = contentStr.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
 
                 return JSON.parse(contentStr) as ProcessingResult;
-            } catch (error: any) {
+            } catch (error: unknown) {
                 // Handle JSON parse errors with retry
-                if (error instanceof SyntaxError || error?.message?.includes('JSON')) {
+                if (isJsonError(error)) {
                     console.warn(`JSON parse error. Retrying attempt ${retries + 1}/${maxRetries}...`);
                     if (retries < maxRetries) {
                         const delay = baseDelay * Math.pow(2, retries);
@@ -95,7 +105,7 @@ Output JSON format:
                     }
                 }
 
-                if (error?.status === 429 || error?.message?.includes('rate_limit')) {
+                if (isRateLimitError(error)) {
                     console.warn(`Rate limit exceeded. Retrying attempt ${retries + 1}/${maxRetries}...`);
                     if (retries === maxRetries) {
                         console.error('Max retries reached for rate limiting.');
@@ -158,27 +168,42 @@ Each summary should be max 2 sentences. Category must be one of: AI, Crypto, Tec
                 });
 
                 // 解析响应并关联 signalId
-                const textBlock = response.content?.find((block: any) => block.type === 'text');
-                let contentStr = textBlock?.text?.trim();
+                let contentStr = extractTextBlock(response);
                 if (!contentStr) throw new Error('No content from MiniMax');
 
                 // Remove markdown code block wrapper if present
                 contentStr = contentStr.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
 
-                const results = JSON.parse(contentStr);
+                const parsed = JSON.parse(contentStr);
+                const results = Array.isArray(parsed) ? parsed : [];
 
-                return results.map((r: any) => ({
-                    signalId: signals[r.index - 1].id,
-                    summary: r.summary,
-                    category: r.category,
-                    tags: r.tags || [],
-                    tagsZh: r.tagsZh || [],
-                    aiSummaryZh: r.aiSummaryZh,
-                    titleTranslated: r.titleTranslated
-                }));
-            } catch (error: any) {
+                return results.reduce<BatchProcessingResult[]>((acc, r) => {
+                        const item = r as {
+                            index?: number;
+                            summary?: string | null;
+                            category?: string | null;
+                            tags?: string[];
+                            tagsZh?: string[];
+                            aiSummaryZh?: string;
+                            titleTranslated?: string;
+                        };
+                        if (typeof item.index !== "number" || !signals[item.index - 1]) {
+                            return acc;
+                        }
+                        acc.push({
+                            signalId: signals[item.index - 1].id,
+                            summary: item.summary ?? null,
+                            category: item.category ?? "Uncategorized",
+                            tags: item.tags || [],
+                            tagsZh: item.tagsZh || [],
+                            aiSummaryZh: item.aiSummaryZh || "",
+                            titleTranslated: item.titleTranslated || ""
+                        });
+                        return acc;
+                    }, []);
+            } catch (error: unknown) {
                 // Handle JSON parse errors with retry
-                if (error instanceof SyntaxError || error?.message?.includes('JSON')) {
+                if (isJsonError(error)) {
                     console.warn(`Batch JSON parse error. Retrying attempt ${retries + 1}/${maxRetries}...`);
                     if (retries < maxRetries) {
                         const delay = baseDelay * Math.pow(2, retries);
@@ -188,7 +213,7 @@ Each summary should be max 2 sentences. Category must be one of: AI, Crypto, Tec
                     }
                 }
 
-                if (error?.status === 429 || error?.message?.includes('rate_limit')) {
+                if (isRateLimitError(error)) {
                     console.warn(`Batch rate limit exceeded. Retrying attempt ${retries + 1}/${maxRetries}...`);
                     if (retries === maxRetries) {
                         console.error('Max retries reached for rate limiting.');
@@ -217,8 +242,8 @@ Each summary should be max 2 sentences. Category must be one of: AI, Crypto, Tec
                 messages: [{ role: 'user', content: prompt }],
                 max_tokens: 1024,
             });
-            const textBlock = response.content?.find((block: any) => block.type === 'text');
-            return textBlock?.text?.trim()?.replace(/^```json?\n?/, '').replace(/\n?```$/, '') || '';
+            const contentStr = extractTextBlock(response);
+            return contentStr?.replace(/^```json?\n?/, '').replace(/\n?```$/, '') || '';
         } catch (error) {
             console.error('MiniMax Generate Error:', error);
             throw error;
@@ -265,7 +290,10 @@ Each summary should be max 2 sentences. Category must be one of: AI, Crypto, Tec
                         if (data === '[DONE]') return;
 
                         try {
-                            const parsed = JSON.parse(data);
+                            const parsed = JSON.parse(data) as {
+                                delta?: { text?: string };
+                                content?: Array<{ text?: string }>;
+                            };
                             const content = parsed.delta?.text || parsed.content?.[0]?.text || '';
                             if (content) {
                                 yield content;

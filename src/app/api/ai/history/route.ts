@@ -1,11 +1,22 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma/db';
+import { getSessionOrAgentAuth } from '@/lib/auth/session-or-agent';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
+    const authResult = await getSessionOrAgentAuth(req, {
+        requiredPermissions: ["read:article"],
+    });
+    if (!authResult.success) {
+        return NextResponse.json(
+            { error: authResult.error || "Unauthorized" },
+            { status: authResult.status || 401 }
+        );
+    }
+
     try {
         const history = await prisma.aICache.findMany({
             orderBy: { updatedAt: 'desc' },
