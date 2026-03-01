@@ -52,6 +52,7 @@ export async function POST(request: Request) {
         });
 
         let source;
+        const parsedFeedUrl = new URL(feedUrl);
 
         if (existingSourceByUrl) {
             // 复用已有数据源
@@ -69,54 +70,15 @@ export async function POST(request: Request) {
                 );
             }
 
-            // 验证 RSS URL 有效性
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-                const response = await fetch(feedUrl, {
-                    signal: controller.signal,
-                    headers: {
-                        "User-Agent": "High-Signal-Aggregator/1.0",
-                    },
-                });
-                clearTimeout(timeoutId);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-
-                const text = await response.text();
-                const isRss = text.includes("<rss") || text.includes("<feed") || text.includes("<channel");
-
-                if (!isRss) {
-                    return NextResponse.json(
-                        { error: "该地址不是有效的 RSS/Atom Feed" },
-                        { status: 400 }
-                    );
-                }
-            } catch (fetchError: unknown) {
-                const isAbortError =
-                    fetchError instanceof Error && fetchError.name === "AbortError";
-                if (isAbortError) {
-                    return NextResponse.json(
-                        { error: "请求超时，请检查 RSS 地址" },
-                        { status: 400 }
-                    );
-                }
-                const message = fetchError instanceof Error ? fetchError.message : "Unknown error";
-                return NextResponse.json(
-                    { error: `无法访问该 RSS 地址: ${message}` },
-                    { status: 400 }
-                );
-            }
+            // 不在创建接口中直接请求用户提供的 URL，避免 SSRF 风险。
+            // Feed 可达性/内容有效性将在后续抓取任务中验证。
 
             // 创建新数据源
             source = await prisma.source.create({
                 data: {
                     name,
                     type: "rss",
-                    baseUrl: new URL(feedUrl).origin,
+                    baseUrl: parsedFeedUrl.origin,
                     icon: icon || "📡",
                     config: { feedUrl },
                     isBuiltIn: false,
