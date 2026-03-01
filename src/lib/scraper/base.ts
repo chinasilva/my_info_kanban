@@ -9,13 +9,93 @@ export interface ScrapedSignal {
     metadata?: unknown;
 }
 
+export type FetchErrorCode =
+    | "HTTP_403"
+    | "HTTP_429"
+    | "TIMEOUT"
+    | "PARSE"
+    | "ANTI_BOT"
+    | "UNKNOWN";
+
+export type SourceFetchStatus = "success" | "empty" | "soft_fail" | "hard_fail";
+
+export interface SourceFetchResult {
+    sourceId: string;
+    sourceName: string;
+    attemptedEndpoint: string | null;
+    status: SourceFetchStatus;
+    errorCode: FetchErrorCode | null;
+    signalCount: number;
+    durationMs: number;
+}
+
+export function classifyFetchError(error: unknown): FetchErrorCode {
+    const message = error instanceof Error ? error.message : String(error);
+    const normalized = message.toLowerCase();
+
+    if (normalized.includes("403")) return "HTTP_403";
+    if (normalized.includes("429")) return "HTTP_429";
+    if (
+        normalized.includes("timeout")
+        || normalized.includes("timed out")
+        || normalized.includes("aborterror")
+        || normalized.includes("etimedout")
+        || normalized.includes("und_err_connect_timeout")
+    ) {
+        return "TIMEOUT";
+    }
+    if (
+        normalized.includes("precondition failed")
+        || normalized.includes("anti-bot")
+        || normalized.includes("captcha")
+        || normalized.includes("cloudflare")
+        || normalized.includes("js challenge")
+        || normalized.includes("反爬")
+    ) {
+        return "ANTI_BOT";
+    }
+    if (
+        normalized.includes("parse")
+        || normalized.includes("invalid json")
+        || normalized.includes("unexpected token")
+        || normalized.includes("xml")
+    ) {
+        return "PARSE";
+    }
+    return "UNKNOWN";
+}
+
 export abstract class BaseScraper {
     abstract name: string;
     abstract source: string;
 
+    private lastErrorCode: FetchErrorCode | null = null;
+    private lastAttemptedEndpoint: string | null = null;
+
     abstract fetch(): Promise<ScrapedSignal[]>;
 
-    protected async logError(error: unknown) {
+    public resetRunState() {
+        this.lastErrorCode = null;
+        this.lastAttemptedEndpoint = null;
+    }
+
+    public getLastErrorCode(): FetchErrorCode | null {
+        return this.lastErrorCode;
+    }
+
+    public getAttemptedEndpoint(): string | null {
+        return this.lastAttemptedEndpoint;
+    }
+
+    protected setAttemptedEndpoint(endpoint: string | null) {
+        this.lastAttemptedEndpoint = endpoint;
+    }
+
+    protected async logError(error: unknown, options?: { endpoint?: string; errorCode?: FetchErrorCode }) {
+        if (options?.endpoint) {
+            this.lastAttemptedEndpoint = options.endpoint;
+        }
+        this.lastErrorCode = options?.errorCode || classifyFetchError(error);
         console.error(`Scraper error [${this.name}]:`, error);
     }
 

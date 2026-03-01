@@ -1,5 +1,5 @@
 import { prisma } from "../prisma/db";
-import { BaseScraper } from "./base";
+import { BaseScraper, FetchErrorCode, SourceFetchResult, classifyFetchError } from "./base";
 import { HackerNewsScraper } from "./hacker-news";
 import { GitHubTrendingScraper } from "./github-trending";
 import { HuggingFaceScraper } from "./hugging-face";
@@ -42,6 +42,23 @@ const BUILTIN_SCRAPERS: Record<string, (source: Source) => BaseScraper> = {
 interface ScraperWithSource {
     scraper: BaseScraper;
     sourceId: string;
+}
+
+interface RunnerStatusCounts {
+    success: number;
+    empty: number;
+    soft_fail: number;
+    hard_fail: number;
+}
+
+export interface ScraperRunResults {
+    total: number;
+    new: number;
+    updated: number;
+    errors: number;
+    sourceSummary: SourceFetchResult[];
+    failureStats: Partial<Record<FetchErrorCode, number>>;
+    statusCounts: RunnerStatusCounts;
 }
 
 export class ScraperRunner {
@@ -89,13 +106,21 @@ export class ScraperRunner {
         return null;
     }
 
-    async runAll() {
+    async runAll(): Promise<ScraperRunResults> {
         console.log("Starting scraper runner...");
-        const results = {
+        const results: ScraperRunResults = {
             total: 0,
             new: 0,
             updated: 0,
             errors: 0,
+            sourceSummary: [],
+            failureStats: {},
+            statusCounts: {
+                success: 0,
+                empty: 0,
+                soft_fail: 0,
+                hard_fail: 0,
+            },
         };
 
         // 动态获取所有 Scraper
@@ -103,10 +128,27 @@ export class ScraperRunner {
         console.log(`Found ${scraperList.length} active sources`);
 
         for (const { scraper, sourceId } of scraperList) {
+            scraper.resetRunState();
+            const startedAt = Date.now();
+
             try {
                 console.log(`Running scraper: ${scraper.name}`);
                 const signals = await scraper.fetch();
                 console.log(`Scraper ${scraper.name} found ${signals.length} signals.`);
+
+                const errorCode = scraper.getLastErrorCode();
+                const status =
+                    signals.length > 0
+                        ? "success"
+                        : errorCode
+                            ? "soft_fail"
+                            : "empty";
+
+                if (status === "soft_fail" && errorCode) {
+                    results.errors++;
+                    results.failureStats[errorCode] = (results.failureStats[errorCode] || 0) + 1;
+                }
+                results.statusCounts[status]++;
 
                 for (const signal of signals) {
                     try {
@@ -168,9 +210,30 @@ export class ScraperRunner {
                     data: { lastFetched: new Date() },
                 });
 
+                results.sourceSummary.push({
+                    sourceId,
+                    sourceName: scraper.name,
+                    attemptedEndpoint: scraper.getAttemptedEndpoint(),
+                    status,
+                    errorCode,
+                    signalCount: signals.length,
+                    durationMs: Date.now() - startedAt,
+                });
             } catch (error) {
                 console.error(`Scraper ${scraper.name} failed:`, error);
                 results.errors++;
+                const errorCode = classifyFetchError(error);
+                results.failureStats[errorCode] = (results.failureStats[errorCode] || 0) + 1;
+                results.statusCounts.hard_fail++;
+                results.sourceSummary.push({
+                    sourceId,
+                    sourceName: scraper.name,
+                    attemptedEndpoint: scraper.getAttemptedEndpoint(),
+                    status: "hard_fail",
+                    errorCode,
+                    signalCount: 0,
+                    durationMs: Date.now() - startedAt,
+                });
             }
         }
 
@@ -195,6 +258,8 @@ export class ScraperRunner {
             console.error("LLM enrichment failed:", error);
         }
 
+        console.log("Runner status summary:", results.statusCounts);
+        console.log("Runner failure stats:", results.failureStats);
         console.log("Runner finished:", results);
         return results;
     }

@@ -10,7 +10,7 @@ export interface DemandSignal {
 
 interface ValidationResult {
     signalId: string;
-    isValid: boolean;
+    isValid: boolean | null;
     reason?: string;
 }
 
@@ -23,6 +23,11 @@ interface LLMValidationItem {
 export class DemandValidator {
     private client = LLMFactory.createClient();
     private readonly BATCH_SIZE = 500;
+    private readonly strictParsing = process.env.DEMAND_VALIDATION_STRICT !== "false";
+
+    private parseFallbackValue(): boolean | null {
+        return this.strictParsing ? null : true;
+    }
 
     /**
      * 批量验证需求信号
@@ -32,7 +37,7 @@ export class DemandValidator {
     async validateSignals(signals: DemandSignal[]): Promise<ValidationResult[]> {
         if (!this.client) {
             console.warn("LLM client not configured, skipping demand validation.");
-            return signals.map(s => ({ signalId: s.id, isValid: true, reason: "LLM not configured" }));
+            return signals.map(s => ({ signalId: s.id, isValid: this.parseFallbackValue(), reason: "LLM not configured" }));
         }
 
         if (signals.length === 0) {
@@ -58,7 +63,7 @@ export class DemandValidator {
      */
     private async validateBatch(signals: DemandSignal[]): Promise<ValidationResult[]> {
         if (!this.client) {
-            return signals.map(s => ({ signalId: s.id, isValid: true, reason: "LLM not configured" }));
+            return signals.map(s => ({ signalId: s.id, isValid: this.parseFallbackValue(), reason: "LLM not configured" }));
         }
 
         const prompt = this.buildPrompt(signals);
@@ -68,8 +73,8 @@ export class DemandValidator {
             return this.parseResponse(response, signals);
         } catch (error) {
             console.error("Demand validation failed:", error);
-            // 返回默认值（有效）
-            return signals.map(s => ({ signalId: s.id, isValid: true, reason: "Validation error" }));
+            // 严格模式下保持 null，避免误判为有效
+            return signals.map(s => ({ signalId: s.id, isValid: this.parseFallbackValue(), reason: "Validation error" }));
         }
     }
 
@@ -142,13 +147,13 @@ ${signalsText}
             if (!jsonMatch) {
                 console.warn("Failed to find JSON array in response");
                 console.warn("Response preview:", response.substring(0, 500));
-                return signals.map(s => ({ signalId: s.id, isValid: true, reason: "Parse error" }));
+                return signals.map(s => ({ signalId: s.id, isValid: this.parseFallbackValue(), reason: "Parse error" }));
             }
 
             const parsed = JSON.parse(jsonMatch[0]);
             if (!Array.isArray(parsed)) {
                 console.warn("Parsed content is not an array");
-                return signals.map(s => ({ signalId: s.id, isValid: true, reason: "Invalid format" }));
+                return signals.map(s => ({ signalId: s.id, isValid: this.parseFallbackValue(), reason: "Invalid format" }));
             }
 
             console.log(`Successfully parsed ${parsed.length} validation results`);
@@ -168,7 +173,7 @@ ${signalsText}
                     // 使用 index 找到对应的信号（带范围校验）
                     const matchedSignal = signals[item.index];
                     // 确保 isValid 是布尔类型
-                    const isValid = typeof item.isValid === 'boolean' ? item.isValid : true;
+                    const isValid = typeof item.isValid === 'boolean' ? item.isValid : this.parseFallbackValue();
                     results.push({
                         signalId: matchedSignal?.id || signal?.id || signal?.title,
                         isValid: isValid,
@@ -178,22 +183,23 @@ ${signalsText}
                     // 如果没有 index 或 index 越界，使用当前循环的信号
                     results.push({
                         signalId: signal?.id || signal?.title,
-                        isValid: true,
-                        reason: !item ? 'Item missing' : 'Index invalid, default to valid'
+                        isValid: this.parseFallbackValue(),
+                        reason: !item ? 'Item missing' : 'Index invalid, fallback value used'
                     });
                 }
             }
 
             // 统计有效/无效
-            const validCount = results.filter(r => r.isValid).length;
-            const invalidCount = results.filter(r => !r.isValid).length;
-            console.log(`Validation results: ${validCount} valid, ${invalidCount} invalid`);
+            const validCount = results.filter(r => r.isValid === true).length;
+            const invalidCount = results.filter(r => r.isValid === false).length;
+            const unknownCount = results.filter(r => r.isValid === null).length;
+            console.log(`Validation results: ${validCount} valid, ${invalidCount} invalid, ${unknownCount} unknown`);
 
             return results;
         } catch (error) {
             console.error("Failed to parse validation response:", error);
             console.error("Response:", response.substring(0, 500));
-            return signals.map(s => ({ signalId: s.id, isValid: true, reason: "Parse error" }));
+            return signals.map(s => ({ signalId: s.id, isValid: this.parseFallbackValue(), reason: "Parse error" }));
         }
     }
 
