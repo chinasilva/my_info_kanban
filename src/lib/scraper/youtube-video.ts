@@ -22,6 +22,15 @@ interface YouTubeVideoConfig {
     category?: string;
 }
 
+function buildYouTubeEmbedUrl(videoId: string): string {
+    const url = new URL(`https://www.youtube-nocookie.com/embed/${videoId}`);
+    url.searchParams.set("rel", "0");
+    url.searchParams.set("modestbranding", "1");
+    url.searchParams.set("playsinline", "1");
+    url.searchParams.set("enablejsapi", "1");
+    return url.toString();
+}
+
 export class YouTubeVideoScraper extends BaseScraper {
     name: string;
     source: string;
@@ -90,7 +99,7 @@ export class YouTubeVideoScraper extends BaseScraper {
                         contentType: "video",
                         videoPlatform: "youtube",
                         videoId: videoId || null,
-                        embedUrl: videoId ? `https://www.youtube.com/embed/${videoId}` : null,
+                        embedUrl: videoId ? buildYouTubeEmbedUrl(videoId) : null,
                         watchUrl: link,
                         subtitleLangs,
                         subtitleGateRequired: requiredSubtitleLangs,

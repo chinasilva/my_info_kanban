@@ -22,7 +22,7 @@ const mockVideoSignals: Signal[] = [
             videoPlatform: "youtube",
             videoId: "dQw4w9WgXcQ",
             watchUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-            embedUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+            embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1&enablejsapi=1",
             durationText: "3:33",
         },
     },

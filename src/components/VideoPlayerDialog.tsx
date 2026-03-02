@@ -1,6 +1,7 @@
 "use client";
 
 import { ExternalLink, PlayCircle } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Signal } from "@/schemas/signal";
 
@@ -21,8 +22,40 @@ type VideoMetadata = {
 const ALLOWED_EMBED_HOSTS = new Set([
     "www.youtube.com",
     "youtube.com",
+    "www.youtube-nocookie.com",
+    "youtube-nocookie.com",
     "player.bilibili.com",
 ]);
+
+const YOUTUBE_INLINE_FALLBACK_KEY = "youtube-inline-fallback-preferred";
+
+function buildYouTubeEmbedUrl(videoId: string): string {
+    const url = new URL(`https://www.youtube-nocookie.com/embed/${videoId}`);
+    url.searchParams.set("rel", "0");
+    url.searchParams.set("modestbranding", "1");
+    url.searchParams.set("playsinline", "1");
+    url.searchParams.set("enablejsapi", "1");
+    return url.toString();
+}
+
+function isYouTubeHost(hostname: string): boolean {
+    const host = hostname.toLowerCase();
+    return host === "www.youtube.com"
+        || host === "youtube.com"
+        || host === "www.youtube-nocookie.com"
+        || host === "youtube-nocookie.com"
+        || host.endsWith(".youtube.com")
+        || host.endsWith(".youtube-nocookie.com")
+        || host === "youtu.be";
+}
+
+function isYouTubeEmbedUrl(url: string): boolean {
+    try {
+        return isYouTubeHost(new URL(url).hostname);
+    } catch {
+        return false;
+    }
+}
 
 function getVideoMetadata(signal: Signal | null): VideoMetadata {
     if (!signal || !signal.metadata || typeof signal.metadata !== "object") return {};
@@ -51,6 +84,11 @@ function extractYouTubeVideoId(url: string): string | null {
             const shortsIndex = parts.indexOf("shorts");
             return shortsIndex >= 0 && parts[shortsIndex + 1] ? parts[shortsIndex + 1] : null;
         }
+        if (parsed.pathname.includes("/embed/")) {
+            const parts = parsed.pathname.split("/").filter(Boolean);
+            const embedIndex = parts.indexOf("embed");
+            return embedIndex >= 0 && parts[embedIndex + 1] ? parts[embedIndex + 1] : null;
+        }
         return null;
     } catch {
         return null;
@@ -68,6 +106,17 @@ function resolveEmbedUrl(signal: Signal | null, metadata: VideoMetadata): string
     if (typeof metadata.embedUrl === "string" && metadata.embedUrl.trim()) {
         const rawEmbedUrl = metadata.embedUrl.trim();
         if (isAllowedEmbedUrl(rawEmbedUrl)) {
+            try {
+                const parsed = new URL(rawEmbedUrl);
+                if (isYouTubeHost(parsed.hostname)) {
+                    const videoId = metadata.videoId || extractYouTubeVideoId(rawEmbedUrl);
+                    if (videoId) {
+                        return buildYouTubeEmbedUrl(videoId);
+                    }
+                }
+            } catch {
+                return rawEmbedUrl;
+            }
             return rawEmbedUrl;
         }
     }
@@ -79,7 +128,7 @@ function resolveEmbedUrl(signal: Signal | null, metadata: VideoMetadata): string
 
     if (platform === "youtube") {
         const videoId = metadata.videoId || extractYouTubeVideoId(watchUrl);
-        if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+        if (videoId) return buildYouTubeEmbedUrl(videoId);
     }
 
     if (platform === "bilibili") {
@@ -103,12 +152,33 @@ export function VideoPlayerDialog({ open, signal, locale, onOpenChange }: VideoP
         ? ((typeof metadata.watchUrl === "string" && metadata.watchUrl.trim()) ? metadata.watchUrl : signal.url)
         : "";
     const embedUrl = resolveEmbedUrl(signal, metadata);
+    const isYouTubeVideo = metadata.videoPlatform === "youtube" || (embedUrl ? isYouTubeEmbedUrl(embedUrl) : false);
+    const [preferExternalPlayback, setPreferExternalPlayback] = useState(false);
     const platformLabel =
         metadata.videoPlatform === "youtube"
             ? "YouTube"
             : metadata.videoPlatform === "bilibili"
                 ? "Bilibili"
                 : "Video";
+
+    useEffect(() => {
+        if (!open || !isYouTubeVideo) return;
+        try {
+            const preferred = window.sessionStorage.getItem(YOUTUBE_INLINE_FALLBACK_KEY) === "true";
+            setPreferExternalPlayback(preferred);
+        } catch {
+            setPreferExternalPlayback(false);
+        }
+    }, [open, isYouTubeVideo]);
+
+    const markPreferExternalPlayback = useCallback(() => {
+        setPreferExternalPlayback(true);
+        try {
+            window.sessionStorage.setItem(YOUTUBE_INLINE_FALLBACK_KEY, "true");
+        } catch {
+            return;
+        }
+    }, []);
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -129,7 +199,7 @@ export function VideoPlayerDialog({ open, signal, locale, onOpenChange }: VideoP
                     <div className="p-4 sm:p-6 flex-1 overflow-y-auto">
                         <div className="rounded-xl border border-[var(--color-border)] overflow-hidden bg-black">
                             <div className="relative aspect-video">
-                                {embedUrl ? (
+                                {embedUrl && !(isYouTubeVideo && preferExternalPlayback) ? (
                                     <iframe
                                         src={embedUrl}
                                         title={signal?.title || "Video"}
@@ -143,18 +213,64 @@ export function VideoPlayerDialog({ open, signal, locale, onOpenChange }: VideoP
                                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-neutral-200 px-4 text-center">
                                         <PlayCircle className="w-10 h-10 text-white/85" />
                                         <p className="text-sm">
-                                            {isZh ? "当前视频暂不支持内嵌播放，请打开原视频。" : "Inline playback unavailable for this video. Open original instead."}
+                                            {isYouTubeVideo
+                                                ? (isZh ? "当前网络环境下可能无法稳定内嵌播放，请继续前往 YouTube 观看。" : "Inline playback may be restricted in this network. Continue on YouTube.")
+                                                : (isZh ? "当前视频暂不支持内嵌播放，请打开原视频。" : "Inline playback unavailable for this video. Open original instead.")}
                                         </p>
+                                        {watchUrl ? (
+                                            <a
+                                                href={watchUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={isYouTubeVideo ? markPreferExternalPlayback : undefined}
+                                                className="mt-1 inline-flex items-center gap-2 text-sm px-3 py-2 rounded-lg border border-white/20 text-white hover:bg-white/10 transition-colors"
+                                            >
+                                                <ExternalLink className="w-4 h-4" />
+                                                {isZh ? "继续观看（YouTube）" : "Continue on YouTube"}
+                                            </a>
+                                        ) : null}
                                     </div>
                                 )}
                             </div>
                         </div>
+
+                        {isYouTubeVideo && watchUrl ? (
+                            <div className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <p className="text-xs text-[var(--color-text-muted)]">
+                                    {isZh
+                                        ? "若内嵌播放受限，可一键前往 YouTube 继续观看。"
+                                        : "If inline playback is restricted, continue with one click on YouTube."}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <a
+                                        href={watchUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={markPreferExternalPlayback}
+                                        className="inline-flex items-center gap-2 text-xs sm:text-sm px-3 py-2 rounded-lg border border-[var(--color-border)] text-[var(--color-foreground)] hover:bg-[var(--color-card-hover)] transition-colors"
+                                    >
+                                        <ExternalLink className="w-4 h-4" />
+                                        {isZh ? "继续观看（YouTube）" : "Continue on YouTube"}
+                                    </a>
+                                    {preferExternalPlayback && embedUrl ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setPreferExternalPlayback(false)}
+                                            className="inline-flex items-center text-xs sm:text-sm px-3 py-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-card-hover)] transition-colors"
+                                        >
+                                            {isZh ? "仍尝试内嵌播放" : "Try inline playback"}
+                                        </button>
+                                    ) : null}
+                                </div>
+                            </div>
+                        ) : null}
 
                         {watchUrl ? (
                             <a
                                 href={watchUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                onClick={isYouTubeVideo ? markPreferExternalPlayback : undefined}
                                 className="mt-4 inline-flex items-center gap-2 text-sm px-3 py-2 rounded-lg border border-[var(--color-border)] text-[var(--color-foreground)] hover:bg-[var(--color-card-hover)] transition-colors"
                             >
                                 <ExternalLink className="w-4 h-4" />
