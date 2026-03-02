@@ -243,7 +243,7 @@ export function DashboardShell({
 
                     {!activeTag && !activeSourceId && videoSignals.length > 0 && (
                         <div className="px-4 pt-4 shrink-0">
-                            <VideoHighlights signals={videoSignals} locale={locale} />
+                            <VideoHighlights initialSignals={videoSignals} locale={locale} activeDate={activeDate} />
                         </div>
                     )}
 
@@ -325,7 +325,7 @@ export function DashboardShell({
             <div className="flex-1 flex flex-col min-h-0">
                 {!activeTag && !activeSourceId && videoSignals.length > 0 && (
                     <div className="px-4 py-2">
-                        <VideoHighlights signals={videoSignals} locale={locale} />
+                        <VideoHighlights initialSignals={videoSignals} locale={locale} activeDate={activeDate} />
                     </div>
                 )}
 

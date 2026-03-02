@@ -161,26 +161,54 @@ export class ScraperRunner {
                         // 先检查是否存在，以区分 new 和 updated
                         const existing = await prisma.signal.findUnique({
                             where: { url: signal.url },
-                            select: { id: true },
+                            select: { id: true, title: true, summary: true },
                         });
 
                         if (existing) {
+                            const titleChanged = existing.title !== signal.title;
+                            const hasIncomingSummary = signal.summary !== undefined;
+                            const incomingSummary = hasIncomingSummary ? (signal.summary ?? null) : (existing.summary ?? null);
+                            const summaryChanged = hasIncomingSummary && (existing.summary ?? null) !== incomingSummary;
+                            const shouldReprocessAiFields = titleChanged || summaryChanged;
+
+                            const updateData: Prisma.SignalUpdateInput = {
+                                title: signal.title,
+                                score: signal.score,
+                                ...(signal.metadata !== undefined
+                                    ? {
+                                        metadata:
+                                            signal.metadata === null
+                                                ? Prisma.JsonNull
+                                                : (signal.metadata as Prisma.InputJsonValue),
+                                    }
+                                    : {}),
+                                ...(signal.platform !== undefined ? { platform: signal.platform } : {}),
+                            };
+
+                            if (hasIncomingSummary) {
+                                updateData.summary = incomingSummary;
+                            }
+
+                            if (signal.category !== undefined) {
+                                updateData.category = signal.category ?? null;
+                            }
+
+                            if (signal.externalId !== undefined) {
+                                updateData.externalId = signal.externalId ?? null;
+                            }
+
+                            if (shouldReprocessAiFields) {
+                                updateData.aiSummary = null;
+                                updateData.aiSummaryZh = null;
+                                updateData.titleTranslated = null;
+                                updateData.tags = [];
+                                updateData.tagsZh = [];
+                            }
+
                             // 更新现有记录
                             await prisma.signal.update({
                                 where: { url: signal.url },
-                                data: {
-                                    score: signal.score,
-                                    ...(signal.summary !== undefined ? { summary: signal.summary } : {}),
-                                    ...(signal.metadata !== undefined
-                                        ? {
-                                            metadata:
-                                                signal.metadata === null
-                                                    ? Prisma.JsonNull
-                                                    : (signal.metadata as Prisma.InputJsonValue),
-                                        }
-                                        : {}),
-                                    ...(signal.platform !== undefined ? { platform: signal.platform } : {}),
-                                },
+                                data: updateData,
                             });
                             results.updated++;
                         } else {
