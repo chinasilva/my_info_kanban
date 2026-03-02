@@ -10,5 +10,5 @@ test("video highlight opens inline iframe player", async ({ page }) => {
 
   const player = page.locator('iframe[title="E2E Video Signal"]');
   await expect(player).toBeVisible();
-  await expect(player).toHaveAttribute("src", /youtube\.com\/embed\/dQw4w9WgXcQ/);
+  await expect(player).toHaveAttribute("src", /youtube-nocookie\.com\/embed\/dQw4w9WgXcQ/);
 });
