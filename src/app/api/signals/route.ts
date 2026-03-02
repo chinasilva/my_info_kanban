@@ -108,7 +108,6 @@ export async function GET(request: NextRequest) {
     // Build base where clause
     const whereClause: Prisma.SignalWhereInput = {
         sourceId: { in: filteredSourceIds },
-        ...(cursor ? { id: { lt: cursor } } : {})
     };
 
     // [NEW] 需求挖掘类型过滤无效信号
@@ -143,21 +142,67 @@ export async function GET(request: NextRequest) {
         ];
     }
 
-    // Build query
-    const signals = await prisma.signal.findMany({
-        where: whereClause,
-        orderBy: { createdAt: "desc" },
-        take: limit + 1, // Fetch one extra to check if there's more
-        include: {
-            source: true,
-            ...(userId ? {
-                userStates: {
-                    where: { userId: userId },
-                    select: { isRead: true, isFavorited: true }
-                }
-            } : {})
+    if (cursor) {
+        try {
+            const cursorSignal = await prisma.signal.findUnique({
+                where: { id: cursor },
+                select: { id: true },
+            });
+
+            if (!cursorSignal) {
+                return NextResponse.json(
+                    { error: "Invalid cursor" },
+                    { status: 400 }
+                );
+            }
+        } catch (error) {
+            if (
+                error instanceof Prisma.PrismaClientKnownRequestError
+                && (error.code === "P2025" || error.code === "P2023")
+            ) {
+                return NextResponse.json(
+                    { error: "Invalid cursor" },
+                    { status: 400 }
+                );
+            }
+            throw error;
         }
-    });
+    }
+
+    // Build query
+    let signals;
+    try {
+        signals = await prisma.signal.findMany({
+            where: whereClause,
+            orderBy: [
+                { createdAt: "desc" },
+                { id: "desc" },
+            ],
+            ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+            take: limit + 1, // Fetch one extra to check if there's more
+            include: {
+                source: true,
+                ...(userId ? {
+                    userStates: {
+                        where: { userId: userId },
+                        select: { isRead: true, isFavorited: true }
+                    }
+                } : {})
+            }
+        });
+    } catch (error) {
+        if (
+            error instanceof Prisma.PrismaClientKnownRequestError
+            && (error.code === "P2025" || error.code === "P2023")
+            && cursor
+        ) {
+            return NextResponse.json(
+                { error: "Invalid cursor" },
+                { status: 400 }
+            );
+        }
+        throw error;
+    }
 
     const hasMore = signals.length > limit;
     const data = hasMore ? signals.slice(0, -1) : signals;
