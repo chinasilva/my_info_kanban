@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
         news: ["hackernews", "substack"],
         launch: ["producthunt"],
         demand: ["gov_procurement", "research_report", "recruitment", "app_rank", "social_demand", "overseas_trend"],
+        video: ["youtube_video", "bilibili_video"],
     };
 
     type UserSourceLike = {
