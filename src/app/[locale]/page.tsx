@@ -51,6 +51,7 @@ export default async function DashboardPage(props: {
   // }
 
   let subscribedSourceIds: string[] = [];
+  let videoSourceIds: string[] = [];
 
   // 1. Fetch Subscribed Sources (for validation and filtering)
   if (session?.user?.id) {
@@ -80,6 +81,58 @@ export default async function DashboardPage(props: {
       [] as Array<{ id: string }>
     );
     subscribedSourceIds = builtInSources.map(s => s.id);
+  }
+
+  // Video shelf compatibility for legacy users:
+  // If user has no video subscription records yet, fall back to built-in active video sources.
+  if (session?.user?.id) {
+    const userVideoSourceStates = await safeDb(
+      () =>
+        prisma.userSource.findMany({
+          where: {
+            userId: session.user.id,
+            source: {
+              type: { in: VIDEO_SOURCE_TYPES }
+            }
+          },
+          select: { sourceId: true, isEnabled: true }
+        }),
+      [] as Array<{ sourceId: string; isEnabled: boolean }>
+    );
+
+    if (userVideoSourceStates.length > 0) {
+      videoSourceIds = userVideoSourceStates
+        .filter((item) => item.isEnabled)
+        .map((item) => item.sourceId);
+    } else {
+      const builtInVideoSources = await safeDb(
+        () =>
+          prisma.source.findMany({
+            where: {
+              isBuiltIn: true,
+              isActive: true,
+              type: { in: VIDEO_SOURCE_TYPES }
+            },
+            select: { id: true }
+          }),
+        [] as Array<{ id: string }>
+      );
+      videoSourceIds = builtInVideoSources.map((source) => source.id);
+    }
+  } else {
+    const builtInVideoSources = await safeDb(
+      () =>
+        prisma.source.findMany({
+          where: {
+            isBuiltIn: true,
+            isActive: true,
+            type: { in: VIDEO_SOURCE_TYPES }
+          },
+          select: { id: true }
+        }),
+      [] as Array<{ id: string }>
+    );
+    videoSourceIds = builtInVideoSources.map((source) => source.id);
   }
 
   // ... Date logic ...
@@ -224,13 +277,16 @@ export default async function DashboardPage(props: {
     signalGroupsData = { build, market, news, launch, demand, custom };
   }
 
-  const videoSignalsData: SelectedSignal[] = !activeSourceId
+  const videoSignalsData: SelectedSignal[] = !activeSourceId && videoSourceIds.length > 0
     ? await safeDb(
       () =>
         prisma.signal.findMany({
           where: {
-            ...whereClause,
-            source: { type: { in: VIDEO_SOURCE_TYPES } }
+            createdAt: {
+              gte: startDate,
+              lte: endDate
+            },
+            sourceId: { in: videoSourceIds },
           },
           orderBy: { createdAt: "desc" },
           take: 12,
