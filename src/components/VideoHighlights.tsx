@@ -146,7 +146,7 @@ const VideoPlayerDialog = dynamic(
 );
 
 const COLLAPSE_STORAGE_KEY = "video-highlights-collapsed";
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 24;
 
 export function VideoHighlights({ locale, activeDate, initialSignals, signals }: VideoHighlightsProps) {
     const seedSignals = useMemo(() => initialSignals ?? signals ?? [], [initialSignals, signals]);

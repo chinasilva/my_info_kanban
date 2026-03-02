@@ -1,0 +1,176 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+hook_name="manual"
+check_scope="none"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  workflow-check [--hook <name>] [--all|--staged]
+
+Options:
+  --hook <name>   Hook context name, e.g. pre-commit
+  --all           Check all workflow-related docs in docs/
+  --staged        Check only staged workflow-related docs
+  -h, --help      Show this help
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --hook)
+      hook_name="${2:-manual}"
+      shift 2
+      ;;
+    --all)
+      check_scope="all"
+      shift
+      ;;
+    --staged)
+      check_scope="staged"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "error: unknown argument '$1'" >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -z "${repo_root}" ]]; then
+  echo "[workflow] not inside git repository." >&2
+  exit 1
+fi
+
+cd "${repo_root}"
+
+if [[ "${check_scope}" == "none" && "${hook_name}" == "pre-commit" ]]; then
+  check_scope="staged"
+fi
+
+check_doc_front_matter() {
+  local file="$1"
+  local summary
+  local read_when
+
+  if [[ ! -f "${file}" ]]; then
+    return 0
+  fi
+
+  if [[ "$(head -n 1 "${file}" 2>/dev/null)" != "---" ]]; then
+    echo "[workflow] ${file}: missing front matter header (---)." >&2
+    return 1
+  fi
+
+  summary="$(awk '
+    BEGIN { in_block=0; found=0 }
+    NR==1 && $0=="---" { in_block=1; next }
+    in_block==1 && $0=="---" { exit }
+    in_block==1 && $0 ~ /^summary:[[:space:]]*/ {
+      value = substr($0, index($0, ":") + 1)
+      sub(/^[[:space:]]+/, "", value)
+      sub(/[[:space:]]+$/, "", value)
+      print value
+      found=1
+      exit
+    }
+    END { if (found==0) print "" }
+  ' "${file}")"
+
+  read_when="$(awk '
+    BEGIN { in_block=0; found=0 }
+    NR==1 && $0=="---" { in_block=1; next }
+    in_block==1 && $0=="---" { exit }
+    in_block==1 && $0 ~ /^read_when:[[:space:]]*/ {
+      value = substr($0, index($0, ":") + 1)
+      sub(/^[[:space:]]+/, "", value)
+      sub(/[[:space:]]+$/, "", value)
+      print value
+      found=1
+      exit
+    }
+    END { if (found==0) print "" }
+  ' "${file}")"
+
+  if [[ -z "${summary}" ]]; then
+    echo "[workflow] ${file}: missing or empty 'summary' in front matter." >&2
+    return 1
+  fi
+
+  if [[ -z "${read_when}" ]]; then
+    echo "[workflow] ${file}: missing or empty 'read_when' in front matter." >&2
+    return 1
+  fi
+
+  return 0
+}
+
+is_target_doc() {
+  local path="$1"
+
+  case "${path}" in
+    docs/workflow/*.md|docs/workflows/*.md|docs/spec-template.md|docs/weekly-workflow-review.md)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+run_docs_checks() {
+  local scope="$1"
+  local failed=0
+  local has_docs=0
+  local path
+  local rel_path
+
+  if [[ "${scope}" == "staged" ]]; then
+    while IFS= read -r -d '' path; do
+      rel_path="${path}"
+      if is_target_doc "${rel_path}"; then
+        has_docs=1
+        if ! check_doc_front_matter "${rel_path}"; then
+          failed=1
+        fi
+      fi
+    done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+  elif [[ "${scope}" == "all" ]]; then
+    while IFS= read -r -d '' path; do
+      rel_path="${path#${repo_root}/}"
+      if is_target_doc "${rel_path}"; then
+        has_docs=1
+        if ! check_doc_front_matter "${path}"; then
+          failed=1
+        fi
+      fi
+    done < <(find "${repo_root}/docs" -type f -name '*.md' -print0 2>/dev/null)
+  fi
+
+  if [[ "${has_docs}" -eq 1 ]]; then
+    echo "[workflow] workflow docs front matter check finished."
+  fi
+
+  return "${failed}"
+}
+
+if [[ "${check_scope}" != "none" ]]; then
+  if ! run_docs_checks "${check_scope}"; then
+    if [[ "${hook_name}" == "pre-commit" ]]; then
+      cat >&2 <<'BLOCK'
+[workflow] commit blocked.
+[workflow] fix the errors above, then retry commit.
+BLOCK
+    fi
+    exit 1
+  fi
+fi
+
+echo "[workflow] ${hook_name}: pass"
