@@ -229,7 +229,8 @@ export default function SourcesPage() {
         }
     };
 
-    const builtInSources = sources.filter(s => s.isBuiltIn);
+    const builtInSources = sources.filter(s => s.isBuiltIn && !['youtube_video', 'bilibili_video'].includes(s.type));
+    const videoSources = sources.filter(s => ['youtube_video', 'bilibili_video'].includes(s.type));
     const customSources = sources.filter(s => !s.isBuiltIn);
 
     return (
@@ -306,6 +307,26 @@ export default function SourcesPage() {
                                 ))}
                             </div>
                         </section>
+
+                        {/* Video Sources */}
+                        {videoSources.length > 0 && (
+                            <section className="mb-8">
+                                <h2 className="text-lg font-semibold text-[var(--color-foreground)] mb-4 flex items-center gap-2">
+                                    <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                                    {t("videoSources")}
+                                </h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {videoSources.map((source) => (
+                                        <SourceCard
+                                            key={source.id}
+                                            source={source}
+                                            isLoading={actionLoading === source.id}
+                                            onToggle={() => toggleSubscription(source.id, source.isSubscribed)}
+                                        />
+                                    ))}
+                                </div>
+                            </section>
+                        )}
 
                         {customSources.length > 0 && (
                             <section>

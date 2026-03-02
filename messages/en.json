@@ -23,6 +23,7 @@
         "add": "Add RSS Source",
         "importOpml": "Import OPML",
         "builtIn": "Built-in Sources",
+        "videoSources": "Video Sources",
         "custom": "Custom Sources",
         "rssModal": {
             "title": "Add RSS Source",

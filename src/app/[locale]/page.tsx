@@ -277,7 +277,7 @@ export default async function DashboardPage(props: {
     signalGroupsData = { build, market, news, launch, demand, custom };
   }
 
-  const videoSignalsData: SelectedSignal[] = !activeSourceId && videoSourceIds.length > 0
+    const videoSignalsData: SelectedSignal[] = !activeSourceId && videoSourceIds.length > 0
     ? await safeDb(
       () =>
         prisma.signal.findMany({
@@ -289,7 +289,7 @@ export default async function DashboardPage(props: {
             sourceId: { in: videoSourceIds },
           },
           orderBy: { createdAt: "desc" },
-          take: 12,
+          take: 24, // Increased from 12 to 24
           select: signalSelect,
         }),
       [] as SelectedSignal[]

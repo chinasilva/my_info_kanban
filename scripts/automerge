@@ -1,0 +1,269 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  automerge [<pr-number|pr-url>] [options]
+
+Options:
+  --merge-method <squash|merge|rebase>  Merge method (default: squash)
+  --no-delete-branch                    Keep remote branch after merge
+  --no-wait                             Configure auto-merge and exit
+  --poll <seconds>                      Poll interval while waiting (default: 30)
+  --timeout <seconds>                   Wait timeout (default: 1800)
+  --rerun-failed                        Rerun latest failed workflow once when checks fail
+  --dry-run                             Print commands without executing
+  -h, --help                            Show this help
+USAGE
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "error: missing command '$1'" >&2
+    exit 1
+  }
+}
+
+ensure_gh_auth() {
+  gh auth status >/dev/null 2>&1 || {
+    echo "error: gh is not authenticated. run: gh auth login" >&2
+    exit 1
+  }
+}
+
+resolve_pr() {
+  local selector="${1:-}"
+
+  if [[ -n "$selector" ]]; then
+    echo "$selector"
+    return 0
+  fi
+
+  if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    local current
+    current="$(gh pr view --json number --jq '.number' 2>/dev/null || true)"
+    if [[ -n "$current" && "$current" != "null" ]]; then
+      echo "$current"
+      return 0
+    fi
+  fi
+
+  local latest
+  latest="$(gh pr list --author "@me" --state open --limit 1 --json number --jq '.[0].number' 2>/dev/null || true)"
+  if [[ -n "$latest" && "$latest" != "null" ]]; then
+    echo "$latest"
+    return 0
+  fi
+
+  echo "error: could not infer a PR. pass PR number or URL." >&2
+  exit 1
+}
+
+configure_auto_merge() {
+  local pr_selector="$1"
+  local method="$2"
+  local delete_branch_flag="$3"
+  local dry_run="$4"
+
+  local cmd=(gh pr merge "$pr_selector" --auto)
+
+  case "$method" in
+    squash) cmd+=(--squash) ;;
+    merge) cmd+=(--merge) ;;
+    rebase) cmd+=(--rebase) ;;
+    *)
+      echo "error: invalid merge method '$method'" >&2
+      exit 1
+      ;;
+  esac
+
+  if [[ "$delete_branch_flag" == "1" ]]; then
+    cmd+=(--delete-branch)
+  fi
+
+  if [[ "$dry_run" == "1" ]]; then
+    printf 'dry-run: '
+    printf '%q ' "${cmd[@]}"
+    printf '\n'
+    return 0
+  fi
+
+  "${cmd[@]}"
+}
+
+pr_is_merged() {
+  local pr_selector="$1"
+  local state
+  state="$(gh pr view "$pr_selector" --json state --jq '.state')"
+  [[ "$state" == "MERGED" ]]
+}
+
+pr_head_ref() {
+  local pr_selector="$1"
+  gh pr view "$pr_selector" --json headRefName --jq '.headRefName'
+}
+
+maybe_rerun_failed() {
+  local branch="$1"
+  local dry_run="$2"
+
+  local run_id
+  run_id="$(gh run list --branch "$branch" --limit 20 --json databaseId,conclusion,status --jq '[.[] | select(.conclusion == "failure")][0].databaseId' 2>/dev/null || true)"
+
+  if [[ -z "$run_id" || "$run_id" == "null" ]]; then
+    return 1
+  fi
+
+  if [[ "$dry_run" == "1" ]]; then
+    echo "dry-run: gh run rerun $run_id"
+    return 0
+  fi
+
+  gh run rerun "$run_id"
+  echo "info: rerun requested for workflow run $run_id"
+  return 0
+}
+
+pr_status_snapshot() {
+  local pr_selector="$1"
+  gh pr view "$pr_selector" --json number,title,url,state,isDraft,mergeStateStatus,reviewDecision --jq '[.number, .state, (.isDraft|tostring), .mergeStateStatus, (.reviewDecision // "NONE"), .url, .title] | @tsv'
+}
+
+pr_selector=""
+merge_method="squash"
+delete_branch=1
+wait_mode=1
+poll_seconds=30
+timeout_seconds=1800
+rerun_failed=0
+dry_run=0
+checks_log="$(mktemp -t automerge-checks)"
+
+cleanup() {
+  rm -f "$checks_log"
+}
+
+trap cleanup EXIT
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --merge-method)
+      merge_method="${2:-}"
+      shift 2
+      ;;
+    --no-delete-branch)
+      delete_branch=0
+      shift
+      ;;
+    --no-wait)
+      wait_mode=0
+      shift
+      ;;
+    --poll)
+      poll_seconds="${2:-}"
+      shift 2
+      ;;
+    --timeout)
+      timeout_seconds="${2:-}"
+      shift 2
+      ;;
+    --rerun-failed)
+      rerun_failed=1
+      shift
+      ;;
+    --dry-run)
+      dry_run=1
+      shift
+      ;;
+    *)
+      if [[ -z "$pr_selector" ]]; then
+        pr_selector="$1"
+        shift
+      else
+        echo "error: unknown argument '$1'" >&2
+        usage
+        exit 1
+      fi
+      ;;
+  esac
+done
+
+require_cmd gh
+ensure_gh_auth
+
+pr_selector="$(resolve_pr "$pr_selector")"
+
+echo "info: target PR = $pr_selector"
+echo "info: method = $merge_method"
+
+echo "info: initial status"
+pr_status_snapshot "$pr_selector"
+
+if configure_auto_merge "$pr_selector" "$merge_method" "$delete_branch" "$dry_run"; then
+  echo "info: auto-merge configured (or merged immediately)."
+else
+  if [[ "$wait_mode" == "0" ]]; then
+    exit 1
+  fi
+  echo "warn: initial auto-merge command failed, entering wait loop."
+fi
+
+if [[ "$wait_mode" == "0" ]]; then
+  exit 0
+fi
+
+deadline=$(( $(date +%s) + timeout_seconds ))
+rerun_attempted=0
+
+while [[ $(date +%s) -lt $deadline ]]; do
+  if pr_is_merged "$pr_selector"; then
+    echo "info: PR merged."
+    exit 0
+  fi
+
+  snapshot="$(pr_status_snapshot "$pr_selector")"
+  echo "info: status = $snapshot"
+
+  set +e
+  gh pr checks "$pr_selector" >"$checks_log" 2>&1
+  checks_rc=$?
+  set -e
+
+  case "$checks_rc" in
+    0)
+      configure_auto_merge "$pr_selector" "$merge_method" "$delete_branch" "$dry_run" || true
+      ;;
+    1)
+      echo "warn: checks are failing."
+      if [[ "$rerun_failed" == "1" && "$rerun_attempted" == "0" ]]; then
+        head_ref="$(pr_head_ref "$pr_selector")"
+        if maybe_rerun_failed "$head_ref" "$dry_run"; then
+          rerun_attempted=1
+        else
+          echo "error: no failed workflow run found to rerun." >&2
+          cat "$checks_log" >&2 || true
+          exit 1
+        fi
+      else
+        cat "$checks_log" >&2 || true
+        exit 1
+      fi
+      ;;
+    8)
+      ;;
+    *)
+      echo "warn: gh pr checks returned unexpected status: $checks_rc"
+      cat "$checks_log" >&2 || true
+      ;;
+  esac
+
+  sleep "$poll_seconds"
+done
+
+echo "error: timeout waiting for PR to merge ($timeout_seconds seconds)." >&2
+exit 1

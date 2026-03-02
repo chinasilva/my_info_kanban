@@ -23,6 +23,7 @@
         "add": "添加 RSS 源",
         "importOpml": "导入 OPML",
         "builtIn": "内置数据源",
+        "videoSources": "视频数据源",
         "custom": "自定义数据源",
         "rssModal": {
             "title": "添加 RSS 数据源",

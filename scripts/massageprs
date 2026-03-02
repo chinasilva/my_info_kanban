@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  massageprs [<pr-number|pr-url> ...] [options]
+
+Options:
+  --merge-method <merge|rebase|squash>  Merge method (default: merge)
+  --wait                                Wait for each PR to finish merging
+  --poll <seconds>                      Poll interval passed to automerge (default: 30)
+  --timeout <seconds>                   Timeout passed to automerge (default: 1800)
+  --rerun-failed                        Rerun latest failed workflow once per PR
+  --dry-run                             Print commands without executing
+  -h, --help                            Show help
+
+Behavior:
+  - If PR arguments are provided, process those PRs.
+  - If omitted, process open PRs authored by @me.
+  - Default mode is non-blocking: configure auto-merge and move to next PR.
+USAGE
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "error: missing command '$1'" >&2
+    exit 1
+  }
+}
+
+ensure_gh_auth() {
+  gh auth status >/dev/null 2>&1 || {
+    echo "error: gh is not authenticated. run: gh auth login" >&2
+    exit 1
+  }
+}
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+automerge_script="$script_dir/automerge"
+
+if [[ ! -x "$automerge_script" ]]; then
+  echo "error: missing executable $automerge_script" >&2
+  exit 1
+fi
+
+merge_method="merge"
+wait_mode=0
+poll_seconds=30
+timeout_seconds=1800
+rerun_failed=0
+dry_run=0
+pr_inputs=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --merge-method)
+      merge_method="${2:-}"
+      shift 2
+      ;;
+    --wait)
+      wait_mode=1
+      shift
+      ;;
+    --poll)
+      poll_seconds="${2:-}"
+      shift 2
+      ;;
+    --timeout)
+      timeout_seconds="${2:-}"
+      shift 2
+      ;;
+    --rerun-failed)
+      rerun_failed=1
+      shift
+      ;;
+    --dry-run)
+      dry_run=1
+      shift
+      ;;
+    *)
+      pr_inputs+=("$1")
+      shift
+      ;;
+  esac
+done
+
+require_cmd gh
+ensure_gh_auth
+
+if [[ ${#pr_inputs[@]} -eq 0 ]]; then
+  mapfile -t pr_inputs < <(gh pr list --author "@me" --state open --limit 50 --json number --jq '.[].number')
+fi
+
+if [[ ${#pr_inputs[@]} -eq 0 ]]; then
+  echo "info: no open PRs to process."
+  exit 0
+fi
+
+echo "info: processing ${#pr_inputs[@]} PR(s) with merge method '$merge_method'"
+
+for pr in "${pr_inputs[@]}"; do
+  cmd=("$automerge_script" "$pr" --merge-method "$merge_method" --poll "$poll_seconds" --timeout "$timeout_seconds")
+
+  if [[ "$wait_mode" == "0" ]]; then
+    cmd+=(--no-wait)
+  fi
+  if [[ "$rerun_failed" == "1" ]]; then
+    cmd+=(--rerun-failed)
+  fi
+  if [[ "$dry_run" == "1" ]]; then
+    cmd+=(--dry-run)
+  fi
+
+  echo "info: running for PR $pr"
+  "${cmd[@]}"
+done
+
+echo "info: done."

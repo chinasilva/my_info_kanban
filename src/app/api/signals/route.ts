@@ -64,6 +64,22 @@ export async function GET(request: NextRequest) {
             }
         });
         subscribedSourceIds = userSources.map(us => us.sourceId);
+
+        // [NEW] Fallback for logged-in users with no subscriptions
+        if (subscribedSourceIds.length === 0) {
+            const builtInSources = await prisma.source.findMany({
+                where: { isBuiltIn: true },
+                select: {
+                    id: true,
+                    type: true,
+                }
+            });
+            subscribedSourceIds = builtInSources.map(s => s.id);
+            userSources = builtInSources.map(s => ({
+                sourceId: s.id,
+                source: { type: s.type },
+            }));
+        }
     } else {
         // Guest: Get built-in sources
         const builtInSources = await prisma.source.findMany({
@@ -85,7 +101,7 @@ export async function GET(request: NextRequest) {
     // Filter by source type if provided
     let filteredSourceIds = subscribedSourceIds;
 
-    // [NEW] If specific sourceId is requested, filter strictly by it (if subscribed)
+    // [NEW] If specific sourceId is requested, filter strictly by it (if subscribed or guest)
     if (sourceId) {
         if (subscribedSourceIds.includes(sourceId)) {
             filteredSourceIds = [sourceId];
@@ -95,9 +111,25 @@ export async function GET(request: NextRequest) {
         }
     } else if (sourceType && SOURCE_GROUPS[sourceType]) {
         const allowedTypes = SOURCE_GROUPS[sourceType];
-        filteredSourceIds = userSources
+        
+        // Find if user has any subscriptions of this type
+        const typeSubscribedSourceIds = userSources
             .filter(us => allowedTypes.includes(us.source.type))
             .map(us => us.sourceId);
+
+        if (typeSubscribedSourceIds.length > 0) {
+            filteredSourceIds = typeSubscribedSourceIds;
+        } else {
+            // Fallback: If no subscriptions of this type, find built-in sources of this type
+            const builtInTypeSources = await prisma.source.findMany({
+                where: {
+                    isBuiltIn: true,
+                    type: { in: allowedTypes }
+                },
+                select: { id: true }
+            });
+            filteredSourceIds = builtInTypeSources.map(s => s.id);
+        }
     } else if (sourceType === 'custom') {
         const allGroupTypes = Object.values(SOURCE_GROUPS).flat();
         filteredSourceIds = userSources
