@@ -7,7 +7,7 @@
     "build": "prisma generate && NEXT_DISABLE_TURBO_BUILD=1 next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-browsers playwright test",
+    "test": "playwright test",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",

@@ -16,6 +16,8 @@ import { RecruitmentScraper } from "./recruitment";
 import { AppRankScraper } from "./app-rank";
 import { SocialDemandScraper } from "./social-demand";
 import { OverseasTrendScraper } from "./overseas-trend";
+import { YouTubeVideoScraper } from "./youtube-video";
+import { BilibiliVideoScraper } from "./bilibili-video";
 import { SignalProcessor } from "../llm/processor";
 import { Prisma, Source } from "@prisma/client";
 
@@ -37,6 +39,8 @@ const BUILTIN_SCRAPERS: Record<string, (source: Source) => BaseScraper> = {
     app_rank: (source) => new AppRankScraper(source),
     social_demand: (source) => new SocialDemandScraper(source),
     overseas_trend: (source) => new OverseasTrendScraper(source),
+    youtube_video: (source) => new YouTubeVideoScraper(source),
+    bilibili_video: (source) => new BilibiliVideoScraper(source),
 };
 
 interface ScraperWithSource {
@@ -55,6 +59,7 @@ export interface ScraperRunResults {
     total: number;
     new: number;
     updated: number;
+    videoSignals: number;
     errors: number;
     sourceSummary: SourceFetchResult[];
     failureStats: Partial<Record<FetchErrorCode, number>>;
@@ -112,6 +117,7 @@ export class ScraperRunner {
             total: 0,
             new: 0,
             updated: 0,
+            videoSignals: 0,
             errors: 0,
             sourceSummary: [],
             failureStats: {},
@@ -197,6 +203,9 @@ export class ScraperRunner {
                             });
                             results.new++;
                         }
+                        if (this.isVideoSignal(signal)) {
+                            results.videoSignals++;
+                        }
                         results.total++;
                     } catch (e) {
                         console.error(`Error saving signal ${signal.url}:`, e);
@@ -262,5 +271,11 @@ export class ScraperRunner {
         console.log("Runner failure stats:", results.failureStats);
         console.log("Runner finished:", results);
         return results;
+    }
+
+    private isVideoSignal(signal: { metadata?: unknown }): boolean {
+        if (!signal.metadata || typeof signal.metadata !== "object") return false;
+        const contentType = (signal.metadata as { contentType?: unknown }).contentType;
+        return contentType === "video";
     }
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect, useTransition, useRef } from "react";
-import type { Insight as PrismaInsight, Signal as PrismaSignal, Source as PrismaSource } from "@prisma/client";
 import { useIsMobile } from "@/lib/hooks/useMediaQuery";
 import { SignalColumn } from "./SignalColumn";
 import { MobileHeader } from "./MobileHeader";
@@ -15,9 +14,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import { DatePicker } from "./DatePicker";
-import { DailyInsights } from "./DailyInsights";
 import { ShareButton } from "./ShareButton";
 import { PodcastButton } from "./PodcastButton";
+import { VideoHighlights } from "./VideoHighlights";
 
 // Type definition for signal groups
 type SignalGroups = {
@@ -66,7 +65,7 @@ interface DashboardShellProps {
     };
     activeTag?: string;
     activeDate?: string;
-    insights?: (PrismaInsight & { signals: (PrismaSignal & { source: PrismaSource })[] })[];
+    videoSignals?: Signal[];
     activeSourceId?: string | null;
     activeSource?: { id: string; name: string; icon: string | null; type: string } | null;
     singleSourceSignals?: Signal[];
@@ -79,7 +78,7 @@ export function DashboardShell({
     translations: t,
     activeTag,
     activeDate,
-    insights = [],
+    videoSignals = [],
     activeSourceId,
     activeSource,
     singleSourceSignals
@@ -242,10 +241,11 @@ export function DashboardShell({
                 {/* Content Container */}
                 <div id="dashboard-content" className="flex-1 flex flex-col bg-[var(--color-background)] relative min-h-0 overflow-hidden">
 
-                    {/* Insights Banner */}
-                    <div className="px-4 pt-4 shrink-0">
-                        <DailyInsights insights={insights} locale={locale} />
-                    </div>
+                    {!activeTag && !activeSourceId && videoSignals.length > 0 && (
+                        <div className="px-4 pt-4 shrink-0">
+                            <VideoHighlights signals={videoSignals} locale={locale} />
+                        </div>
+                    )}
 
                     {/* MAIN CONTENT SWITCHER */}
                     {activeSourceId && activeSource ? (
@@ -323,9 +323,9 @@ export function DashboardShell({
             {/* Content */}
             {/* <div className="flex-1"> */}
             <div className="flex-1 flex flex-col min-h-0">
-                {insights.length > 0 && !activeTag && !activeSourceId && (
+                {!activeTag && !activeSourceId && videoSignals.length > 0 && (
                     <div className="px-4 py-2">
-                        <DailyInsights insights={insights} locale={locale} />
+                        <VideoHighlights signals={videoSignals} locale={locale} />
                     </div>
                 )}
 

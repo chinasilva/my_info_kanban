@@ -18,6 +18,8 @@ const SOURCE_GROUPS: Record<string, string[]> = {
   demand: ["gov_procurement", "research_report", "recruitment", "app_rank", "social_demand", "overseas_trend"],
 };
 
+const VIDEO_SOURCE_TYPES = ["youtube_video", "bilibili_video"];
+
 export default async function DashboardPage(props: {
   params: Promise<{ locale: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -124,6 +126,7 @@ export default async function DashboardPage(props: {
     title: true,
     titleTranslated: true,
     url: true,
+    metadata: true,
     summary: true,
     aiSummary: true,
     aiSummaryZh: true,
@@ -136,15 +139,23 @@ export default async function DashboardPage(props: {
     userStates: { where: { userId: viewerId }, select: { isRead: true, isFavorited: true } }
   });
   type SelectedSignal = Prisma.SignalGetPayload<{ select: typeof signalSelect }>;
-  type InsightWithSignals = Prisma.InsightGetPayload<{
-    include: { signals: { include: { source: true } } };
-  }>;
 
-  const fetchSignals = async (types: string[] | null, isCustom: boolean = false) => {
+  const fetchSignals = async (
+    types: string[] | null,
+    isCustom: boolean = false
+  ) => {
     // ... existing fetch logic ...
     const typeWhere: Prisma.SignalWhereInput = isCustom
-      ? { source: { type: { notIn: Object.values(SOURCE_GROUPS).flat() } } }
-      : { source: { type: { in: types || [] } } };
+      ? {
+        source: {
+          type: {
+            notIn: [...Object.values(SOURCE_GROUPS).flat(), ...VIDEO_SOURCE_TYPES]
+          }
+        }
+      }
+      : {
+        source: { type: { in: types || [] } }
+      };
 
     return safeDb(
       () =>
@@ -213,23 +224,36 @@ export default async function DashboardPage(props: {
     signalGroupsData = { build, market, news, launch, demand, custom };
   }
 
-  const insights: InsightWithSignals[] = await safeDb(
-    () =>
-      prisma.insight.findMany({
-        where: {},
-        include: { signals: { include: { source: true } } },
-        orderBy: { score: 'desc' },
-        take: 3
-      }),
-    [] as InsightWithSignals[]
-  );
+  const videoSignalsData: SelectedSignal[] = !activeSourceId
+    ? await safeDb(
+      () =>
+        prisma.signal.findMany({
+          where: {
+            ...whereClause,
+            source: { type: { in: VIDEO_SOURCE_TYPES } }
+          },
+          orderBy: { createdAt: "desc" },
+          take: 12,
+          select: signalSelect,
+        }),
+      [] as SelectedSignal[]
+    )
+    : [];
 
-  const processSignals = (signals: SelectedSignal[]): Signal[] => signals.map(s => ({
-    ...s,
-    createdAt: s.createdAt.toISOString(),
-    isRead: s.userStates?.[0]?.isRead ?? false,
-    isFavorited: s.userStates?.[0]?.isFavorited ?? false,
-  }));
+  const processSignals = (signals: SelectedSignal[]): Signal[] => signals.map(s => {
+    const normalizedMetadata =
+      s.metadata && typeof s.metadata === "object" && !Array.isArray(s.metadata)
+        ? (s.metadata as Record<string, unknown>)
+        : null;
+
+    return {
+      ...s,
+      metadata: normalizedMetadata,
+      createdAt: s.createdAt.toISOString(),
+      isRead: s.userStates?.[0]?.isRead ?? false,
+      isFavorited: s.userStates?.[0]?.isFavorited ?? false,
+    };
+  });
 
   const signalGroups = {
     build: processSignals(signalGroupsData.build),
@@ -241,6 +265,7 @@ export default async function DashboardPage(props: {
   };
 
   const processedSingleSignals = processSignals(singleSourceSignals);
+  const videoSignals = processSignals(videoSignalsData);
 
   const translations = {
     buildTitle: t('buildTitle'),
@@ -263,7 +288,7 @@ export default async function DashboardPage(props: {
       translations={translations}
       activeTag={Array.isArray(activeTag) ? activeTag[0] : activeTag}
       activeDate={Array.isArray(activeDate) ? activeDate[0] : activeDate}
-      insights={insights}
+      videoSignals={videoSignals}
       activeSource={activeSource}
       activeSourceId={activeSourceId}
       singleSourceSignals={processedSingleSignals}

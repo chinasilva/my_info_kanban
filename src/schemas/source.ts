@@ -10,6 +10,8 @@ export const SourceTypeEnum = z.enum([
     "cryptopanic",
     "dune",
     "substack",
+    "youtube_video",
+    "bilibili_video",
     "other"
 ]);
 
