@@ -18,6 +18,7 @@ async function main() {
     console.log("Scraper finished.");
     console.log("Scraper status counts:", runResults.statusCounts);
     console.log("Scraper failure stats:", runResults.failureStats);
+    console.log("Video signals processed:", runResults.videoSignals);
 
     // 2. 运行 LLM 需求信号验证
     console.log("Starting demand signal validation...");

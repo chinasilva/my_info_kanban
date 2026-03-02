@@ -62,7 +62,8 @@ docker-compose.test.yml
 /src/generated/prisma
 
 # Documentation
-docs/
+docs/*
+!docs/video-source-recommendations.md
 
 # Agent/CI
 .agent/

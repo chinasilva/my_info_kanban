@@ -57,6 +57,7 @@ jobs:
           const run = data.runResults || {};
           const counts = run.statusCounts || {};
           const failureStats = run.failureStats || {};
+          const videoSignals = Number(run.videoSignals || 0);
           const sources = Array.isArray(run.sourceSummary) ? run.sourceSummary : [];
           const hardFailed = sources.filter((s) => s.status === "hard_fail");
           const softFailed = sources.filter((s) => s.status === "soft_fail");
@@ -71,6 +72,7 @@ jobs:
             `- Empty: ${counts.empty || 0}`,
             `- Soft Fail: ${counts.soft_fail || 0}`,
             `- Hard Fail: ${counts.hard_fail || 0}`,
+            `- Video Signals: ${videoSignals}`,
             "",
             "### Failure Stats",
             "",
