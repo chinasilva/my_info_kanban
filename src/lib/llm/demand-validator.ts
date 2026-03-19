@@ -1,5 +1,6 @@
 import { prisma } from "../prisma/db";
 import { LLMFactory } from "./factory";
+import pLimit from "p-limit";
 
 export interface DemandSignal {
     id: string;
@@ -20,13 +21,113 @@ interface LLMValidationItem {
     reason?: string;
 }
 
+type FallbackMode = "null" | "true" | "false";
+
+interface LLMClientLike {
+    generate(prompt: string): Promise<string>;
+}
+
+interface SignalModelLike {
+    findMany(args: unknown): Promise<DemandSignal[]>;
+    update(args: {
+        where: { id: string };
+        data: { isValidDemand: boolean | null };
+    }): Promise<unknown>;
+}
+
+interface DemandValidatorOptions {
+    client?: LLMClientLike | null;
+    signalModel?: SignalModelLike;
+    batchSize?: number;
+    updateBatchSize?: number;
+    updateConcurrency?: number;
+    validationRetryTimes?: number;
+    retryDelayMs?: number;
+    strictParsing?: boolean;
+    fallbackMode?: FallbackMode;
+    sleep?: (ms: number) => Promise<void>;
+}
+
 export class DemandValidator {
-    private client = LLMFactory.createClient();
-    private readonly BATCH_SIZE = 500;
-    private readonly strictParsing = process.env.DEMAND_VALIDATION_STRICT !== "false";
+    private readonly client: LLMClientLike | null;
+    private readonly signalModel: SignalModelLike;
+    private readonly BATCH_SIZE: number;
+    private readonly UPDATE_BATCH_SIZE: number;
+    private readonly UPDATE_CONCURRENCY: number;
+    private readonly VALIDATION_RETRY_TIMES: number;
+    private readonly RETRY_DELAY_MS: number;
+    private readonly strictParsing: boolean;
+    private readonly fallbackMode: FallbackMode;
+    private readonly sleep: (ms: number) => Promise<void>;
+
+    constructor(options: DemandValidatorOptions = {}) {
+        this.client = options.client ?? LLMFactory.createClient();
+        this.signalModel = options.signalModel ?? prisma.signal;
+        this.BATCH_SIZE = options.batchSize ?? Number(process.env.DEMAND_VALIDATION_BATCH_SIZE || "500");
+        this.UPDATE_BATCH_SIZE = options.updateBatchSize ?? Number(process.env.DEMAND_UPDATE_BATCH_SIZE || "100");
+        this.UPDATE_CONCURRENCY = options.updateConcurrency ?? Number(process.env.DEMAND_UPDATE_CONCURRENCY || "5");
+        this.VALIDATION_RETRY_TIMES = options.validationRetryTimes ?? Number(process.env.DEMAND_VALIDATION_RETRY_TIMES || "2");
+        this.RETRY_DELAY_MS = options.retryDelayMs ?? Number(process.env.DEMAND_VALIDATION_RETRY_DELAY_MS || "800");
+        this.strictParsing = options.strictParsing ?? (process.env.DEMAND_VALIDATION_STRICT !== "false");
+        this.fallbackMode = options.fallbackMode ?? ((process.env.DEMAND_VALIDATION_FAILURE_FALLBACK as FallbackMode) || "true");
+        this.sleep = options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
+    }
+
+    private sanitizePositiveInt(value: number, fallback: number): number {
+        return Number.isInteger(value) && value > 0 ? value : fallback;
+    }
+
+    private resolveFallbackMode(): FallbackMode {
+        if (this.fallbackMode === "null" || this.fallbackMode === "false" || this.fallbackMode === "true") {
+            return this.fallbackMode;
+        }
+        return this.strictParsing ? "null" : "true";
+    }
 
     private parseFallbackValue(): boolean | null {
-        return this.strictParsing ? null : true;
+        const mode = this.resolveFallbackMode();
+        if (mode === "null") return null;
+        if (mode === "false") return false;
+        return true;
+    }
+
+    private buildFallbackResults(signals: DemandSignal[], reason: string): ValidationResult[] {
+        return signals.map(s => ({ signalId: s.id, isValid: this.parseFallbackValue(), reason }));
+    }
+
+    private async parseWithRetry(signals: DemandSignal[], prompt: string): Promise<ValidationResult[]> {
+        if (!this.client) {
+            return this.buildFallbackResults(signals, "LLM not configured");
+        }
+
+        const maxAttempts = this.sanitizePositiveInt(this.VALIDATION_RETRY_TIMES, 2) + 1;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                const response = await this.client.generate(prompt);
+                const trimmed = response.trim();
+
+                if (!trimmed) {
+                    console.warn(`Demand validation empty response at attempt ${attempt}/${maxAttempts}`);
+                    if (attempt < maxAttempts) {
+                        await this.sleep(this.RETRY_DELAY_MS);
+                        continue;
+                    }
+                    return this.buildFallbackResults(signals, "Empty response after retries");
+                }
+
+                return this.parseResponse(response, signals);
+            } catch (error) {
+                console.error(`Demand validation attempt ${attempt}/${maxAttempts} failed:`, error);
+                if (attempt < maxAttempts) {
+                    await this.sleep(this.RETRY_DELAY_MS);
+                    continue;
+                }
+                return this.buildFallbackResults(signals, "Validation error");
+            }
+        }
+
+        return this.buildFallbackResults(signals, "Unknown validation error");
     }
 
     /**
@@ -63,18 +164,16 @@ export class DemandValidator {
      */
     private async validateBatch(signals: DemandSignal[]): Promise<ValidationResult[]> {
         if (!this.client) {
-            return signals.map(s => ({ signalId: s.id, isValid: this.parseFallbackValue(), reason: "LLM not configured" }));
+            return this.buildFallbackResults(signals, "LLM not configured");
         }
 
         const prompt = this.buildPrompt(signals);
 
         try {
-            const response = await this.client.generate(prompt);
-            return this.parseResponse(response, signals);
+            return await this.parseWithRetry(signals, prompt);
         } catch (error) {
             console.error("Demand validation failed:", error);
-            // 严格模式下保持 null，避免误判为有效
-            return signals.map(s => ({ signalId: s.id, isValid: this.parseFallbackValue(), reason: "Validation error" }));
+            return this.buildFallbackResults(signals, "Validation error");
         }
     }
 
@@ -147,13 +246,13 @@ ${signalsText}
             if (!jsonMatch) {
                 console.warn("Failed to find JSON array in response");
                 console.warn("Response preview:", response.substring(0, 500));
-                return signals.map(s => ({ signalId: s.id, isValid: this.parseFallbackValue(), reason: "Parse error" }));
+                return this.buildFallbackResults(signals, "Parse error");
             }
 
             const parsed = JSON.parse(jsonMatch[0]);
             if (!Array.isArray(parsed)) {
                 console.warn("Parsed content is not an array");
-                return signals.map(s => ({ signalId: s.id, isValid: this.parseFallbackValue(), reason: "Invalid format" }));
+                return this.buildFallbackResults(signals, "Invalid format");
             }
 
             console.log(`Successfully parsed ${parsed.length} validation results`);
@@ -199,7 +298,7 @@ ${signalsText}
         } catch (error) {
             console.error("Failed to parse validation response:", error);
             console.error("Response:", response.substring(0, 500));
-            return signals.map(s => ({ signalId: s.id, isValid: this.parseFallbackValue(), reason: "Parse error" }));
+            return this.buildFallbackResults(signals, "Parse error");
         }
     }
 
@@ -209,21 +308,32 @@ ${signalsText}
     async updateValidationResults(results: ValidationResult[]): Promise<number> {
         // 过滤掉无效的 signalId（排除空字符串和 undefined）
         const validResults = results.filter(r => r.signalId && r.signalId.trim() !== '');
+        const batchSize = this.sanitizePositiveInt(this.UPDATE_BATCH_SIZE, 100);
+        const concurrency = this.sanitizePositiveInt(this.UPDATE_CONCURRENCY, 5);
+        let successCount = 0;
 
-        // 并行更新
-        const updates = validResults.map(result =>
-            prisma.signal.update({
-                where: { id: result.signalId },
-                data: { isValidDemand: result.isValid }
-            }).then(() => ({ success: true, id: result.signalId }))
-                .catch((error) => {
-                    console.error(`Failed to update signal ${result.signalId}:`, error);
-                    return { success: false, id: result.signalId };
+        for (let i = 0; i < validResults.length; i += batchSize) {
+            const chunk = validResults.slice(i, i + batchSize);
+            const limit = pLimit(concurrency);
+
+            const updates = chunk.map(result =>
+                limit(async () => {
+                    try {
+                        await this.signalModel.update({
+                            where: { id: result.signalId },
+                            data: { isValidDemand: result.isValid }
+                        });
+                        return { success: true, id: result.signalId };
+                    } catch (error) {
+                        console.error(`Failed to update signal ${result.signalId}:`, error);
+                        return { success: false, id: result.signalId };
+                    }
                 })
-        );
+            );
 
-        const settled = await Promise.allSettled(updates);
-        const successCount = settled.filter(r => r.status === 'fulfilled' && r.value.success).length;
+            const settled = await Promise.allSettled(updates);
+            successCount += settled.filter(r => r.status === 'fulfilled' && r.value.success).length;
+        }
 
         console.log(`Updated validation results for ${successCount}/${validResults.length} signals.`);
         return successCount;
@@ -237,7 +347,7 @@ ${signalsText}
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-        const signals = await prisma.signal.findMany({
+        const signals = await this.signalModel.findMany({
             where: {
                 isValidDemand: null,
                 source: {
