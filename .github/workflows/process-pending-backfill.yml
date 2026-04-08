@@ -1,0 +1,41 @@
+name: Process Pending Backfill
+
+on:
+  schedule:
+    - cron: "30 */4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: process-pending-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Trigger process-pending
+        env:
+          BACKFILL_JOB_TOKEN: ${{ secrets.BACKFILL_JOB_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl -sS -f \
+            -H "Authorization: Bearer $BACKFILL_JOB_TOKEN" \
+            "https://signal.binaryworks.app/api/cron/process-pending?batchSize=50&maxBatches=6" \
+            | tee backfill-result.json
+
+      - name: Publish summary
+        if: always()
+        run: |
+          echo "## Process Pending Backfill" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f backfill-result.json ]; then
+            echo "\`\`\`json" >> "$GITHUB_STEP_SUMMARY"
+            cat backfill-result.json >> "$GITHUB_STEP_SUMMARY"
+            echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No backfill-result.json generated." >> "$GITHUB_STEP_SUMMARY"
+          fi
