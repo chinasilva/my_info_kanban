@@ -26,9 +26,30 @@ async function triggerProcessor() {
         const processor = new SignalProcessor();
         console.log("🤖 Starting Manual Signal Processing...");
 
+        const batchSize = Math.max(parseInt(process.env.BACKFILL_BATCH_SIZE || "10", 10), 1);
+        const maxBatches = Math.max(parseInt(process.env.BACKFILL_MAX_BATCHES || "6", 10), 1);
+        const maxMinutes = Math.max(parseInt(process.env.BACKFILL_MAX_MINUTES || "35", 10), 1);
+        const startAt = Date.now();
+
         let batchCount = 0;
+        let totalUpdated = 0;
+
+        console.log(
+            `⚙️ Config: batchSize=${batchSize}, maxBatches=${maxBatches}, maxMinutes=${maxMinutes}`
+        );
 
         while (true) {
+            if (batchCount >= maxBatches) {
+                console.log(`⚠️ Reached maxBatches (${maxBatches}). Stopping.`);
+                break;
+            }
+
+            const elapsedMinutes = (Date.now() - startAt) / 1000 / 60;
+            if (elapsedMinutes >= maxMinutes) {
+                console.log(`⚠️ Reached maxMinutes (${maxMinutes}). Stopping.`);
+                break;
+            }
+
             const remaining = await prisma.signal.count({
                 where: { aiSummary: null }
             });
@@ -41,15 +62,20 @@ async function triggerProcessor() {
             console.log(`\n📦 Batch ${batchCount + 1}: Found ${remaining} pending signals.`);
 
             // Process a batch
-            await processor.processSignals(10); // Smaller batch to see progress
+            const result = await processor.processSignals(batchSize);
+            totalUpdated += result.updated;
+            console.log(
+                `✅ Batch ${batchCount + 1} done. fetched=${result.fetched}, updated=${result.updated}`
+            );
             batchCount++;
-
-            // Optional: Safety break
-            if (batchCount > 20) {
-                console.log("⚠️ Safety limit reached (20 batches). Stopping.");
-                break;
-            }
         }
+
+        const finalRemaining = await prisma.signal.count({
+            where: { aiSummary: null }
+        });
+        console.log(
+            `📊 Backfill summary: batches=${batchCount}, totalUpdated=${totalUpdated}, stillPending=${finalRemaining}`
+        );
 
     } catch (error) {
         console.error("❌ Error processing signals:", error);
