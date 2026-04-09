@@ -1,6 +1,7 @@
 import { prisma } from "../prisma/db";
 import { LLMFactory } from "./factory";
 import redis from "../cache/redis";
+import { BatchProcessingResult, LLMClient } from "./types";
 
 const DEFAULT_CANDIDATE_MULTIPLIER = 5;
 const DEFAULT_MAX_COOLDOWN_SECONDS = 6 * 60 * 60; // 6h
@@ -69,6 +70,50 @@ export class SignalProcessor {
         return chunks;
     }
 
+    private async generateChunkResults(
+        client: LLMClient,
+        chunk: Array<{ id: string; title: string; summary: string | null }>
+    ): Promise<BatchProcessingResult[]> {
+        const signalsData = chunk.map((signal) => ({
+            id: signal.id,
+            title: signal.title,
+            content: signal.summary || "",
+        }));
+
+        const results = await client.generateSummaryAndCategories(signalsData);
+        if (results.length === chunk.length || chunk.length === 1) {
+            return results;
+        }
+
+        const resultIds = new Set(results.map((result) => result.signalId));
+        const missingSignals = chunk.filter((signal) => !resultIds.has(signal.id));
+        if (missingSignals.length === 0) {
+            return results;
+        }
+
+        const nextChunkSize = Math.max(1, Math.floor(chunk.length / 2));
+        console.warn(
+            `Chunk returned ${results.length}/${chunk.length} results. Retrying missing ${missingSignals.length} signals with smaller chunkSize=${nextChunkSize}.`
+        );
+
+        const recoveredResults: BatchProcessingResult[] = [];
+        for (const smallerChunk of this.toChunks(missingSignals, nextChunkSize)) {
+            const retried = await this.generateChunkResults(client, smallerChunk);
+            recoveredResults.push(...retried);
+        }
+
+        const mergedResults = [...results];
+        const mergedIds = new Set(mergedResults.map((result) => result.signalId));
+        for (const recovered of recoveredResults) {
+            if (!mergedIds.has(recovered.signalId)) {
+                mergedResults.push(recovered);
+                mergedIds.add(recovered.signalId);
+            }
+        }
+
+        return mergedResults;
+    }
+
     async processSignals(
         batchSize: number = 20,
         options: ProcessSignalsOptions = {}
@@ -131,13 +176,7 @@ export class SignalProcessor {
             const chunks = this.toChunks(signals, chunkSize);
 
             for (const chunk of chunks) {
-                const signalsData = chunk.map(s => ({
-                    id: s.id,
-                    title: s.title,
-                    content: s.summary || ''
-                }));
-
-                const results = await client.generateSummaryAndCategories(signalsData);
+                const results = await this.generateChunkResults(client, chunk);
                 console.log(`Chunk processing completed, got ${results.length} results (chunkSize=${chunk.length}).`);
 
                 const resultMap = new Map(results.map((r) => [r.signalId, r]));
