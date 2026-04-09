@@ -10,11 +10,11 @@ on:
       batch_size:
         description: "Items per batch"
         required: true
-        default: "5"
+        default: "30"
       chunk_size:
         description: "MiniMax chunk size inside each batch"
         required: true
-        default: "1"
+        default: "6"
       max_minutes:
         description: "Safety max runtime minutes"
         required: true
@@ -23,6 +23,18 @@ on:
         description: "Cooldown base seconds for failed items"
         required: true
         default: "900"
+      enable_per_item_fallback:
+        description: "Fallback single-item request when batch item fails (higher request count)"
+        required: true
+        default: "false"
+      candidate_multiplier:
+        description: "Candidate pool multiplier for each batch"
+        required: true
+        default: "6"
+      minimax_request_timeout_ms:
+        description: "MiniMax request timeout in milliseconds"
+        required: true
+        default: "75000"
 
 permissions:
   contents: read
@@ -103,6 +115,10 @@ jobs:
           BACKFILL_MAX_MINUTES: ${{ inputs.max_minutes }}
           BACKFILL_CHUNK_SIZE: ${{ inputs.chunk_size }}
           BACKFILL_COOLDOWN_BASE_SECONDS: ${{ inputs.cooldown_base_seconds }}
+          BACKFILL_ENABLE_PER_ITEM_FALLBACK: ${{ inputs.enable_per_item_fallback }}
+          BACKFILL_ENABLE_FAILURE_COOLDOWN: "true"
+          BACKFILL_CANDIDATE_MULTIPLIER: ${{ inputs.candidate_multiplier }}
+          MINIMAX_REQUEST_TIMEOUT_MS: ${{ inputs.minimax_request_timeout_ms }}
         run: |
           set -euo pipefail
           npx tsx scripts/trigger-processor.ts | tee repair.log
@@ -135,6 +151,9 @@ jobs:
           CHUNK_SIZE: ${{ inputs.chunk_size }}
           MAX_MINUTES: ${{ inputs.max_minutes }}
           COOLDOWN_BASE_SECONDS: ${{ inputs.cooldown_base_seconds }}
+          ENABLE_PER_ITEM_FALLBACK: ${{ inputs.enable_per_item_fallback }}
+          CANDIDATE_MULTIPLIER: ${{ inputs.candidate_multiplier }}
+          MINIMAX_REQUEST_TIMEOUT_MS: ${{ inputs.minimax_request_timeout_ms }}
         run: |
           set -euo pipefail
           BEFORE=${{ steps.before.outputs.pending_before }}
@@ -152,6 +171,9 @@ jobs:
           echo "- Chunk Size: ${CHUNK_SIZE}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Max Minutes: ${MAX_MINUTES}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Cooldown Base Seconds: ${COOLDOWN_BASE_SECONDS}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Enable Per-Item Fallback: ${ENABLE_PER_ITEM_FALLBACK}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Candidate Multiplier: ${CANDIDATE_MULTIPLIER}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- MiniMax Timeout Ms: ${MINIMAX_REQUEST_TIMEOUT_MS}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "### Log Tail" >> "$GITHUB_STEP_SUMMARY"
           echo "\`\`\`text" >> "$GITHUB_STEP_SUMMARY"

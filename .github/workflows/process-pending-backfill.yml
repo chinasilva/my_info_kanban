@@ -52,7 +52,7 @@ jobs:
       - name: Run Backfill Processor
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
+          LLM_PROVIDER: minimax
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
@@ -60,12 +60,16 @@ jobs:
           ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
-          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          LLM_MODEL: ${{ vars.MINIMAX_MODEL || 'MiniMax-M2.5' }}
           BACKFILL_BATCH_SIZE: ${{ vars.BACKFILL_BATCH_SIZE || '10' }}
           BACKFILL_MAX_BATCHES: ${{ vars.BACKFILL_MAX_BATCHES || '6' }}
           BACKFILL_MAX_MINUTES: ${{ vars.BACKFILL_MAX_MINUTES || '35' }}
           BACKFILL_CHUNK_SIZE: ${{ vars.BACKFILL_CHUNK_SIZE || '3' }}
           BACKFILL_COOLDOWN_BASE_SECONDS: ${{ vars.BACKFILL_COOLDOWN_BASE_SECONDS || '900' }}
+          BACKFILL_ENABLE_PER_ITEM_FALLBACK: ${{ vars.BACKFILL_ENABLE_PER_ITEM_FALLBACK || 'false' }}
+          BACKFILL_ENABLE_FAILURE_COOLDOWN: ${{ vars.BACKFILL_ENABLE_FAILURE_COOLDOWN || 'true' }}
+          BACKFILL_CANDIDATE_MULTIPLIER: ${{ vars.BACKFILL_CANDIDATE_MULTIPLIER || '6' }}
+          MINIMAX_REQUEST_TIMEOUT_MS: ${{ vars.MINIMAX_REQUEST_TIMEOUT_MS || '75000' }}
         run: |
           set -euo pipefail
           npx tsx scripts/trigger-processor.ts | tee backfill.log
@@ -97,6 +101,10 @@ jobs:
           BACKFILL_MAX_MINUTES: ${{ vars.BACKFILL_MAX_MINUTES || '35' }}
           BACKFILL_CHUNK_SIZE: ${{ vars.BACKFILL_CHUNK_SIZE || '3' }}
           BACKFILL_COOLDOWN_BASE_SECONDS: ${{ vars.BACKFILL_COOLDOWN_BASE_SECONDS || '900' }}
+          BACKFILL_ENABLE_PER_ITEM_FALLBACK: ${{ vars.BACKFILL_ENABLE_PER_ITEM_FALLBACK || 'false' }}
+          BACKFILL_ENABLE_FAILURE_COOLDOWN: ${{ vars.BACKFILL_ENABLE_FAILURE_COOLDOWN || 'true' }}
+          BACKFILL_CANDIDATE_MULTIPLIER: ${{ vars.BACKFILL_CANDIDATE_MULTIPLIER || '6' }}
+          MINIMAX_REQUEST_TIMEOUT_MS: ${{ vars.MINIMAX_REQUEST_TIMEOUT_MS || '75000' }}
         run: |
           echo "## Process Pending Backfill" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -107,6 +115,10 @@ jobs:
           echo "- Max Minutes: ${BACKFILL_MAX_MINUTES:-35}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Chunk Size: ${BACKFILL_CHUNK_SIZE:-3}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Cooldown Base Seconds: ${BACKFILL_COOLDOWN_BASE_SECONDS:-900}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Enable Per-Item Fallback: ${BACKFILL_ENABLE_PER_ITEM_FALLBACK:-false}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Enable Failure Cooldown: ${BACKFILL_ENABLE_FAILURE_COOLDOWN:-true}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Candidate Multiplier: ${BACKFILL_CANDIDATE_MULTIPLIER:-6}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- MiniMax Timeout Ms: ${MINIMAX_REQUEST_TIMEOUT_MS:-75000}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "### Log Tail" >> "$GITHUB_STEP_SUMMARY"
           echo "\`\`\`text" >> "$GITHUB_STEP_SUMMARY"
