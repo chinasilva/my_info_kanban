@@ -9,33 +9,90 @@ permissions:
   contents: read
 
 concurrency:
-  group: process-pending-backfill
+  group: llm-enrichment-jobs
   cancel-in-progress: false
 
 jobs:
   backfill:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
-      - name: Trigger process-pending
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Count Pending (Before)
+        id: before
         env:
-          BACKFILL_JOB_TOKEN: ${{ secrets.BACKFILL_JOB_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           set -euo pipefail
-          curl -sS -f \
-            -H "Authorization: Bearer $BACKFILL_JOB_TOKEN" \
-            "https://signal.binaryworks.app/api/cron/process-pending?batchSize=50&maxBatches=6" \
-            | tee backfill-result.json
+          BEFORE=$(node <<'NODE'
+          const { Client } = require('pg');
+          const client = new Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 10000 });
+          (async () => {
+            await client.connect();
+            const r = await client.query('select count(*)::int as cnt from "Signal" where "aiSummary" is null');
+            await client.end();
+            process.stdout.write(String(r.rows[0].cnt));
+          })().catch(async () => { try { await client.end(); } catch {} process.exit(1); });
+          NODE
+          )
+          echo "pending_before=$BEFORE" >> "$GITHUB_OUTPUT"
+
+      - name: Run Backfill Processor
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+          MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+        run: |
+          set -euo pipefail
+          npx tsx scripts/trigger-processor.ts | tee backfill.log
+
+      - name: Count Pending (After)
+        id: after
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          AFTER=$(node <<'NODE'
+          const { Client } = require('pg');
+          const client = new Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 10000 });
+          (async () => {
+            await client.connect();
+            const r = await client.query('select count(*)::int as cnt from "Signal" where "aiSummary" is null');
+            await client.end();
+            process.stdout.write(String(r.rows[0].cnt));
+          })().catch(async () => { try { await client.end(); } catch {} process.exit(1); });
+          NODE
+          )
+          echo "pending_after=$AFTER" >> "$GITHUB_OUTPUT"
 
       - name: Publish summary
         if: always()
         run: |
           echo "## Process Pending Backfill" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f backfill-result.json ]; then
-            echo "\`\`\`json" >> "$GITHUB_STEP_SUMMARY"
-            cat backfill-result.json >> "$GITHUB_STEP_SUMMARY"
-            echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "No backfill-result.json generated." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "- Pending Before: ${{ steps.before.outputs.pending_before }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Pending After: ${{ steps.after.outputs.pending_after }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Log Tail" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`text" >> "$GITHUB_STEP_SUMMARY"
+          tail -n 80 backfill.log >> "$GITHUB_STEP_SUMMARY" || true
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
