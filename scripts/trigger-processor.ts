@@ -31,13 +31,16 @@ async function triggerProcessor() {
         const maxMinutes = Math.max(parseInt(process.env.BACKFILL_MAX_MINUTES || "35", 10), 1);
         const chunkSize = Math.max(parseInt(process.env.BACKFILL_CHUNK_SIZE || "3", 10), 1);
         const cooldownBaseSeconds = Math.max(parseInt(process.env.BACKFILL_COOLDOWN_BASE_SECONDS || "900", 10), 30);
+        const enablePerItemFallback = (process.env.BACKFILL_ENABLE_PER_ITEM_FALLBACK || "false").toLowerCase() === "true";
+        const enableFailureCooldown = (process.env.BACKFILL_ENABLE_FAILURE_COOLDOWN || "true").toLowerCase() === "true";
+        const candidateMultiplier = Math.max(parseInt(process.env.BACKFILL_CANDIDATE_MULTIPLIER || "6", 10), 1);
         const startAt = Date.now();
 
         let batchCount = 0;
         let totalUpdated = 0;
 
         console.log(
-            `⚙️ Config: batchSize=${batchSize}, maxBatches=${maxBatches}, maxMinutes=${maxMinutes}, chunkSize=${chunkSize}, cooldownBaseSeconds=${cooldownBaseSeconds}`
+            `⚙️ Config: batchSize=${batchSize}, maxBatches=${maxBatches}, maxMinutes=${maxMinutes}, chunkSize=${chunkSize}, cooldownBaseSeconds=${cooldownBaseSeconds}, enablePerItemFallback=${enablePerItemFallback}, enableFailureCooldown=${enableFailureCooldown}, candidateMultiplier=${candidateMultiplier}`
         );
 
         while (true) {
@@ -66,10 +69,10 @@ async function triggerProcessor() {
             // Process a batch
             const result = await processor.processSignals(batchSize, {
                 chunkSize,
-                enablePerItemFallback: true,
-                enableFailureCooldown: true,
+                enablePerItemFallback,
+                enableFailureCooldown,
                 failureCooldownBaseSeconds: cooldownBaseSeconds,
-                candidateMultiplier: 8,
+                candidateMultiplier,
             });
             totalUpdated += result.updated;
             console.log(
