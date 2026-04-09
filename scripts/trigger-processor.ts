@@ -29,13 +29,15 @@ async function triggerProcessor() {
         const batchSize = Math.max(parseInt(process.env.BACKFILL_BATCH_SIZE || "10", 10), 1);
         const maxBatches = Math.max(parseInt(process.env.BACKFILL_MAX_BATCHES || "6", 10), 1);
         const maxMinutes = Math.max(parseInt(process.env.BACKFILL_MAX_MINUTES || "35", 10), 1);
+        const chunkSize = Math.max(parseInt(process.env.BACKFILL_CHUNK_SIZE || "3", 10), 1);
+        const cooldownBaseSeconds = Math.max(parseInt(process.env.BACKFILL_COOLDOWN_BASE_SECONDS || "900", 10), 30);
         const startAt = Date.now();
 
         let batchCount = 0;
         let totalUpdated = 0;
 
         console.log(
-            `⚙️ Config: batchSize=${batchSize}, maxBatches=${maxBatches}, maxMinutes=${maxMinutes}`
+            `⚙️ Config: batchSize=${batchSize}, maxBatches=${maxBatches}, maxMinutes=${maxMinutes}, chunkSize=${chunkSize}, cooldownBaseSeconds=${cooldownBaseSeconds}`
         );
 
         while (true) {
@@ -62,7 +64,13 @@ async function triggerProcessor() {
             console.log(`\n📦 Batch ${batchCount + 1}: Found ${remaining} pending signals.`);
 
             // Process a batch
-            const result = await processor.processSignals(batchSize);
+            const result = await processor.processSignals(batchSize, {
+                chunkSize,
+                enablePerItemFallback: true,
+                enableFailureCooldown: true,
+                failureCooldownBaseSeconds: cooldownBaseSeconds,
+                candidateMultiplier: 8,
+            });
             totalUpdated += result.updated;
             console.log(
                 `✅ Batch ${batchCount + 1} done. fetched=${result.fetched}, updated=${result.updated}`
