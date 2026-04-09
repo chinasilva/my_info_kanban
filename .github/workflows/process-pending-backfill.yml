@@ -64,6 +64,8 @@ jobs:
           BACKFILL_BATCH_SIZE: ${{ vars.BACKFILL_BATCH_SIZE || '10' }}
           BACKFILL_MAX_BATCHES: ${{ vars.BACKFILL_MAX_BATCHES || '6' }}
           BACKFILL_MAX_MINUTES: ${{ vars.BACKFILL_MAX_MINUTES || '35' }}
+          BACKFILL_CHUNK_SIZE: ${{ vars.BACKFILL_CHUNK_SIZE || '3' }}
+          BACKFILL_COOLDOWN_BASE_SECONDS: ${{ vars.BACKFILL_COOLDOWN_BASE_SECONDS || '900' }}
         run: |
           set -euo pipefail
           npx tsx scripts/trigger-processor.ts | tee backfill.log
@@ -93,6 +95,8 @@ jobs:
           BACKFILL_BATCH_SIZE: ${{ vars.BACKFILL_BATCH_SIZE || '10' }}
           BACKFILL_MAX_BATCHES: ${{ vars.BACKFILL_MAX_BATCHES || '6' }}
           BACKFILL_MAX_MINUTES: ${{ vars.BACKFILL_MAX_MINUTES || '35' }}
+          BACKFILL_CHUNK_SIZE: ${{ vars.BACKFILL_CHUNK_SIZE || '3' }}
+          BACKFILL_COOLDOWN_BASE_SECONDS: ${{ vars.BACKFILL_COOLDOWN_BASE_SECONDS || '900' }}
         run: |
           echo "## Process Pending Backfill" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -101,6 +105,8 @@ jobs:
           echo "- Batch Size: ${BACKFILL_BATCH_SIZE:-10}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Max Batches: ${BACKFILL_MAX_BATCHES:-6}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Max Minutes: ${BACKFILL_MAX_MINUTES:-35}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Chunk Size: ${BACKFILL_CHUNK_SIZE:-3}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Cooldown Base Seconds: ${BACKFILL_COOLDOWN_BASE_SECONDS:-900}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "### Log Tail" >> "$GITHUB_STEP_SUMMARY"
           echo "\`\`\`text" >> "$GITHUB_STEP_SUMMARY"
