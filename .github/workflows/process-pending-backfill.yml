@@ -69,7 +69,7 @@ jobs:
           BACKFILL_ENABLE_PER_ITEM_FALLBACK: ${{ vars.BACKFILL_ENABLE_PER_ITEM_FALLBACK || 'false' }}
           BACKFILL_ENABLE_FAILURE_COOLDOWN: ${{ vars.BACKFILL_ENABLE_FAILURE_COOLDOWN || 'true' }}
           BACKFILL_CANDIDATE_MULTIPLIER: ${{ vars.BACKFILL_CANDIDATE_MULTIPLIER || '6' }}
-          MINIMAX_REQUEST_TIMEOUT_MS: ${{ vars.MINIMAX_REQUEST_TIMEOUT_MS || '75000' }}
+          MINIMAX_REQUEST_TIMEOUT_MS: ${{ vars.MINIMAX_REQUEST_TIMEOUT_MS || '120000' }}
         run: |
           set -euo pipefail
           npx tsx scripts/trigger-processor.ts | tee backfill.log
@@ -104,7 +104,7 @@ jobs:
           BACKFILL_ENABLE_PER_ITEM_FALLBACK: ${{ vars.BACKFILL_ENABLE_PER_ITEM_FALLBACK || 'false' }}
           BACKFILL_ENABLE_FAILURE_COOLDOWN: ${{ vars.BACKFILL_ENABLE_FAILURE_COOLDOWN || 'true' }}
           BACKFILL_CANDIDATE_MULTIPLIER: ${{ vars.BACKFILL_CANDIDATE_MULTIPLIER || '6' }}
-          MINIMAX_REQUEST_TIMEOUT_MS: ${{ vars.MINIMAX_REQUEST_TIMEOUT_MS || '75000' }}
+          MINIMAX_REQUEST_TIMEOUT_MS: ${{ vars.MINIMAX_REQUEST_TIMEOUT_MS || '120000' }}
         run: |
           echo "## Process Pending Backfill" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -118,7 +118,7 @@ jobs:
           echo "- Enable Per-Item Fallback: ${BACKFILL_ENABLE_PER_ITEM_FALLBACK:-false}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Enable Failure Cooldown: ${BACKFILL_ENABLE_FAILURE_COOLDOWN:-true}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Candidate Multiplier: ${BACKFILL_CANDIDATE_MULTIPLIER:-6}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- MiniMax Timeout Ms: ${MINIMAX_REQUEST_TIMEOUT_MS:-75000}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- MiniMax Timeout Ms: ${MINIMAX_REQUEST_TIMEOUT_MS:-120000}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "### Log Tail" >> "$GITHUB_STEP_SUMMARY"
           echo "\`\`\`text" >> "$GITHUB_STEP_SUMMARY"

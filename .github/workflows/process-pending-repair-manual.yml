@@ -14,7 +14,7 @@ on:
       chunk_size:
         description: "MiniMax chunk size inside each batch"
         required: true
-        default: "6"
+        default: "3"
       max_minutes:
         description: "Safety max runtime minutes"
         required: true
@@ -26,7 +26,7 @@ on:
       enable_per_item_fallback:
         description: "Fallback single-item request when batch item fails (higher request count)"
         required: true
-        default: "false"
+        default: "true"
       candidate_multiplier:
         description: "Candidate pool multiplier for each batch"
         required: true
@@ -34,7 +34,7 @@ on:
       minimax_request_timeout_ms:
         description: "MiniMax request timeout in milliseconds"
         required: true
-        default: "75000"
+        default: "120000"
 
 permissions:
   contents: read

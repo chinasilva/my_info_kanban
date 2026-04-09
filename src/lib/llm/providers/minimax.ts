@@ -9,15 +9,96 @@ interface MiniMaxApiResponse {
     content?: MiniMaxTextBlock[];
 }
 
+interface MiniMaxErrorPayload {
+    error?: {
+        message?: string;
+        type?: string;
+    };
+    message?: string;
+    base_resp?: {
+        status_code?: number;
+        status_msg?: string;
+    };
+}
+
+const TRANSIENT_MINIMAX_CODES = new Set([1000, 1001, 1002, 1013, 1024, 1033, 1041, 2045]);
+const TRANSIENT_ERROR_PATTERNS = [
+    /timeout/i,
+    /unknown error/i,
+    /internal server error/i,
+    /temporarily unavailable/i,
+    /fetch failed/i,
+    /network/i,
+    /socket hang up/i,
+    /connection reset/i,
+];
+
+class MiniMaxRequestError extends Error {
+    status?: number;
+    code?: number;
+    retryAfterMs?: number;
+
+    constructor(message: string, options: { status?: number; code?: number; retryAfterMs?: number } = {}) {
+        super(message);
+        this.name = 'MiniMaxRequestError';
+        this.status = options.status;
+        this.code = options.code;
+        this.retryAfterMs = options.retryAfterMs;
+    }
+}
+
 function extractTextBlock(response: MiniMaxApiResponse): string | null {
     const textBlock = response.content?.find((block) => block.type === 'text');
     return textBlock?.text?.trim() || null;
 }
 
+function parseMiniMaxErrorPayload(raw: string): { code?: number; detail: string } {
+    try {
+        const payload = JSON.parse(raw) as MiniMaxErrorPayload;
+        const code = payload.base_resp?.status_code;
+        const detail =
+            payload.error?.message ||
+            payload.message ||
+            payload.base_resp?.status_msg ||
+            raw;
+
+        return {
+            code,
+            detail: detail?.trim() || raw,
+        };
+    } catch {
+        const codeMatch = raw.match(/\((\d{4})\)/);
+        return {
+            code: codeMatch ? Number(codeMatch[1]) : undefined,
+            detail: raw.trim() || 'Unknown error',
+        };
+    }
+}
+
+function parseRetryAfterMs(value: string | null): number | undefined {
+    if (!value) return undefined;
+
+    const seconds = Number(value);
+    if (Number.isFinite(seconds)) {
+        return Math.max(0, Math.floor(seconds * 1000));
+    }
+
+    const dateMs = Date.parse(value);
+    if (!Number.isNaN(dateMs)) {
+        return Math.max(0, dateMs - Date.now());
+    }
+
+    return undefined;
+}
+
 function isRateLimitError(error: unknown): boolean {
     if (!error || typeof error !== "object") return false;
-    const candidate = error as { status?: number; message?: string };
-    return candidate.status === 429 || candidate.message?.includes('rate_limit') === true;
+    const candidate = error as { status?: number; message?: string; code?: number };
+    return (
+        candidate.status === 429 ||
+        candidate.code === 1002 ||
+        candidate.message?.includes('rate_limit') === true
+    );
 }
 
 function isJsonError(error: unknown): boolean {
@@ -25,6 +106,27 @@ function isJsonError(error: unknown): boolean {
     if (!error || typeof error !== "object") return false;
     const candidate = error as { message?: string };
     return candidate.message?.includes('JSON') === true;
+}
+
+function isTransientMiniMaxError(error: unknown): boolean {
+    if (error instanceof MiniMaxRequestError) {
+        if (error.status === 429 || (typeof error.status === "number" && error.status >= 500)) {
+            return true;
+        }
+        if (typeof error.code === "number" && TRANSIENT_MINIMAX_CODES.has(error.code)) {
+            return true;
+        }
+    }
+
+    if (!error || typeof error !== "object") return false;
+    const candidate = error as { message?: string };
+    return TRANSIENT_ERROR_PATTERNS.some((pattern) => pattern.test(candidate.message || ""));
+}
+
+function getRetryDelayMs(attempt: number, baseDelay: number, retryAfterMs?: number): number {
+    const backoffDelay = Math.min(baseDelay * Math.pow(2, attempt), 15_000);
+    const jitter = Math.floor(Math.random() * 500);
+    return Math.max(retryAfterMs ?? 0, backoffDelay + jitter);
 }
 
 export class MiniMaxClient implements LLMClient {
@@ -36,7 +138,7 @@ export class MiniMaxClient implements LLMClient {
     constructor(apiKey: string, baseUrl?: string, model?: string) {
         this.apiKey = apiKey;
         this.baseUrl = baseUrl || 'https://api.minimaxi.com/anthropic';
-        this.model = model || 'claude-sonnet-4-20250514';
+        this.model = model || 'MiniMax-M2.5';
         this.requestTimeoutMs = Math.max(
             10_000,
             Number(process.env.MINIMAX_REQUEST_TIMEOUT_MS || "45000")
@@ -60,7 +162,9 @@ export class MiniMaxClient implements LLMClient {
             });
         } catch (error) {
             if (error instanceof Error && error.name === "AbortError") {
-                throw new Error(`MiniMax API timeout after ${this.requestTimeoutMs}ms`);
+                throw new MiniMaxRequestError(`MiniMax API timeout after ${this.requestTimeoutMs}ms`, {
+                    code: 1001,
+                });
             }
             throw error;
         } finally {
@@ -68,11 +172,30 @@ export class MiniMaxClient implements LLMClient {
         }
 
         if (!response.ok) {
-            const error = await response.text();
-            throw new Error(`MiniMax API error: ${response.status} - ${error}`);
+            const errorText = await response.text();
+            const { code, detail } = parseMiniMaxErrorPayload(errorText);
+            throw new MiniMaxRequestError(`MiniMax API error: ${response.status} - ${detail}`, {
+                status: response.status,
+                code,
+                retryAfterMs: parseRetryAfterMs(response.headers.get('retry-after')),
+            });
         }
 
         return response.json();
+    }
+
+    private async waitBeforeRetry(retries: number, baseDelay: number, error: unknown, label: string): Promise<boolean> {
+        const canRetry = isJsonError(error) || isRateLimitError(error) || isTransientMiniMaxError(error);
+        if (!canRetry) {
+            return false;
+        }
+
+        const retryAfterMs = error instanceof MiniMaxRequestError ? error.retryAfterMs : undefined;
+        const delay = getRetryDelayMs(retries, baseDelay, retryAfterMs);
+        const detail = error instanceof Error ? error.message : String(error);
+        console.warn(`${label}. Retrying attempt ${retries + 1} after ${delay}ms. ${detail}`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return true;
     }
 
     async generateSummaryAndCategory(title: string, content: string): Promise<ProcessingResult> {
@@ -91,11 +214,12 @@ Output JSON format:
     "aiSummaryZh": "Chinese summary",
     "titleTranslated": "Chinese translation of the title"
 }
+Return valid raw JSON only. Do not wrap the response in markdown fences or add any commentary.
 `;
 
         let retries = 0;
         const maxRetries = 5;
-        const baseDelay = 1000;
+        const baseDelay = 1500;
 
         while (retries <= maxRetries) {
             try {
@@ -113,28 +237,17 @@ Output JSON format:
 
                 return JSON.parse(contentStr) as ProcessingResult;
             } catch (error: unknown) {
-                // Handle JSON parse errors with retry
-                if (isJsonError(error)) {
-                    console.warn(`JSON parse error. Retrying attempt ${retries + 1}/${maxRetries}...`);
-                    if (retries < maxRetries) {
-                        const delay = baseDelay * Math.pow(2, retries);
-                        await new Promise(resolve => setTimeout(resolve, delay));
+                if (retries < maxRetries) {
+                    const didWait = await this.waitBeforeRetry(
+                        retries,
+                        baseDelay,
+                        error,
+                        'MiniMax single-item request failed'
+                    );
+                    if (didWait) {
                         retries++;
                         continue;
                     }
-                }
-
-                if (isRateLimitError(error)) {
-                    console.warn(`Rate limit exceeded. Retrying attempt ${retries + 1}/${maxRetries}...`);
-                    if (retries === maxRetries) {
-                        console.error('Max retries reached for rate limiting.');
-                        break;
-                    }
-
-                    const delay = baseDelay * Math.pow(2, retries);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                    retries++;
-                    continue;
                 }
 
                 console.error('MiniMax LLM Error:', error);
@@ -171,11 +284,13 @@ Output JSON array format (one object per item, in the same order):
     {"index": 2, "summary": "...", "category": "...", ...}
 ]
 Each summary should be max 2 sentences. Category must be one of: AI, Crypto, Tech, Startups, Design, Other.
+Return valid raw JSON only. Do not wrap the response in markdown fences or add any commentary.
 `;
 
         let retries = 0;
         const maxRetries = 5;
-        const baseDelay = 1000;
+        const baseDelay = 1500;
+        const batchMaxTokens = Math.min(4096, Math.max(2048, signals.length * 512));
 
         while (retries <= maxRetries) {
             try {
@@ -183,7 +298,7 @@ Each summary should be max 2 sentences. Category must be one of: AI, Crypto, Tec
                 const response = await this.callApi('/v1/messages', {
                     model: this.model,
                     messages: [{ role: 'user', content: prompt }],
-                    max_tokens: 8192,  // 增大输出限制
+                    max_tokens: batchMaxTokens,
                 });
 
                 // 解析响应并关联 signalId
@@ -221,28 +336,17 @@ Each summary should be max 2 sentences. Category must be one of: AI, Crypto, Tec
                         return acc;
                     }, []);
             } catch (error: unknown) {
-                // Handle JSON parse errors with retry
-                if (isJsonError(error)) {
-                    console.warn(`Batch JSON parse error. Retrying attempt ${retries + 1}/${maxRetries}...`);
-                    if (retries < maxRetries) {
-                        const delay = baseDelay * Math.pow(2, retries);
-                        await new Promise(resolve => setTimeout(resolve, delay));
+                if (retries < maxRetries) {
+                    const didWait = await this.waitBeforeRetry(
+                        retries,
+                        baseDelay,
+                        error,
+                        'MiniMax batch request failed'
+                    );
+                    if (didWait) {
                         retries++;
                         continue;
                     }
-                }
-
-                if (isRateLimitError(error)) {
-                    console.warn(`Batch rate limit exceeded. Retrying attempt ${retries + 1}/${maxRetries}...`);
-                    if (retries === maxRetries) {
-                        console.error('Max retries reached for rate limiting.');
-                        break;
-                    }
-
-                    const delay = baseDelay * Math.pow(2, retries);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                    retries++;
-                    continue;
                 }
 
                 console.error('MiniMax Batch LLM Error:', error);
