@@ -10,11 +10,11 @@ on:
       batch_size:
         description: "Items per batch"
         required: true
-        default: "10"
+        default: "5"
       chunk_size:
         description: "MiniMax chunk size inside each batch"
         required: true
-        default: "2"
+        default: "1"
       max_minutes:
         description: "Safety max runtime minutes"
         required: true
