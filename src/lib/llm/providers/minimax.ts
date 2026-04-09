@@ -31,22 +31,41 @@ export class MiniMaxClient implements LLMClient {
     private apiKey: string;
     private baseUrl: string;
     private model: string;
+    private requestTimeoutMs: number;
 
     constructor(apiKey: string, baseUrl?: string, model?: string) {
         this.apiKey = apiKey;
         this.baseUrl = baseUrl || 'https://api.minimaxi.com/anthropic';
         this.model = model || 'claude-sonnet-4-20250514';
+        this.requestTimeoutMs = Math.max(
+            10_000,
+            Number(process.env.MINIMAX_REQUEST_TIMEOUT_MS || "45000")
+        );
     }
 
     private async callApi(endpoint: string, body: object): Promise<MiniMaxApiResponse> {
-        const response = await fetch(`${this.baseUrl}${endpoint}`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body),
-        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
+        let response: Response;
+
+        try {
+            response = await fetch(`${this.baseUrl}${endpoint}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body),
+                signal: controller.signal,
+            });
+        } catch (error) {
+            if (error instanceof Error && error.name === "AbortError") {
+                throw new Error(`MiniMax API timeout after ${this.requestTimeoutMs}ms`);
+            }
+            throw error;
+        } finally {
+            clearTimeout(timeout);
+        }
 
         if (!response.ok) {
             const error = await response.text();
