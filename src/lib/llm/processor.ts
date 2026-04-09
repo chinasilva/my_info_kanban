@@ -2,11 +2,11 @@ import { prisma } from "../prisma/db";
 import { LLMFactory } from "./factory";
 
 export class SignalProcessor {
-    async processSignals(batchSize: number = 20) {
+    async processSignals(batchSize: number = 20): Promise<{ requested: number; updated: number; fetched: number }> {
         const client = LLMFactory.createClient();
         if (!client) {
             console.log("LLM client not configured, skipping enrichment.");
-            return;
+            return { requested: batchSize, updated: 0, fetched: 0 };
         }
 
         // Find signals that need AI summary (aiSummary is null)
@@ -24,7 +24,7 @@ export class SignalProcessor {
         console.log(`Found ${signals.length} signals to process.`);
 
         if (signals.length === 0) {
-            return;
+            return { requested: batchSize, updated: 0, fetched: 0 };
         }
 
         // 准备批量数据
@@ -41,7 +41,7 @@ export class SignalProcessor {
 
             if (results.length === 0) {
                 console.warn('Batch processing returned no results.');
-                return;
+                return { requested: batchSize, updated: 0, fetched: signals.length };
             }
 
             // 逐个更新数据库
@@ -71,8 +71,10 @@ export class SignalProcessor {
                 }
             }
             console.log(`Enriched ${successCount}/${results.length} signals.`);
+            return { requested: batchSize, updated: successCount, fetched: signals.length };
         } catch (error) {
             console.error('Batch processing failed:', error);
+            return { requested: batchSize, updated: 0, fetched: signals.length };
         }
     }
 }

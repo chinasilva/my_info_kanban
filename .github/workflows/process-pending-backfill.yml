@@ -61,6 +61,9 @@ jobs:
           MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          BACKFILL_BATCH_SIZE: ${{ vars.BACKFILL_BATCH_SIZE || '10' }}
+          BACKFILL_MAX_BATCHES: ${{ vars.BACKFILL_MAX_BATCHES || '6' }}
+          BACKFILL_MAX_MINUTES: ${{ vars.BACKFILL_MAX_MINUTES || '35' }}
         run: |
           set -euo pipefail
           npx tsx scripts/trigger-processor.ts | tee backfill.log
@@ -86,11 +89,18 @@ jobs:
 
       - name: Publish summary
         if: always()
+        env:
+          BACKFILL_BATCH_SIZE: ${{ vars.BACKFILL_BATCH_SIZE || '10' }}
+          BACKFILL_MAX_BATCHES: ${{ vars.BACKFILL_MAX_BATCHES || '6' }}
+          BACKFILL_MAX_MINUTES: ${{ vars.BACKFILL_MAX_MINUTES || '35' }}
         run: |
           echo "## Process Pending Backfill" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- Pending Before: ${{ steps.before.outputs.pending_before }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Pending After: ${{ steps.after.outputs.pending_after }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Batch Size: ${BACKFILL_BATCH_SIZE:-10}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Max Batches: ${BACKFILL_MAX_BATCHES:-6}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Max Minutes: ${BACKFILL_MAX_MINUTES:-35}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "### Log Tail" >> "$GITHUB_STEP_SUMMARY"
           echo "\`\`\`text" >> "$GITHUB_STEP_SUMMARY"
